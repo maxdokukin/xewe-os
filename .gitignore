@@ -2,3 +2,4 @@
 /build/lib
 /build/tools
 .DS_Store
+.idea/

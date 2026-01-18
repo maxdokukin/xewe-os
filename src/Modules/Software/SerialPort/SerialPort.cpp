@@ -9,7 +9,7 @@
  *********************************************************************************/
 // src/Modules/SerialPort/SerialPort.cpp
 #include "SerialPort.h"
-#include "../../SystemController/SystemController.h"
+#include "../../../SystemController/SystemController.h"
 #include <cstring>  // strlen
 
 SerialPort::SerialPort(SystemController& controller)

@@ -26,8 +26,8 @@
 #include <sys/time.h>
 
 
-#include "../../Module/Module.h"
-#include "../../build_info.h"
+#include "../../Module.h"
+#include "../../../build_info.h"
 
 
 struct SystemConfig : public ModuleConfig {};

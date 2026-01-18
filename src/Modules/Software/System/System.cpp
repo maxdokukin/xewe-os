@@ -10,7 +10,7 @@
 // src/Modules/Software/System/System.cpp
 
 #include "System.h"
-#include "../../SystemController/SystemController.h"
+#include "../../../SystemController/SystemController.h"
 
 #include <Arduino.h>
 #include <Wire.h>

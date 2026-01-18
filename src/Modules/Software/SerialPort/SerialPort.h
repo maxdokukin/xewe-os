@@ -10,7 +10,7 @@
 // src/Modules/SerialPort/SerialPort.h
 #pragma once
 
-#include "../../Module/Module.h"
+#include "../../Module.h"
 
 #include <optional>
 

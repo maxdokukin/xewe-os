@@ -10,7 +10,7 @@
 // src/Modules/Software/CommandParser/CommandParser.h
 #pragma once
 
-#include "../../Module/Module.h"
+#include "../../Module.h"
 //#include "../../../Config.h"
 //#include "../../../Debug.h"
 

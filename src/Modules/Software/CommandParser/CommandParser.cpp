@@ -13,7 +13,7 @@
 // src/Modules/Software/CommandParser/CommandParser.cpp
 
 #include "CommandParser.h"
-#include "../../SystemController/SystemController.h"
+#include "../../../SystemController/SystemController.h"
 
 CommandParser::CommandParser(SystemController& controller)
       : Module(controller,

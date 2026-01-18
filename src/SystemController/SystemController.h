@@ -11,11 +11,11 @@
 
 #include <vector>
 
-#include "../Module/Module.h"
-#include "../Modules/SerialPort/SerialPort.h"
-#include "../Modules/Nvs/Nvs.h"
-#include "../Modules/System/System.h"
-#include "../Modules/CommandParser/CommandParser.h"
+#include "../Modules/Module.h"
+#include "../Modules/Software/SerialPort/SerialPort.h"
+#include "../Modules/Software/Nvs/Nvs.h"
+#include "../Modules/Software/System/System.h"
+#include "../Modules/Software/CommandParser/CommandParser.h"
 constexpr size_t MODULE_COUNT    = 4;
 
 class SystemController {

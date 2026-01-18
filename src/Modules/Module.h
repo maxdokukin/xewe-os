@@ -15,7 +15,7 @@
 #include <utility>
 #include <vector>
 
-#include "../Config.h"
+#include "../../Config.h"
 #include "../Debug.h"
 #include "../XeWeStringUtils.h"
 

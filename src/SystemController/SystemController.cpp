@@ -33,6 +33,8 @@ void SystemController::begin() {
     nvs.begin                   (NvsConfig          {});
     system.begin                (SystemConfig       {});
     wifi.begin                  (WifiConfig         {});
+
+    buttons.add_requirement     (wifi                 );
     buttons.begin               (ButtonsConfig      {});
 
     // should be initialized last to collect all cmds

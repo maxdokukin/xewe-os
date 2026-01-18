@@ -31,8 +31,6 @@ public:
 
     void                        enable                      (const bool verbose=false,
                                                              const bool do_restart=true)    override;
-    void                        disable                     (const bool verbose=false,
-                                                             const bool do_restart=true)    override;
     void                        reset                       (const bool verbose=false,
                                                              const bool do_restart=true)    override;
 

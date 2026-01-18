@@ -107,6 +107,28 @@ void Module::disable(const bool verbose, const bool do_restart) {
         if (verbose) Serial.printf("%s module can't be disabled\n", module_name.c_str());
         return;
     }
+
+    bool disable_confirmed = true;
+
+    if (verbose) {
+        std::string msg = "[WARNING]\nDisabling " + module_name + "\nWill reset it";
+        if (!dependent_modules.empty()) {
+            msg += ", and all dependents: \\sep";
+            for (auto* m : dependent_modules) {
+                msg += m->module_name + "\n";
+            }
+            if (!msg.empty() && msg.back() == '\n')
+               msg.pop_back();
+        }
+        controller.serial_port.print_header(msg);
+        disable_confirmed = controller.serial_port.get_yn("OK?");
+    }
+
+    if (!disable_confirmed) {
+        controller.serial_port.print("Aborted");
+        return;
+    }
+
     if (!dependent_modules.empty()) {
         for (auto* m : dependent_modules) {
             if (verbose) Serial.printf("disabled %s module\n", m->module_name.c_str());

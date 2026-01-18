@@ -17,30 +17,23 @@ struct ButtonsConfig : public ModuleConfig {};
 
 class Buttons : public Module {
 public:
-    explicit                    Buttons                  (SystemController& controller);
+    explicit                    Buttons                     (SystemController& controller);
 
     void                        begin_routines_regular      (const ModuleConfig& cfg)       override;
 
     void                        loop                        ()                              override;
 
-    void                        enable                      (const bool verbose=false,
-                                                             const bool do_restart=true)    override;
-    void                        disable                     (const bool verbose=false,
-                                                             const bool do_restart=true)    override;
     void                        reset                       (const bool verbose=false,
                                                              const bool do_restart=true)    override;
 
     string                      status                      (const bool verbose=false)      const override;
 
-    void                        load_configs            (const std::vector<std::string>& configs);
-    bool                        add_button_from_config  (const std::string& config);
-    void                        remove_button           (uint8_t pin);
-    std::string                 get_live_status         () const;
+    void                        load_configs                (const std::vector<std::string>& configs);
+    bool                        add_button_from_config      (const std::string& config);
+    void                        remove_button               (uint8_t pin);
+    std::string                 get_live_status             () const;
 
 private:
-    enum                        InputMode               { BUTTON_PULLUP, BUTTON_PULLDOWN };
-    enum                        TriggerEvent            { BUTTON_ON_PRESS, BUTTON_ON_RELEASE, BUTTON_ON_CHANGE };
-
     struct Button {
         uint8_t pin;
         std::string command;
@@ -52,19 +45,22 @@ private:
         int last_flicker_state;
     };
 
-    bool                        parse_config_string     (const std::string& config, Button& button);
+    enum                        InputMode                   { BUTTON_PULLUP, BUTTON_PULLDOWN };
+    enum                        TriggerEvent                { BUTTON_ON_PRESS, BUTTON_ON_RELEASE, BUTTON_ON_CHANGE };
 
-    void                        load_from_nvs           ();
-    bool                        nvs_has_pin             (const std::string& pin_str) const;
-    bool                        nvs_remove_by_pin       (const std::string& pin_str);
-    void                        nvs_append_config       (const std::string& cfg);
-    void                        nvs_clear_all           ();
-    static std::string          pin_prefix              (const std::string& cfg);
+    bool                        parse_config_string         (const std::string& config, Button& button);
 
-    void                        button_add_cli                 (std::string_view args);
-    void                        button_remove_cli              (std::string_view args);
+    void                        load_from_nvs               ();
+    bool                        nvs_has_pin                 (const std::string& pin_str) const;
+    bool                        nvs_remove_by_pin           (const std::string& pin_str);
+    void                        nvs_append_config           (const std::string& cfg);
+    void                        nvs_clear_all               ();
+    static std::string          pin_prefix                  (const std::string& cfg);
+
+    void                        button_add_cli              (std::string_view args);
+    void                        button_remove_cli           (std::string_view args);
 
     std::vector<Button>         buttons;
-    bool                        loaded_from_nvs{false};
+    bool                        loaded_from_nvs             {false};
 };
 

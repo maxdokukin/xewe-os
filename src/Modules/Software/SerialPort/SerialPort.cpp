@@ -225,22 +225,23 @@ void SerialPort::print_header(std::string_view message,
     }
 }
 
-void SerialPort::print_table(const std::vector<std::vector<std::string_view>>& table,
+void SerialPort::print_table(const vector<vector<string_view>>& table,
+                             string_view header_content,
                              const uint16_t max_col_width,
-                             std::string_view edge_character,
-                             std::string_view cross_edge_character,
-                             std::string_view sep_fill) {
+                             string_view edge_character,
+                             string_view cross_edge_character,
+                             string_view sep_fill) {
     if (table.empty()) return;
 
     // 1. Calculate Column Widths
     size_t num_cols = 0;
-    for (const auto& row : table) num_cols = std::max(num_cols, row.size());
+    for (const auto& row : table) num_cols = max(num_cols, row.size());
 
-    std::vector<uint16_t> col_widths(num_cols, 0);
+    vector<uint16_t> col_widths(num_cols, 0);
 
     for (const auto& row : table) {
         for (size_t c = 0; c < row.size(); ++c) {
-            // Raw length + 1 space left + 1 space right
+            // Width = Length + 1 space left + 1 space right
             size_t req_width = row[c].length() + 2;
             if (req_width > max_col_width) req_width = max_col_width;
 
@@ -250,16 +251,20 @@ void SerialPort::print_table(const std::vector<std::vector<std::string_view>>& t
         }
     }
 
-    // Helper: Print a divider line (e.g., +-----+-----+)
-    auto print_divider = [&]() {
-        std::string line;
-        line.reserve(128); // rough estimate
+    // 2. Calculate Total Table Width
+    // Formula: Edge + (Col1 + Edge) + (Col2 + Edge) ...
+    size_t total_table_width = edge_character.size();
+    for (auto w : col_widths) {
+        total_table_width += w + edge_character.size();
+    }
+
+    // Helper: Print a complex divider (e.g., +-----+-----+)
+    auto print_complex_divider = [&]() {
+        string line;
+        line.reserve(total_table_width);
         line.append(cross_edge_character);
         for (size_t c = 0; c < num_cols; ++c) {
-            // repeat sep_fill for col_widths[c] times
             for (size_t k = 0; k < col_widths[c]; ++k) {
-                // Handle multi-char fill pattern by modulo if needed,
-                // but usually fill is 1 char ("-").
                 if (!sep_fill.empty())
                     line += sep_fill[k % sep_fill.size()];
                 else
@@ -270,66 +275,71 @@ void SerialPort::print_table(const std::vector<std::vector<std::string_view>>& t
         write_line_crlf(line);
     };
 
-    // Helper: Wrap text (simple logic to match request if wrap_words isn't exposed)
-    auto get_wrapped_lines = [&](std::string_view text, uint16_t width) -> std::vector<std::string> {
-        // Effective width for text is width - 2 (margins)
-        if (width <= 2) return { std::string(text) }; // Edge case
-
-        // Use existing wrap logic from 'print' if available, otherwise utilize this:
-        // Assuming we rely on the same 'wrap_words' logic your `print` function uses.
-        // If wrap_words is not accessible, here is a bridge:
-        return wrap_words(std::string(text), width - 2);
+    // Helper: Wrap text (Uses existing word wrapping logic)
+    auto get_wrapped_lines = [&](string_view text, uint16_t width) -> vector<string> {
+        if (width <= 2) return { string(text) };
+        return wrap_words(string(text), width - 2);
     };
 
-    // 2. Print Top of Table
-    print_divider();
+    // 3. Print Header (if exists)
+    if (!header_content.empty()) {
+        // A. Print Top Solid Line
+        print_separator(static_cast<uint16_t>(total_table_width), sep_fill, cross_edge_character);
 
-    // 3. Print Rows
+        // B. Print Centered Header Text
+        // We reuse the existing 'print' function to handle centering, wrapping, and boxing automatically.
+        // Content width = Total - 2 * Edge
+        uint16_t header_content_width = static_cast<uint16_t>(total_table_width - (edge_character.size() * 2));
+        print(header_content, kCRLF, edge_character, 'c', 'w', header_content_width, 0, 0);
+    }
+
+    // 4. Print Table Body
+    // If we had a header, this divider separates Header from Data.
+    // If no header, this is the top of the table.
+    print_complex_divider();
+
     for (const auto& row : table) {
-        // Pre-calculate wrapped blocks for this row to determine height
-        std::vector<std::vector<std::string>> row_blocks;
+        // Pre-calculate wrapped blocks
+        vector<vector<string>> row_blocks;
         size_t max_row_height = 0;
 
-        // Process each column in this row
         for (size_t c = 0; c < num_cols; ++c) {
-            std::string_view entry = (c < row.size()) ? row[c] : "";
-            std::vector<std::string> wrapped = get_wrapped_lines(entry, col_widths[c]);
-            if (wrapped.empty()) wrapped.push_back(""); // ensure at least one empty line
-            max_row_height = std::max(max_row_height, wrapped.size());
-            row_blocks.push_back(std::move(wrapped));
+            string_view entry = (c < row.size()) ? row[c] : "";
+            vector<string> wrapped = get_wrapped_lines(entry, col_widths[c]);
+            if (wrapped.empty()) wrapped.push_back("");
+            max_row_height = max(max_row_height, wrapped.size());
+            row_blocks.push_back(move(wrapped));
         }
 
-        // Print physical lines for this row
+        // Print physical lines
         for (size_t h = 0; h < max_row_height; ++h) {
-            std::string line_out;
-            line_out.reserve(128);
+            string line_out;
+            line_out.reserve(total_table_width);
             line_out.append(edge_character);
 
             for (size_t c = 0; c < num_cols; ++c) {
-                // Get the text segment for this height, or empty if done
-                std::string segment = (h < row_blocks[c].size()) ? row_blocks[c][h] : "";
+                string segment = (h < row_blocks[c].size()) ? row_blocks[c][h] : "";
 
-                // Add margins and padding
-                // Logic: " " + segment + padding + " "
-                line_out += ' '; // Left margin
+                // Left Margin
+                line_out += ' ';
                 line_out += segment;
 
-                // Calculate remaining padding
-                size_t current_content_len = segment.length();
-                size_t target_content_len  = static_cast<size_t>(col_widths[c]) - 2; // -2 for margins
+                // Right Padding
+                size_t current_len = segment.length();
+                size_t target_len  = static_cast<size_t>(col_widths[c]) - 2;
 
-                if (target_content_len > current_content_len) {
-                    line_out.append(target_content_len - current_content_len, ' ');
+                if (target_len > current_len) {
+                    line_out.append(target_len - current_len, ' ');
                 }
 
-                line_out += ' '; // Right margin
+                line_out += ' '; // Right Margin
                 line_out += edge_character;
             }
             write_line_crlf(line_out);
         }
 
-        // Print Separator between rows
-        print_divider();
+        // Separator between rows
+        print_complex_divider();
     }
 }
 

@@ -67,6 +67,7 @@ public:
                                                              string_view            sep_fill                = "-"
                                                             );
     void                        print_table                 (const vector<vector<string_view>>& table,
+                                                             string_view            header_content          = {},
                                                              const uint16_t         max_col_width           = 40,
                                                              string_view            edge_character          = "|",
                                                              string_view            cross_edge_character    = "+",

@@ -7,17 +7,21 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
-// <filepath from project root>
+// src/Modules/Hardware/Pins/Pins.h
 #pragma once
 
-#include "../../Module/Module/Module.h"
+#include "../../Module/Module.h"
 
-struct ModuleNameConfig : public ModuleConfig {};
+#include <Arduino.h>
+#include <Wire.h>
+#include <sstream>
+
+struct PinsConfig : public ModuleConfig {};
 
 
-class ModuleName : public Module {
+class Pins : public Module {
 public:
-    explicit                    ModuleName                  (SystemController& controller);
+    explicit                    Pins                        (SystemController& controller);
 
     void                        begin_routines_required     (const ModuleConfig& cfg)       override;
     void                        begin_routines_init         (const ModuleConfig& cfg)       override;

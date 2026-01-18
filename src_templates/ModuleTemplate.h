@@ -10,7 +10,7 @@
 // <filepath from project root>
 #pragma once
 
-#include "../../Module/Module/Module.h"
+#include "../../Module/Module.h"
 
 struct ModuleNameConfig : public ModuleConfig {};
 

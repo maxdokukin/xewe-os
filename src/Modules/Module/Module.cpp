@@ -15,9 +15,7 @@
 void Module::begin (const ModuleConfig& cfg) {
     DBG_PRINTF(Module, "'%s'->begin(): Called.\n", module_name.c_str());
     if (requires_init_setup) {
-        // controller.serial_port.print_spacer();
-        // controller.serial_port.print_centered(capitalize(module_name) + " Setup");
-        // controller.serial_port.print_spacer();
+         controller.serial_port.print_header(capitalize(module_name) + " Setup");
     }
 
     bool first_boot = !controller.nvs.read_bool(nvs_key, "not_first_boot");
@@ -37,7 +35,8 @@ void Module::begin (const ModuleConfig& cfg) {
 
     if (first_boot) {
         if (can_be_disabled) {
-            enabled = true;// controller.serial_port.prompt_user_yn(string("Would you like to enable ") + capitalize(module_name) + " module?\n" + module_description, 0);
+            enabled = controller.serial_port.get_yn(string("Would you like to enable ") + capitalize(module_name) + " module?\n" + module_description);
+
             if (!enabled) {
                 controller.nvs.write_bool(nvs_key, "is_enabled", false);
                 controller.nvs.write_bool(nvs_key, "not_first_boot", true);
@@ -60,7 +59,7 @@ void Module::begin (const ModuleConfig& cfg) {
 
 void Module::begin_routines_required(const ModuleConfig&) {}
 void Module::begin_routines_init(const ModuleConfig&) {}
-void Module::begin_routines_regular(const ModuleConfig&) { /* controller.serial_port.println(module_name + " setup complete");*/ }
+void Module::begin_routines_regular(const ModuleConfig&) { /* controller.serial_port.print(module_name + " setup complete"); */ }
 void Module::begin_routines_common(const ModuleConfig&) {}
 
 void Module::loop() {}

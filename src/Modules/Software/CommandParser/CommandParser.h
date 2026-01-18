@@ -11,8 +11,6 @@
 #pragma once
 
 #include "../../Module/Module.h"
-//#include "../../../Config.h"
-//#include "../../../Debug.h"
 
 
 struct CommandParserConfig : public ModuleConfig {

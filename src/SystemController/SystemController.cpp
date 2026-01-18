@@ -16,12 +16,14 @@ SystemController::SystemController()
   , system(*this)
   , command_parser(*this)
   , wifi(*this)
+  , buttons(*this)
 {
     modules[0] = &serial_port;
     modules[1] = &nvs;
     modules[2] = &system;
     modules[3] = &command_parser;
     modules[4] = &wifi;
+    modules[5] = &buttons;
 }
 
 void SystemController::begin() {
@@ -31,6 +33,7 @@ void SystemController::begin() {
     nvs.begin                   (NvsConfig          {});
     system.begin                (SystemConfig       {});
     wifi.begin                  (WifiConfig         {});
+    buttons.begin               (ButtonsConfig      {});
 
     // should be initialized last to collect all cmds
     command_parser.begin        (CommandParserConfig(modules, MODULE_COUNT));

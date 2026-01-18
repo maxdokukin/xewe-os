@@ -9,15 +9,16 @@
  *********************************************************************************/
 #pragma once
 
-//#include <vector>
-
 #include "../Modules/Module/Module.h"
 #include "../Modules/Software/SerialPort/SerialPort.h"
 #include "../Modules/Software/Nvs/Nvs.h"
 #include "../Modules/Software/System/System.h"
 #include "../Modules/Software/CommandParser/CommandParser.h"
 #include "../Modules/Software/Wifi/Wifi.h"
-constexpr size_t MODULE_COUNT    = 5;
+
+#include "../Modules/Hardware/Buttons/Buttons.h"
+constexpr size_t MODULE_COUNT    = 6;
+
 
 class SystemController {
 public:
@@ -31,6 +32,8 @@ public:
     System                      system;
     CommandParser               command_parser;
     Wifi                        wifi;
+    Buttons                     buttons;
+
 private:
     Module*                     modules                     [MODULE_COUNT] = {};
 };

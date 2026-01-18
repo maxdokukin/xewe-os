@@ -12,7 +12,6 @@
 
 #include "../../Module/Module/Module.h"
 
-
 struct ModuleNameConfig : public ModuleConfig {};
 
 
@@ -20,7 +19,6 @@ class ModuleName : public Module {
 public:
     explicit                    ModuleName                  (SystemController& controller);
 
-    // optional implementation
     void                        begin_routines_required     (const ModuleConfig& cfg)       override;
     void                        begin_routines_init         (const ModuleConfig& cfg)       override;
     void                        begin_routines_regular      (const ModuleConfig& cfg)       override;

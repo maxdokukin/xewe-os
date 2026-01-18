@@ -8,14 +8,10 @@
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
 
-
-
 // src/Modules/Nvs/Nvs.h
 #pragma once
 
 #include "../../Module/Module.h"
-// #include "../../../Config.h"
-// #include "../../../Debug.h"
 
 #include <Preferences.h>
 #include <array>

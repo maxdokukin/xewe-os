@@ -112,18 +112,21 @@ Pins::Pins(SystemController& controller)
 
     commands_storage.push_back({
         "pwm_setup",
-        "Attach PWM timer. Freq range: 1Hz-40MHz. Bits: 1-16 (e.g., 8bits=0-255, 10bits=0-1023).",
-        "$" + lower(module_name) + " pwm_setup <ch:0-15> <pin> <freq_hz> <res_bits>",
-        4,
+        "Attach PWM timer. Freq range: 1Hz-40MHz. Bits: 1-16. (ESP32 Core v3+ uses Pins directly).",
+        "$" + lower(module_name) + " pwm_setup <pin> <freq_hz> <res_bits>",
+        3,
         [this](string_view args) {
             istringstream is{string(args)};
-            int ch, pin;
+            int pin;
             double freq;
             int bits;
-            if (!(is >> ch >> pin >> freq >> bits)) {
-                this->controller.serial_port.print("Error: Required <CH> <PIN> <FREQ> <BITS>", kCRLF);
+            // Removed 'ch' from parsing
+            if (!(is >> pin >> freq >> bits)) {
+                this->controller.serial_port.print("Error: Required <PIN> <FREQ> <BITS>", kCRLF);
                 return;
             }
+
+            // Core v3: ledcAttach(pin, freq, resolution)
             if (!ledcAttach(static_cast<uint8_t>(pin), static_cast<uint32_t>(freq), static_cast<uint8_t>(bits))) {
                 this->controller.serial_port.print("PWM attachment failed", kCRLF);
                 return;
@@ -134,39 +137,46 @@ Pins::Pins(SystemController& controller)
 
     commands_storage.push_back({
         "pwm_write",
-        "Set PWM duty cycle. Max value = (2^res_bits) - 1. Setup channel first.",
-        "$" + lower(module_name) + " pwm_write <ch:0-15> <duty_value>",
+        "Set PWM duty cycle on a specific pin. Max value = (2^res_bits) - 1.",
+        "$" + lower(module_name) + " pwm_write <pin> <duty_value>",
         2,
         [this](string_view args) {
             istringstream is{string(args)};
-            int ch;
+            int pin;
             int duty;
-            if (!(is >> ch >> duty)) {
-                this->controller.serial_port.print("Error: Required <CH> <DUTY>", kCRLF);
+            // Changed 'ch' to 'pin'
+            if (!(is >> pin >> duty)) {
+                this->controller.serial_port.print("Error: Required <PIN> <DUTY>", kCRLF);
                 return;
             }
-            ledcWrite(static_cast<uint8_t>(ch), static_cast<uint32_t>(duty));
+            // Core v3: ledcWrite(pin, duty)
+            ledcWrite(static_cast<uint8_t>(pin), static_cast<uint32_t>(duty));
             this->controller.serial_port.print("ok", kCRLF);
         }
     });
 
     commands_storage.push_back({
         "pwm_stop",
-        "Stop PWM. Sets duty to 0. Optional [pin] argument explicitly detaches hardware.",
-        "$" + lower(module_name) + " pwm_stop <ch:0-15> [pin]",
+        "Stop PWM on a pin (sets duty 0). Optional argument '1' completely detaches hardware.",
+        "$" + lower(module_name) + " pwm_stop <pin> [detach:0|1]",
         2,
         [this](string_view args) {
             istringstream is{string(args)};
-            int ch;
-            int pin = -1;
-            if (!(is >> ch)) {
-                this->controller.serial_port.print("Error: Required <CH> and optional [PIN]", kCRLF);
+            int pin;
+            int should_detach = 0;
+
+            if (!(is >> pin)) {
+                this->controller.serial_port.print("Error: Required <PIN>", kCRLF);
                 return;
             }
-            if (is >> pin) {
+            // Check for optional detach flag
+            is >> should_detach;
+
+            ledcWrite(static_cast<uint8_t>(pin), 0);
+
+            if (should_detach) {
                 ledcDetach(static_cast<uint8_t>(pin));
             }
-            ledcWrite(static_cast<uint8_t>(ch), 0);
             this->controller.serial_port.print("ok", kCRLF);
         }
     });

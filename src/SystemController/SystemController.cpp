@@ -16,31 +16,35 @@ SystemController::SystemController()
   , nvs(*this)
   , system(*this)
   , command_parser(*this)
-  , wifi(*this)
-  , buttons(*this)
   , pins(*this)
+  , buttons(*this)
+  , wifi(*this)
+  , web_interface(*this)
 {
     modules.push_back(&serial_port);
     modules.push_back(&nvs);
     modules.push_back(&system);
     modules.push_back(&command_parser);
-    modules.push_back(&wifi);
-    modules.push_back(&buttons);
     modules.push_back(&pins);
+    modules.push_back(&buttons);
+    modules.push_back(&wifi);
+    modules.push_back(&web_interface);
 }
 
 void SystemController::begin() {
     bool init_setup_flag = !system.init_setup_complete();
 
-    serial_port.begin           (SerialPortConfig       {});
-    nvs.begin                   (NvsConfig              {});
-    system.begin                (SystemConfig           {});
-    wifi.begin                  (WifiConfig             {});
-    buttons.begin               (ButtonsConfig          {});
-    pins.begin                  (PinsConfig             {});
+    serial_port.begin               (SerialPortConfig       {});
+    nvs.begin                       (NvsConfig              {});
+    system.begin                    (SystemConfig           {});
+    pins.begin                      (PinsConfig             {});
+    buttons.begin                   (ButtonsConfig          {});
+    wifi.begin                      (WifiConfig             {});
+    web_interface.add_requirement   (wifi);
+    web_interface.begin             (WebInterfaceConfig     {});
 
     // should be initialized last to collect all cmds
-    command_parser.begin        (CommandParserConfig    {});
+    command_parser.begin            (CommandParserConfig    {});
 
     if (init_setup_flag) {
         serial_port.print_header("Initial Setup Complete");

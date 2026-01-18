@@ -7,8 +7,8 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
-// <filepath from project root>
 
+// src/Modules/Software/WebInterface/WebInterface.cpp
 
 #include "WebInterface.h"
 #include "../../../SystemController/SystemController.h"
@@ -27,10 +27,8 @@ WebInterface::WebInterface(SystemController& controller)
 void WebInterface::begin_routines_required (const ModuleConfig& cfg) {
     httpServer.on("/", HTTP_GET, std::bind(&WebInterface::serveMainPage, this));
     httpServer.on("/cmd", HTTP_GET, std::bind(&WebInterface::handleCommandRequest, this));
-}
-
-void WebInterface::begin_routines_regular (const ModuleConfig& cfg) {
     httpServer.begin();
+    controller.serial_port.print("Web Interface now available at:\nhttp://" + controller.wifi.get_local_ip() + "\n");
 }
 
 void WebInterface::loop () {
@@ -61,7 +59,7 @@ std::string WebInterface::status (const bool verbose) const {
     out << "  - Memory Usage: "
         << std::fixed << std::setprecision(2) << heapUsage << "% ("
         << usedHeap << " / " << totalHeap << " bytes)\n";
-    out << "-------------------------";
+    out << "-------------------------\n";
 
     if (verbose) controller.serial_port.print(out.str());
     return out.str();
@@ -82,12 +80,10 @@ void WebInterface::handleCommandRequest() {
     if (httpServer.hasArg("c")) {
         String commandText = httpServer.arg("c");
 
-        // Pass the raw text to the controller's command parser
-        // Note: Assumes command_parser.parse() accepts String or const char*
-        controller.command_parser.parse(commandText);
+        // Fixed: Converted Arduino String to C-string for string_view compatibility
+        controller.command_parser.parse(commandText.c_str());
 
         httpServer.send(200, "text/plain", "OK");
-        DBG_PRINTF(WebInterface, "Web Command Executed: %s\n", commandText.c_str());
     } else {
         httpServer.send(400, "text/plain", "Empty Command");
     }
@@ -166,8 +162,6 @@ const char WebInterface::INDEX_HTML[] PROGMEM = R"rawliteral(
             transition: opacity 0.2s;
         }
         button:active { opacity: 0.8; }
-
-        /* Optional status flash */
         #flash {
             margin-top: 10px;
             height: 20px;
@@ -178,38 +172,30 @@ const char WebInterface::INDEX_HTML[] PROGMEM = R"rawliteral(
     </style>
 </head>
 <body>
-
     <div class="container">
         <h1>XeWe OS Web Interface</h1>
-
         <div class="input-group">
             <input type="text" id="cmdInput" placeholder="Enter command..." autofocus autocomplete="off">
             <button onclick="sendCmd()">Send Command</button>
         </div>
         <div id="flash">Command Sent</div>
     </div>
-
     <script>
         const input = document.getElementById('cmdInput');
         const flash = document.getElementById('flash');
-
-        // Allow pressing Enter to send
         input.addEventListener("keypress", function(event) {
             if (event.key === "Enter") {
                 event.preventDefault();
                 sendCmd();
             }
         });
-
         function sendCmd() {
             const val = input.value.trim();
             if(!val) return;
-
-            // Send via fetch to /cmd?c=...
             fetch('/cmd?c=' + encodeURIComponent(val))
                 .then(r => {
                     if(r.ok) {
-                        input.value = ''; // Clear input on success
+                        input.value = '';
                         showFlash('Command Sent');
                     } else {
                         showFlash('Error Sending');
@@ -217,7 +203,6 @@ const char WebInterface::INDEX_HTML[] PROGMEM = R"rawliteral(
                 })
                 .catch(e => showFlash('Connection Error'));
         }
-
         let flashTimer;
         function showFlash(msg) {
             flash.textContent = msg;

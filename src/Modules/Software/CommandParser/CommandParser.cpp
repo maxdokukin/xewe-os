@@ -32,7 +32,7 @@ void CommandParser::begin_routines_required(const ModuleConfig& cfg) {
         return;
 
     for (Module* module : modules) {
-        if (!module || !module->get_has_cli_cmds())
+        if (!module)
             continue;
 
         auto grp = module->get_commands_group();

@@ -15,14 +15,13 @@
 #include "../Modules/Software/Nvs/Nvs.h"
 #include "../Modules/Software/System/System.h"
 #include "../Modules/Software/CommandParser/CommandParser.h"
-#include "../Modules/Software/Wifi/Wifi.h"
-
-#include "../Modules/Hardware/Buttons/Buttons.h"
 #include "../Modules/Hardware/Pins/Pins.h"
+#include "../Modules/Hardware/Buttons/Buttons.h"
+#include "../Modules/Software/Wifi/Wifi.h"
+#include "../Modules/Software/WebInterface/WebInterface.h"
 
 #include <array>
 #include <vector>
-
 
 class SystemController {
 public:
@@ -35,9 +34,10 @@ public:
     Nvs                         nvs;
     System                      system;
     CommandParser               command_parser;
-    Wifi                        wifi;
-    Buttons                     buttons;
     Pins                        pins;
+    Buttons                     buttons;
+    Wifi                        wifi;
+    WebInterface                web_interface;
 
     vector<Module*>&            get_modules                 () { return modules; }
 private:

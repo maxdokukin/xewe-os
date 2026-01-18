@@ -99,39 +99,6 @@ System::System(SystemController& controller)
         this->controller.serial_port.print(to_string((unsigned)uxTaskGetStackHighWaterMark(nullptr)).c_str(), kCRLF);
       }
     });
-
-    commands_storage.push_back({
-      "time","Get or set RTC",
-      string("$")+lower(module_name)+" time", 0,
-      [this](string_view args){
-        if(args.empty()){
-          time_t now=time(nullptr); struct tm tm_; localtime_r(&now,&tm_);
-          char out[32]; strftime(out, sizeof(out), "%F %T", &tm_);
-          this->controller.serial_port.print(out, kCRLF); return;
-        }
-        int Y,M,D,h,m,s;
-        if(sscanf(string(args).c_str(), "%d-%d-%d %d:%d:%d",&Y,&M,&D,&h,&m,&s)==6){
-          struct tm tm_={}; tm_.tm_year=Y-1900; tm_.tm_mon=M-1; tm_.tm_mday=D; tm_.tm_hour=h; tm_.tm_min=m; tm_.tm_sec=s;
-          struct timeval tv={.tv_sec=(long)mktime(&tm_), .tv_usec=0}; settimeofday(&tv,nullptr);
-          this->controller.serial_port.print("ok", kCRLF);
-        } else {
-          this->controller.serial_port.print("format YYYY-MM-DD HH:MM:SS", kCRLF);
-        }
-      }
-    });
-
-    commands_storage.push_back({
-      "random","Print N random bytes hex",
-      string("$")+lower(module_name)+" random 16",1,
-      [this](string_view args){
-        size_t n = strtoul(string(args).c_str(), nullptr, 10);
-        if(n==0 || n>1024) n=16;
-        vector<uint8_t> buf(n);
-        esp_fill_random(buf.data(), buf.size());
-        auto hex = to_hex(buf.data(), buf.size());
-        this->controller.serial_port.print(hex.c_str(), kCRLF);
-      }
-    });
 }
 
 void System::begin_routines_required (const ModuleConfig& cfg) {

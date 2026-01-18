@@ -101,6 +101,8 @@ There are four specific initialization phases. You may not need all of them, but
 ![begin_flow.png](../static/media/resources/readme/begin_flow.png)
 > **Note:** `begin` methods are called even if the module is disabled. This ensures pointers are valid for other modules that may reference this module.
 
+You can pass custom parameters to `begin()` using `ModuleNameConfig`.
+
 ## 4. Loop and Custom Functions
 
 ### Loop

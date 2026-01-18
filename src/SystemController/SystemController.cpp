@@ -18,6 +18,7 @@ SystemController::SystemController()
   , command_parser(*this)
   , wifi(*this)
   , buttons(*this)
+  , pins(*this)
 {
     modules[0] = &serial_port;
     modules[1] = &nvs;
@@ -25,6 +26,7 @@ SystemController::SystemController()
     modules[3] = &command_parser;
     modules[4] = &wifi;
     modules[5] = &buttons;
+    modules[6] = &pins;
 }
 
 void SystemController::begin() {
@@ -35,6 +37,7 @@ void SystemController::begin() {
     system.begin                (SystemConfig       {});
     wifi.begin                  (WifiConfig         {});
     buttons.begin               (ButtonsConfig      {});
+    pins.begin                  (PinsConfig         {});
 
     // should be initialized last to collect all cmds
     command_parser.begin        (CommandParserConfig(modules, MODULE_COUNT));

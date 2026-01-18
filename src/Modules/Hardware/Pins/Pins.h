@@ -23,21 +23,7 @@ class Pins : public Module {
 public:
     explicit                    Pins                        (SystemController& controller);
 
-    void                        begin_routines_required     (const ModuleConfig& cfg)       override;
-    void                        begin_routines_init         (const ModuleConfig& cfg)       override;
-    void                        begin_routines_regular      (const ModuleConfig& cfg)       override;
-    void                        begin_routines_common       (const ModuleConfig& cfg)       override;
-
-    void                        loop                        ()                              override;
-
-    void                        enable                      (const bool verbose=false,
-                                                             const bool do_restart=true)    override;
-    void                        disable                     (const bool verbose=false,
-                                                             const bool do_restart=true)    override;
-    void                        reset                       (const bool verbose=false,
-                                                             const bool do_restart=true)    override;
-
-    string                      status                      (const bool verbose=false)      const override;
+//    string                      status                      (const bool verbose=false)      const override;
 
 private:
 

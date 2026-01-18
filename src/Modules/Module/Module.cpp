@@ -14,12 +14,13 @@
 
 void Module::begin (const ModuleConfig& cfg) {
     DBG_PRINTF(Module, "'%s'->begin(): Called.\n", module_name.c_str());
-    if (requires_init_setup) {
-         controller.serial_port.print_header(capitalize(module_name) + " Setup");
-    }
 
     bool first_boot = !controller.nvs.read_bool(nvs_key, "not_first_boot");
     enabled = first_boot || controller.nvs.read_bool(nvs_key, "is_enabled");
+
+    if (can_be_disabled) {
+         controller.serial_port.print_header(capitalize(module_name) + " Setup");
+    }
 
     if (is_disabled(true)) return;
 

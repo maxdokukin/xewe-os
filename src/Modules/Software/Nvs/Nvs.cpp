@@ -22,7 +22,7 @@ Nvs::Nvs(SystemController& controller)
                /* nvs_key             */ "nvs",
                /* requires_init_setup */ false,
                /* can_be_disabled     */ false,
-               /* has_cli_cmds        */ true)
+               /* has_cli_cmds        */ false)
 {}
 
 

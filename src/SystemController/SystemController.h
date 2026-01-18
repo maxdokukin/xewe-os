@@ -36,6 +36,7 @@ public:
     CommandParser               command_parser;
     Wifi                        wifi;
     Buttons                     buttons;
+    Pins                        pins;
 
 private:
     Module*                     modules                     [MODULE_COUNT] = {};

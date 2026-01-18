@@ -19,7 +19,7 @@ SerialPort::SerialPort(SystemController& controller)
              /* nvs_key             */ "ser",
              /* requires_init_setup */ false,
              /* can_be_disabled     */ false,
-             /* has_cli_cmds        */ true) {
+             /* has_cli_cmds        */ false) {
     commands_storage.push_back({
         "test",
         "test available functions",

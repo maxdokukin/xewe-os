@@ -5,7 +5,7 @@
  *  See: LICENSE and LICENSE-NO-AI.md in the project root for full terms.
  *
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
- *  https://github.com/maxdokukin/XeWe-LED-OS
+ *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
 // src/Modules/Software/System/System.h
 #pragma once

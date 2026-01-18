@@ -27,9 +27,9 @@ Pins::Pins(SystemController& controller)
       "gpio-read", "Reads the digital logic level of a specific pin (0 or 1).",
       "$"+ lower(module_name) + " gpio-read <pin>", 1,
       [this](string_view args){
-        int pin = atoi(std::string(args).c_str());
+        int pin = atoi(string(args).c_str());
         pinMode(pin, INPUT);
-        this->controller.serial_port.print(std::to_string((int)digitalRead(pin)).c_str(), kCRLF);
+        this->controller.serial_port.print(to_string((int)digitalRead(pin)).c_str(), kCRLF);
       }
     });
 
@@ -37,8 +37,8 @@ Pins::Pins(SystemController& controller)
       "gpio-write", "Sets a pin to HIGH (1) or LOW (0) logic level.",
       "$"+ lower(module_name) + " gpio-write <pin> <0|1>", 2,
       [this](string_view args){
-        std::string s(args); auto sp = s.find(' ');
-        if(sp == std::string::npos){ this->controller.serial_port.print("Error: Missing <pin> or <level>", kCRLF); return; }
+        string s(args); auto sp = s.find(' ');
+        if(sp == string::npos){ this->controller.serial_port.print("Error: Missing <pin> or <level>", kCRLF); return; }
         int pin = atoi(s.substr(0, sp).c_str());
         int lvl = atoi(s.substr(sp + 1).c_str());
         pinMode(pin, OUTPUT);
@@ -51,9 +51,9 @@ Pins::Pins(SystemController& controller)
       "gpio-mode", "Configures pin direction and internal resistors (in, out, in_pullup, in_pulldown).",
       "$"+ lower(module_name) + " gpio-mode <pin> <mode>", 2,
       [this](string_view args){
-        std::string s(args); auto sp = s.find(' ');
-        if(sp == std::string::npos){ this->controller.serial_port.print("Error: Missing <pin> or <mode>", kCRLF); return; }
-        int pin = atoi(s.substr(0, sp).c_str()); std::string m = s.substr(sp + 1);
+        string s(args); auto sp = s.find(' ');
+        if(sp == string::npos){ this->controller.serial_port.print("Error: Missing <pin> or <mode>", kCRLF); return; }
+        int pin = atoi(s.substr(0, sp).c_str()); string m = s.substr(sp + 1);
         if(m == "out") pinMode(pin, OUTPUT);
         else if(m == "in") pinMode(pin, INPUT);
 #ifdef INPUT_PULLDOWN
@@ -69,9 +69,9 @@ Pins::Pins(SystemController& controller)
       "adc-read", "Reads raw analog voltage from a pin (e.g., 0-4095 for 12-bit ADC).",
       "$"+ lower(module_name) + " adc-read <pin>", 1,
       [this](string_view args){
-        int pin = atoi(std::string(args).c_str());
+        int pin = atoi(string(args).c_str());
         int v = analogRead(pin);
-        this->controller.serial_port.print(std::to_string(v).c_str(), kCRLF);
+        this->controller.serial_port.print(to_string(v).c_str(), kCRLF);
       }
     });
 
@@ -98,7 +98,7 @@ Pins::Pins(SystemController& controller)
       "pwm-setup", "Initializes a PWM frequency and resolution (bits) on a specific pin.",
       "$"+ lower(module_name) + " pwm-setup <ch> <pin> <freq_hz> <res_bits>", 4,
       [this](string_view args){
-        std::istringstream is{std::string(args)}; int ch, pin; double freq; int bits;
+        istringstream is{string(args)}; int ch, pin; double freq; int bits;
         if(!(is >> ch >> pin >> freq >> bits)){ this->controller.serial_port.print("Error: Required <CH> <PIN> <FREQ> <BITS>", kCRLF); return; }
         if(!ledcAttach(static_cast<uint8_t>(pin), static_cast<uint32_t>(freq), static_cast<uint8_t>(bits))){
           this->controller.serial_port.print("PWM attachment failed", kCRLF); return;
@@ -111,7 +111,7 @@ Pins::Pins(SystemController& controller)
       "pwm-write", "Sets the duty cycle for a PWM channel based on established resolution.",
       "$"+ lower(module_name) + " pwm-write <ch> <duty_value>", 2,
       [this](string_view args){
-        std::istringstream is{std::string(args)}; int ch; int duty;
+        istringstream is{string(args)}; int ch; int duty;
         if(!(is >> ch >> duty)){ this->controller.serial_port.print("Error: Required <CH> <DUTY>", kCRLF); return; }
         ledcWrite(static_cast<uint8_t>(ch), static_cast<uint32_t>(duty));
         this->controller.serial_port.print("ok", kCRLF);
@@ -122,7 +122,7 @@ Pins::Pins(SystemController& controller)
       "pwm-stop", "Disables PWM on a pin and sets the duty cycle to 0.",
       "$"+ lower(module_name) + " pwm-stop <ch> [pin]", 2,
       [this](string_view args){
-        std::istringstream is{std::string(args)}; int ch; int pin = -1;
+        istringstream is{string(args)}; int ch; int pin = -1;
         if(!(is >> ch)){ this->controller.serial_port.print("Error: Required <CH> and optional [PIN]", kCRLF); return; }
         if(is >> pin){ ledcDetach(static_cast<uint8_t>(pin)); }
         ledcWrite(static_cast<uint8_t>(ch), 0);

@@ -49,13 +49,13 @@ System::System(SystemController& controller)
         size_t   flash_sz = ESP.getFlashChipSize();
         uint32_t flash_hz = ESP.getFlashChipSpeed();
 
-        std::string s;
-        s += "Model "; s += std::to_string((int)ci.model);
-        s += "  Cores "; s += std::to_string((int)ci.cores);
-        s += "  Rev "; s += std::to_string((int)ci.revision); s += "\n";
+        string s;
+        s += "Model "; s += to_string((int)ci.model);
+        s += "  Cores "; s += to_string((int)ci.cores);
+        s += "  Rev "; s += to_string((int)ci.revision); s += "\n";
         s += "IDF "; s += esp_get_idf_version(); s += "\n";
-        s += "Flash "; s += std::to_string((unsigned)flash_sz);
-        s += " bytes @ "; s += std::to_string((unsigned)flash_hz); s += " Hz\n";
+        s += "Flash "; s += to_string((unsigned)flash_sz);
+        s += " bytes @ "; s += to_string((unsigned)flash_hz); s += " Hz\n";
         char macs[18]; snprintf(macs, sizeof(macs), "%02X:%02X:%02X:%02X:%02X:%02X", mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
         s += "MAC "; s += macs;
         this->controller.serial_port.print(s.c_str(), kCRLF);
@@ -96,7 +96,7 @@ System::System(SystemController& controller)
       "stack","Current task stack watermark (words)",
       string("$")+lower(module_name)+" stack",0,
       [this](string_view){
-        this->controller.serial_port.print(std::to_string((unsigned)uxTaskGetStackHighWaterMark(nullptr)).c_str(), kCRLF);
+        this->controller.serial_port.print(to_string((unsigned)uxTaskGetStackHighWaterMark(nullptr)).c_str(), kCRLF);
       }
     });
 
@@ -110,7 +110,7 @@ System::System(SystemController& controller)
           this->controller.serial_port.print(out, kCRLF); return;
         }
         int Y,M,D,h,m,s;
-        if(sscanf(std::string(args).c_str(), "%d-%d-%d %d:%d:%d",&Y,&M,&D,&h,&m,&s)==6){
+        if(sscanf(string(args).c_str(), "%d-%d-%d %d:%d:%d",&Y,&M,&D,&h,&m,&s)==6){
           struct tm tm_={}; tm_.tm_year=Y-1900; tm_.tm_mon=M-1; tm_.tm_mday=D; tm_.tm_hour=h; tm_.tm_min=m; tm_.tm_sec=s;
           struct timeval tv={.tv_sec=(long)mktime(&tm_), .tv_usec=0}; settimeofday(&tv,nullptr);
           this->controller.serial_port.print("ok", kCRLF);
@@ -124,9 +124,9 @@ System::System(SystemController& controller)
       "random","Print N random bytes hex",
       string("$")+lower(module_name)+" random 16",1,
       [this](string_view args){
-        size_t n = strtoul(std::string(args).c_str(), nullptr, 10);
+        size_t n = strtoul(string(args).c_str(), nullptr, 10);
         if(n==0 || n>1024) n=16;
-        std::vector<uint8_t> buf(n);
+        vector<uint8_t> buf(n);
         esp_fill_random(buf.data(), buf.size());
         auto hex = to_hex(buf.data(), buf.size());
         this->controller.serial_port.print(hex.c_str(), kCRLF);
@@ -143,7 +143,35 @@ void System::begin_routines_required (const ModuleConfig& cfg) {
     );
 }
 
-std::string System::get_device_name () { return controller.nvs.read_str(nvs_key, "dname"); };
+string System::status(const bool verbose) const {
+    if (verbose) {
+        vector<vector<string_view>> table_data;
+        table_data.push_back({"Module Name", "Enabled", "Status"});
+        vector<string> string_storage;
+        string_storage.reserve(controller.get_modules().size() * 2);
+
+        auto& modules = controller.get_modules();
+        for (const auto* mod : modules) {
+            if (!mod) continue;
+            string_view name = mod->get_module_name();
+            string_storage.push_back(mod->is_enabled() ? "Yes" : "No");
+            string_view enabled_view = string_storage.back();
+
+            string_storage.push_back(mod->status(false));
+            string_view status_view = string_storage.back();
+
+            table_data.push_back({name, enabled_view, status_view});
+        }
+
+        controller.serial_port.print_table(
+            table_data,
+            "System Status"
+        );
+    }
+    return "System OK";
+}
+
+string System::get_device_name () { return controller.nvs.read_str(nvs_key, "dname"); };
 
 void System::restart (uint16_t delay_ms) {
     controller.serial_port.print_header("Rebooting");

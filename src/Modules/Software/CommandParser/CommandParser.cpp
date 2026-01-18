@@ -70,9 +70,8 @@ void CommandParser::print_help(const string& group_name) const {
             }
 
             controller.serial_port.print_table(
-                table_data,     // The data
-                grp.name,       // The Header (Module Name)
-                30              // Max column width
+                table_data,
+                grp.name
             );
             
             return;

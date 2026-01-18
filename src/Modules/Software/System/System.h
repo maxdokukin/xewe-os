@@ -28,6 +28,8 @@ public:
     explicit                    System                      (SystemController& controller);
 
     void                        begin_routines_required     (const ModuleConfig& cfg)       override;
+    string                      status                      (const bool verbose=false)      const override;
+
     std::string                 get_device_name             ();
     void                        restart                     (uint16_t delay_ms=3000);
 };

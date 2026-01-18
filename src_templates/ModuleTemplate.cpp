@@ -63,9 +63,14 @@ void ModuleName::reset (const bool verbose, const bool do_restart) {
     Module::reset(verbose, do_restart);
 }
 
-std::string ModuleName::status (const bool verbose, const bool do_restart) const {
+std::string ModuleName::status (const bool verbose) const {
     // do your custom routines here
-    return Module::status(verbose, do_restart);
+    string status = "custom status";
+
+    if (verbose)
+        controller.serial_port.print(status);
+
+    return status;
 }
 
 void ModuleName::custom_function () {

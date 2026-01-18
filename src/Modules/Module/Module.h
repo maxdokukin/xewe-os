@@ -7,7 +7,7 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
-// src/Modules/Module/Module.h
+// src/Modules/Module/Module/Module.h
 #pragma once
 
 #include <functional>
@@ -15,9 +15,9 @@
 #include <utility>
 #include <vector>
 
-#include "../../Config.h"
-#include "../Debug.h"
-#include "../XeWeStringUtils.h"
+#include "../../../Config.h"
+#include "../../Debug.h"
+#include "../../XeWeStringUtils.h"
 
 using namespace std;
 using namespace xewe::str;

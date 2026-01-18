@@ -10,7 +10,7 @@
 // src/Modules/Software/System/System.h
 #pragma once
 
-#include "../../Module.h"
+#include "../../Module/Module.h"
 #include "../../../build_info.h"
 
 #include <esp_system.h>

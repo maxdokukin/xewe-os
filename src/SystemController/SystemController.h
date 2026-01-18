@@ -11,7 +11,7 @@
 
 #include <vector>
 
-#include "../Modules/Module.h"
+#include "../Modules/Module/Module.h"
 #include "../Modules/Software/SerialPort/SerialPort.h"
 #include "../Modules/Software/Nvs/Nvs.h"
 #include "../Modules/Software/System/System.h"

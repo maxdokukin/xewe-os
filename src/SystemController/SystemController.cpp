@@ -39,6 +39,7 @@ void SystemController::begin() {
         serial_port.print_header("Initial Setup Complete");
         system.restart();
     }
+    serial_port.print_header("System Setup Complete");
 }
 
 void SystemController::loop() {

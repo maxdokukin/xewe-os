@@ -102,7 +102,7 @@ public:
 
     CommandsGroup               get_commands_group          ();
     string_view                 get_module_name             ()                              const { return module_name; }
-    const bool                  get_has_cli_cmds            ()                              const { return has_cli_commands; } // legacy, needs to be removed
+    const bool                  get_has_cli_cmds            ()                              const { return has_cli_commands; }
 
 protected:
     SystemController&           controller;
@@ -112,7 +112,7 @@ protected:
 
     bool                        can_be_disabled;
     bool                        requires_init_setup;
-    bool                        has_cli_commands; // legacy, needs to be removed
+    bool                        has_cli_commands;
 
     bool                        enabled;
 

@@ -206,14 +206,14 @@ void SerialPort::print_header(std::string_view message,
     print_separator(total_width, sep_fill, cross_edge_character);
 
     auto parts = split_by_token(message, "\\sep");
-    const uint16_t edge_w = static_cast<uint16_t>(edge_character.size() * 2);
+    const uint16_t edge_w = static_cast<uint16_t>(edge_character.size() * 2) + 2;
     const uint16_t content_width =
         (!edge_character.empty() && total_width > edge_w)
             ? static_cast<uint16_t>(total_width - edge_w)
             : total_width;
 
     for (auto& p : parts) {
-        print(p, kCRLF, edge_character, 'c', 'w', content_width, 0, 0);
+        print(p, kCRLF, edge_character, 'c', 'w', content_width, 1, 1);
         print_separator(total_width, sep_fill, cross_edge_character);
     }
 }

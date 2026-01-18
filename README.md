@@ -4,6 +4,7 @@
 I noticed that in many ESP/Arduino projects I write the same code again and again.  
 This project aims to boil it down to one reusable base of tools that make ESP and Arduino development flow easier.  
 Of course what is basic functionality is very subjective, and some might call this project a bloatware.
+**One man's boilerplate is another man's bloatware.**
 
 # Core Features
 - Modular design:

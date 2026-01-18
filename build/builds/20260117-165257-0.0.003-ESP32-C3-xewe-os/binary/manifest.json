@@ -1,0 +1,13 @@
+{
+  "name": "XeWe-LedOS",
+  "version": "0.0.003",
+  "new_install_improv_wait_time": 0,
+  "builds": [
+    {
+      "chipFamily": "ESP32-C3",
+      "parts": [
+        { "path": "0.0.003-ESP32-C3-xewe-os.bin", "offset": 0 }
+      ]
+    }
+  ]
+}

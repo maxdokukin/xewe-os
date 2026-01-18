@@ -28,6 +28,8 @@ public:
     explicit                    System                      (SystemController& controller);
 
     void                        begin_routines_required     (const ModuleConfig& cfg)       override;
+    void                        reset                       (const bool verbose=false,
+                                                             const bool do_restart=true)    override;
     string                      status                      (const bool verbose=false)      const override;
 
     std::string                 get_device_name             ();

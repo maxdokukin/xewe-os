@@ -143,6 +143,28 @@ void System::begin_routines_required (const ModuleConfig& cfg) {
     );
 }
 
+void System::reset (const bool verbose, const bool do_restart) {
+    bool disable_confirmed = false;
+
+    if (verbose) {
+        controller.serial_port.print_header("[WARNING]\nResetting System\nWill reset all modules");
+        disable_confirmed = controller.serial_port.get_yn("OK?");
+    }
+
+    if (!disable_confirmed) {
+        controller.serial_port.print("Aborted");
+        return;
+    }
+
+    auto& modules = controller.get_modules();
+    for (auto* m : modules) {
+        if (m == this) continue;
+        m->reset(false, false);
+    }
+
+    Module::reset(verbose, do_restart);
+}
+
 string System::status(const bool verbose) const {
     if (verbose) {
         vector<vector<string_view>> table_data;

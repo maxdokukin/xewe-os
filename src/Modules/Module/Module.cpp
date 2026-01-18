@@ -72,8 +72,8 @@ void Module::reset(const bool verbose, const bool do_restart) {
 
     if (verbose) Serial.printf("%s module reset\n", module_name.c_str());
     if (do_restart) {
-        ESP.restart();
         if (verbose) Serial.printf("Restarting...\n\n\n");
+        ESP.restart();
     }
 }
 
@@ -133,7 +133,7 @@ void Module::disable(const bool verbose, const bool do_restart) {
     if (!dependent_modules.empty()) {
         for (auto* m : dependent_modules) {
             if (verbose) Serial.printf("disabled %s module\n", m->module_name.c_str());
-            m->reset(true, false); // reset with no verbose, and dont reboot
+            m->reset(false, false); // reset with no verbose, and dont reboot
         }
     }
     if (verbose) {

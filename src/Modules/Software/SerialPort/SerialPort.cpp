@@ -227,6 +227,8 @@ void SerialPort::print_table(const vector<vector<string_view>>& table,
     if (table.empty()) return;
 
     // 1. Calculate Column Widths
+    // We must ensure the column is wide enough for the longest *line* in a multi-line cell,
+    // not just the total length of the string.
     size_t num_cols = 0;
     for (const auto& row : table) num_cols = max(num_cols, row.size());
 
@@ -234,8 +236,24 @@ void SerialPort::print_table(const vector<vector<string_view>>& table,
 
     for (const auto& row : table) {
         for (size_t c = 0; c < row.size(); ++c) {
-            // Width = Length + 1 space left + 1 space right
-            size_t req_width = row[c].length() + 2;
+            string_view cell = row[c];
+            size_t max_line_len = 0;
+
+            // Find longest segment between '\n'
+            size_t start = 0;
+            while (start <= cell.length()) {
+                size_t end = cell.find('\n', start);
+                if (end == string_view::npos) end = cell.length();
+
+                size_t segment_len = end - start;
+                if (segment_len > max_line_len) max_line_len = segment_len;
+
+                if (end == cell.length()) break;
+                start = end + 1;
+            }
+
+            // Width = Longest Line + 1 space left + 1 space right
+            size_t req_width = max_line_len + 2;
             if (req_width > max_col_width) req_width = max_col_width;
 
             if (req_width > col_widths[c]) {
@@ -245,7 +263,6 @@ void SerialPort::print_table(const vector<vector<string_view>>& table,
     }
 
     // 2. Calculate Total Table Width
-    // Formula: Edge + (Col1 + Edge) + (Col2 + Edge) ...
     size_t total_table_width = edge_character.size();
     for (auto w : col_widths) {
         total_table_width += w + edge_character.size();
@@ -268,27 +285,48 @@ void SerialPort::print_table(const vector<vector<string_view>>& table,
         write_line_crlf(line);
     };
 
-    // Helper: Wrap text (Uses existing word wrapping logic)
+    // Helper: Wrap text respecting explicit '\n'
     auto get_wrapped_lines = [&](string_view text, uint16_t width) -> vector<string> {
-        if (width <= 2) return { string(text) };
-        return wrap_words(string(text), width - 2);
+        vector<string> result;
+        if (width <= 2) width = 3; // minimal safety
+        uint16_t content_width = width - 2;
+
+        size_t start = 0;
+        // If empty, return one empty line so height calc works
+        if (text.empty()) return { "" };
+
+        while (start <= text.length()) {
+            size_t end = text.find('\n', start);
+            if (end == string_view::npos) end = text.length();
+
+            // 1. Extract the explicit line segment
+            string_view segment = text.substr(start, end - start);
+
+            // 2. Wrap this segment specifically
+            if (segment.empty()) {
+                // Explicit empty line (e.g. \n\n)
+                result.push_back("");
+            } else {
+                // Use existing wrapper for this segment
+                vector<string> seg_lines = wrap_words(string(segment), content_width);
+                if (seg_lines.empty()) result.push_back("");
+                else result.insert(result.end(), seg_lines.begin(), seg_lines.end());
+            }
+
+            if (end == text.length()) break;
+            start = end + 1;
+        }
+        return result;
     };
 
     // 3. Print Header (if exists)
     if (!header_content.empty()) {
-        // A. Print Top Solid Line
         print_separator(static_cast<uint16_t>(total_table_width), sep_fill, cross_edge_character);
-
-        // B. Print Centered Header Text
-        // We reuse the existing 'print' function to handle centering, wrapping, and boxing automatically.
-        // Content width = Total - 2 * Edge
         uint16_t header_content_width = static_cast<uint16_t>(total_table_width - (edge_character.size() * 2));
         print(header_content, kCRLF, edge_character, 'c', 'w', header_content_width, 0, 0);
     }
 
     // 4. Print Table Body
-    // If we had a header, this divider separates Header from Data.
-    // If no header, this is the top of the table.
     print_complex_divider();
 
     for (const auto& row : table) {
@@ -299,12 +337,15 @@ void SerialPort::print_table(const vector<vector<string_view>>& table,
         for (size_t c = 0; c < num_cols; ++c) {
             string_view entry = (c < row.size()) ? row[c] : "";
             vector<string> wrapped = get_wrapped_lines(entry, col_widths[c]);
+
+            // Ensure at least one line exists
             if (wrapped.empty()) wrapped.push_back("");
+
             max_row_height = max(max_row_height, wrapped.size());
             row_blocks.push_back(move(wrapped));
         }
 
-        // Print physical lines
+        // Print physical lines for this row
         for (size_t h = 0; h < max_row_height; ++h) {
             string line_out;
             line_out.reserve(total_table_width);

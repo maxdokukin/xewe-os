@@ -67,6 +67,6 @@ public:
 private:
     static constexpr size_t     MAX_KEY_LEN                 = 15;
     Preferences                 preferences;
-    string                 full_key                    (string_view ns,
+    string                      full_key                    (string_view ns,
                                                              string_view key) const;
 };

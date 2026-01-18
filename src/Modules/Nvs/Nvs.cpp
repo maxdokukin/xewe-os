@@ -13,9 +13,9 @@
 // src/Interfaces/Nvs/Nvs.cpp
 
 #include "Nvs.h"
-#include "../../ModuleController/ModuleController.h"
+#include "../../SystemController/SystemController.h"
 
-Nvs::Nvs(ModuleController& controller)
+Nvs::Nvs(SystemController& controller)
       : Module(controller,
                /* module_name         */ "Nvs",
                /* module_description  */ "Stores user settings even when the power is off",

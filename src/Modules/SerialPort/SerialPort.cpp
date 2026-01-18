@@ -9,10 +9,10 @@
  *********************************************************************************/
 // src/Modules/SerialPort/SerialPort.cpp
 #include "SerialPort.h"
-#include "../../ModuleController/ModuleController.h"
+#include "../../SystemController/SystemController.h"
 #include <cstring>  // strlen
 
-SerialPort::SerialPort(ModuleController& controller)
+SerialPort::SerialPort(SystemController& controller)
     : Module(controller,
              /* module_name         */ "Serial_Port",
              /* module_description  */ "Allows to send and receive text messages over the USB wire",

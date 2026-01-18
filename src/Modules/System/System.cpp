@@ -10,7 +10,7 @@
 // src/Modules/Software/System/System.cpp
 
 #include "System.h"
-#include "../../ModuleController/ModuleController.h"
+#include "../../SystemController/SystemController.h"
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -54,7 +54,7 @@ static std::string toHex(const uint8_t* b, size_t n) {
     for (size_t i = 0; i < n; i++) { s.push_back(k[b[i] >> 4]); s.push_back(k[b[i] & 0x0F]); }
     return s;
 }
-static void hexdump_lines(ModuleController& c, const uint8_t* buf, size_t len, uint32_t base = 0){
+static void hexdump_lines(SystemController& c, const uint8_t* buf, size_t len, uint32_t base = 0){
     char line[16];
     for (size_t i = 0; i < len; i += 16) {
         snprintf(line, sizeof(line), "%08X", (unsigned)(base + i));
@@ -79,7 +79,7 @@ static void hexdump_lines(ModuleController& c, const uint8_t* buf, size_t len, u
     }
 }
 
-System::System(ModuleController& controller)
+System::System(SystemController& controller)
       : Module(controller,
                /* module_name         */ "System",
                /* module_description  */ "Stores integral commands and routines",

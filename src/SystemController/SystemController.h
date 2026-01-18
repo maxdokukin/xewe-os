@@ -18,9 +18,9 @@
 #include "../Modules/CommandParser/CommandParser.h"
 constexpr size_t MODULE_COUNT    = 4;
 
-class ModuleController {
+class SystemController {
 public:
-    ModuleController();
+    SystemController();
 
     void                        begin();
     void                        loop();

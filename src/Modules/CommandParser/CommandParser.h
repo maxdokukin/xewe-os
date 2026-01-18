@@ -23,7 +23,7 @@ struct CommandParserConfig : public ModuleConfig {
 
 class CommandParser: public Module {
 public:
-    explicit                    CommandParser               (ModuleController& controller);
+    explicit                    CommandParser               (SystemController& controller);
 
     void                        begin_routines_required     (const ModuleConfig& cfg)       override;
 

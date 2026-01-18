@@ -35,7 +35,7 @@ struct SystemConfig : public ModuleConfig {};
 
 class System : public Module {
 public:
-    explicit                    System                      (ModuleController& controller);
+    explicit                    System                      (SystemController& controller);
 
     void                        begin_routines_required     (const ModuleConfig& cfg)       override;
 };

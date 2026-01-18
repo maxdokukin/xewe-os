@@ -9,7 +9,7 @@
  *********************************************************************************/
 // src/Modules/Module/Module.cpp
 #include "Module.h"
-#include "../ModuleController/ModuleController.h"
+#include "../SystemController/SystemController.h"
 
 
 void Module::begin (const ModuleConfig& cfg) {

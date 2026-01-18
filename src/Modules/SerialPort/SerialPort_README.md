@@ -153,7 +153,7 @@ if (sp.read_line_with_timeout(line, 2000)) {
 ## API reference
 
 ### Lifecycle
-- **`SerialPort(ModuleController& controller)`** — Registers the module and CLI command.
+- **`SerialPort(SystemController& controller)`** — Registers the module and CLI command.
 - **`void begin_routines_required(const ModuleConfig& cfg)`** — Sets TX/RX sizes, starts `Serial`, small delay.
 - **`void loop()`** — Echoes bytes; `'\r'` ignored; on `'\n'` or buffer end, terminates and marks a line ready.
 - **`void reset(bool verbose=false, bool do_restart=true)`** — Clears input state and calls base `Module::reset`.

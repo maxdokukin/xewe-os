@@ -7,10 +7,10 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/XeWe-LED-OS
  *********************************************************************************/
-// src/ModuleController.cpp
-#include "ModuleController.h"
+// src/SystemController.cpp
+#include "SystemController.h"
 
-ModuleController::ModuleController()
+SystemController::SystemController()
   : serial_port(*this)
   , nvs(*this)
   , system(*this)
@@ -22,7 +22,7 @@ ModuleController::ModuleController()
     modules[3] = &command_parser;
 }
 
-void ModuleController::begin() {
+void SystemController::begin() {
     bool init_setup_flag = !system.init_setup_complete();
 
     serial_port.begin           (SerialPortConfig   {});
@@ -59,7 +59,7 @@ void ModuleController::begin() {
     // serial_port.print_spacer();
 }
 
-void ModuleController::loop() {
+void SystemController::loop() {
     for (size_t i = 0; i < MODULE_COUNT; ++i) {
         modules[i]->loop();
     }

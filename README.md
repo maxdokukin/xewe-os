@@ -33,4 +33,10 @@ Parameters must be separated with a space: $led set_rgb <0-255> <0-255> <0-255>
 - To see led commands available type $led help
 
 # Quickstart
-tbw
+
+## Build and Upload the code
+`cd build/scripts`  
+`./setup_build_enviroment.sh`  
+`./build.sh -t <target_chip> -p <port>`  
+ex: `./build.sh -t c3 -p /dev/cu.usbmodem11143201`
+

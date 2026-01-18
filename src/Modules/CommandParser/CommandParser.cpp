@@ -13,9 +13,9 @@
 // src/Modules/Software/CommandParser/CommandParser.cpp
 
 #include "CommandParser.h"
-#include "../../ModuleController/ModuleController.h"
+#include "../../SystemController/SystemController.h"
 
-CommandParser::CommandParser(ModuleController& controller)
+CommandParser::CommandParser(SystemController& controller)
       : Module(controller,
                /* module_name         */ "Command_Parser",
                /* module_description  */ "Allows to parse text from the serial port in the action function calls with parameters",

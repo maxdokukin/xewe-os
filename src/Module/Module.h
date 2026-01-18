@@ -22,7 +22,7 @@
 using namespace std;
 using namespace xewe::str;
 
-class ModuleController;
+class SystemController;
 
 class ModuleConfig {
 public:
@@ -52,7 +52,7 @@ struct CommandsGroup {
 
 class Module {
 public:
-    Module(ModuleController&    controller,
+    Module(SystemController&    controller,
            string               module_name,
            string               module_description,
            string               nvs_key,
@@ -104,7 +104,7 @@ public:
     string_view                 get_module_name             ()                              const { return module_name; };
 
 protected:
-    ModuleController&           controller;
+    SystemController&           controller;
     string                      module_name;
     string                      module_description;
     string                      nvs_key;

@@ -17,6 +17,7 @@
 #define DEBUG_Nvs               0
 #define DEBUG_System            0
 #define DEBUG_CommandParser     0
+#define DEBUG_Wifi              0
 
 
 #define DBG_ENABLED(cls)      (DEBUG_##cls)

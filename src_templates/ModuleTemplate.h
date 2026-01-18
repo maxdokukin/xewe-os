@@ -18,7 +18,7 @@ struct ModuleNameConfig : public ModuleConfig {};
 
 class ModuleName : public Module {
 public:
-    explicit                    ModuleName                  (ModuleController& controller);
+    explicit                    ModuleName                  (SystemController& controller);
 
     // optional implementation
     void                        begin_routines_required     (const ModuleConfig& cfg)       override;

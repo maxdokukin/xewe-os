@@ -15,14 +15,7 @@
 #include <algorithm>
 #include <vector>
 
-struct CommandParserConfig : public ModuleConfig {
-    CommandParserConfig(Module** mods, size_t count)
-        : modules(mods), module_count(count) {}
-
-    Module** modules       = nullptr;
-    size_t      module_count  = 0;
-};
-
+struct CommandParserConfig : public ModuleConfig {};
 
 class CommandParser: public Module {
 public:

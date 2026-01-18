@@ -20,7 +20,8 @@
 #include "../Modules/Hardware/Buttons/Buttons.h"
 #include "../Modules/Hardware/Pins/Pins.h"
 
-constexpr size_t MODULE_COUNT    = 7;
+#include <array>
+#include <vector>
 
 
 class SystemController {
@@ -38,6 +39,7 @@ public:
     Buttons                     buttons;
     Pins                        pins;
 
+    vector<Module*>&            get_modules                 () { return modules; }
 private:
-    Module*                     modules                     [MODULE_COUNT] = {};
+    vector<Module*>             modules                     {};
 };

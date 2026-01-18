@@ -102,7 +102,7 @@ System::System(SystemController& controller)
 
     commands_storage.push_back({
       "time","Get or set RTC",
-      string("$")+lower(module_name)+" time 2025-10-22 12:34:56",0,
+      string("$")+lower(module_name)+" time", 0,
       [this](string_view args){
         if(args.empty()){
           time_t now=time(nullptr); struct tm tm_; localtime_r(&now,&tm_);

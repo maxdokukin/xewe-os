@@ -20,27 +20,27 @@ SystemController::SystemController()
   , buttons(*this)
   , pins(*this)
 {
-    modules[0] = &serial_port;
-    modules[1] = &nvs;
-    modules[2] = &system;
-    modules[3] = &command_parser;
-    modules[4] = &wifi;
-    modules[5] = &buttons;
-    modules[6] = &pins;
+    modules.push_back(&serial_port);
+    modules.push_back(&nvs);
+    modules.push_back(&system);
+    modules.push_back(&command_parser);
+    modules.push_back(&wifi);
+    modules.push_back(&buttons);
+    modules.push_back(&pins);
 }
 
 void SystemController::begin() {
     bool init_setup_flag = !system.init_setup_complete();
 
-    serial_port.begin           (SerialPortConfig   {});
-    nvs.begin                   (NvsConfig          {});
-    system.begin                (SystemConfig       {});
-    wifi.begin                  (WifiConfig         {});
-    buttons.begin               (ButtonsConfig      {});
-    pins.begin                  (PinsConfig         {});
+    serial_port.begin           (SerialPortConfig       {});
+    nvs.begin                   (NvsConfig              {});
+    system.begin                (SystemConfig           {});
+    wifi.begin                  (WifiConfig             {});
+    buttons.begin               (ButtonsConfig          {});
+    pins.begin                  (PinsConfig             {});
 
     // should be initialized last to collect all cmds
-    command_parser.begin        (CommandParserConfig(modules, MODULE_COUNT));
+    command_parser.begin        (CommandParserConfig    {});
 
     if (init_setup_flag) {
         serial_port.print_header("Initial Setup Complete");
@@ -50,10 +50,11 @@ void SystemController::begin() {
 }
 
 void SystemController::loop() {
-    for (size_t i = 0; i < MODULE_COUNT; ++i) {
-        if (modules[i]->is_enabled())
-            modules[i]->loop();
+    for (Module* m : modules) {
+        if (m && m->is_enabled())
+            m->loop();
     }
+
     if (serial_port.has_line()) {
         command_parser.parse(serial_port.read_line());
     }

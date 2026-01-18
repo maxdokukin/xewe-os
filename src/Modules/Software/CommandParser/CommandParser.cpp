@@ -24,22 +24,23 @@ CommandParser::CommandParser(SystemController& controller)
 {}
 
 void CommandParser::begin_routines_required(const ModuleConfig& cfg) {
-    const auto& config = static_cast<const CommandParserConfig&>(cfg);
-
     command_groups.clear();
 
-    if (config.modules && config.module_count > 0) {
-        for (size_t i = 0; i < config.module_count; ++i) {
-            Module* module = config.modules[i];
-            if (module && module->get_has_cli_cmds()) {
-                auto grp = module->get_commands_group();
-                if (!grp.commands.empty()) {
-                    command_groups.push_back(grp);
-                }
-            }
-        }
+    auto& modules = controller.get_modules(); // IMPORTANT: reference, not copy
+
+    if (modules.empty())
+        return;
+
+    for (Module* module : modules) {
+        if (!module || !module->get_has_cli_cmds())
+            continue;
+
+        auto grp = module->get_commands_group();
+        if (!grp.commands.empty())
+            command_groups.push_back(grp);
     }
 }
+
 
 void CommandParser::print_help(const string& group_name) const {
     string target = group_name;
@@ -53,7 +54,7 @@ void CommandParser::print_help(const string& group_name) const {
 
         if (target == g_code || target == g_name) {
             vector<vector<string_view>> table_data;
-            table_data.push_back({"Name", "Description", "Args Count", "Sample Usage"});
+            table_data.push_back({"Name", "Description", "Sample Usage"});
 
             vector<string> arg_counts_store;
             arg_counts_store.reserve(grp.commands.size());
@@ -64,7 +65,6 @@ void CommandParser::print_help(const string& group_name) const {
                 table_data.push_back({
                     cmd.name,
                     cmd.description,
-                    arg_counts_store.back(), // string_view pointing to the string in vector
                     cmd.sample_usage
                 });
             }
@@ -72,7 +72,7 @@ void CommandParser::print_help(const string& group_name) const {
             controller.serial_port.print_table(
                 table_data,     // The data
                 grp.name,       // The Header (Module Name)
-                35              // Max column width
+                30              // Max column width
             );
             
             return;

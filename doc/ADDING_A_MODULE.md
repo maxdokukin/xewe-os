@@ -140,14 +140,7 @@ In `src/SystemController/SystemController.h`:
 ```
 
 
-2. Increment `MODULE_COUNT`:
-```cpp
-constexpr size_t MODULE_COUNT = ...; // Increase by 1
-
-```
-
-
-3. Declare the member variable in `SystemController::public`:
+2. Declare the member variable in `SystemController::public`:
 ```cpp
 ModuleName module_name;
 
@@ -170,19 +163,8 @@ In `src/SystemController/SystemController.cpp`:
 
 2. Add to the modules array:
 ```cpp
-modules[MODULE_COUNT-1] = &module_name;
+modules.push_back(&module_name);
 ```
-
-**Example:**
-
-```cpp
-MODULE_COUNT = 3;
-
-modules[0] = &serial_port;
-modules[1] = &nvs;
-modules[2] = &module_name;
-```
-
 
 
 **In `SystemController::begin()`:**
@@ -209,7 +191,7 @@ module_name.begin(ModuleNameConfig {});
 
 ```cpp
 // should be initialized last to collect all cmds
-command_parser.begin(CommandParserConfig(modules, MODULE_COUNT));
+command_parser.begin(CommandParserConfig {});
 
 ```
 

@@ -25,18 +25,30 @@ CommandParser::CommandParser(SystemController& controller)
                /* has_cli_cmds        */ false)
 {}
 
-void CommandParser::begin_routines_required (const ModuleConfig& cfg) {
+void CommandParser::begin_routines_required(const ModuleConfig& cfg) {
     const auto& config = static_cast<const CommandParserConfig&>(cfg);
-    groups      = config.groups;
-    group_count = config.group_count;
+
+    command_groups.clear();
+
+    if (config.modules && config.module_count > 0) {
+        for (size_t i = 0; i < config.module_count; ++i) {
+            Module* module = config.modules[i];
+            if (module) {
+                auto grp = module->get_commands_group();
+                if (!grp.commands.empty()) {
+                    command_groups.push_back(grp);
+                }
+            }
+        }
+    }
 }
 
 void CommandParser::print_help(const string& group_name) const {
     string target = group_name;
     transform(target.begin(), target.end(), target.begin(), ::tolower);
 
-    for (size_t i = 0; i < group_count; ++i) {
-        const auto& grp = groups[i];
+    for (size_t i = 0; i < command_groups.size(); ++i) {
+        const auto& grp = command_groups[i];
         string name = grp.name;
         string group = grp.group;
         if (target == group) {
@@ -70,9 +82,9 @@ void CommandParser::print_help(const string& group_name) const {
 
 void CommandParser::print_all_commands() const {
     Serial.println("\n===== All Available Commands =====");
-    for (size_t i = 0; i < group_count; ++i) {
-        if (!groups[i].name.empty()) {
-            print_help(groups[i].name);
+    for (size_t i = 0; i < command_groups.size(); ++i) {
+        if (!command_groups[i].name.empty()) {
+            print_help(command_groups[i].name);
         }
     }
     Serial.println("==================================");
@@ -164,8 +176,8 @@ void CommandParser::parse(string_view input_line) const {
     }
 
     // Lookup group
-    for (size_t gi = 0; gi < group_count; ++gi) {
-        const auto& grp = groups[gi];
+    for (size_t gi = 0; gi < command_groups.size(); ++gi) {
+        const auto& grp = command_groups[gi];
         string name = grp.name;
         transform(name.begin(), name.end(), name.begin(), ::tolower);
         if (gl == name) {

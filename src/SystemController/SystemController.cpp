@@ -30,27 +30,15 @@ void SystemController::begin() {
     serial_port.begin           (SerialPortConfig   {});
     nvs.begin                   (NvsConfig          {});
     system.begin                (SystemConfig       {});
-    wifi.begin                  (WifiConfig       {});
+    wifi.begin                  (WifiConfig         {});
+
+    // should be initialized last to collect all cmds
+    command_parser.begin        (CommandParserConfig(modules, MODULE_COUNT));
 
     if (init_setup_flag) {
         serial_port.print_header("Initial Setup Complete");
         system.restart();
     }
-
-    // this can be moved inside of the module begin
-    command_groups.clear();
-    for (auto module : modules) {
-        auto grp = module->get_commands_group();
-        if (!grp.commands.empty()) {
-            command_groups.push_back(grp);
-        }
-    }
-
-    CommandParserConfig parser_cfg;
-    parser_cfg.groups      = command_groups.data();
-    parser_cfg.group_count = command_groups.size();
-    command_parser.begin(parser_cfg);
-    // this can be moved inside of the module begin
 }
 
 void SystemController::loop() {

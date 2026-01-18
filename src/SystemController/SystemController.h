@@ -9,7 +9,7 @@
  *********************************************************************************/
 #pragma once
 
-#include <vector>
+//#include <vector>
 
 #include "../Modules/Module/Module.h"
 #include "../Modules/Software/SerialPort/SerialPort.h"
@@ -33,5 +33,4 @@ public:
     Wifi                        wifi;
 private:
     Module*                     modules                     [MODULE_COUNT] = {};
-    vector<CommandsGroup>       command_groups;
 };

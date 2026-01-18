@@ -16,8 +16,11 @@
 
 
 struct CommandParserConfig : public ModuleConfig {
-    const CommandsGroup*        groups                      = nullptr;
-    size_t                 group_count                 = 0;
+    CommandParserConfig(Module** mods, size_t count)
+        : modules(mods), module_count(count) {}
+
+    Module** modules       = nullptr;
+    size_t      module_count  = 0;
 };
 
 
@@ -33,7 +36,5 @@ public:
     void                        parse                       (string_view input_line)   const;
 
 private:
-    const CommandsGroup*        groups                      = nullptr;
-    size_t                 group_count                 = 0;
-    vector<Command>        cmd_commands;
+    vector<CommandsGroup>       command_groups;
 };

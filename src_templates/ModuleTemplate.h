@@ -19,6 +19,7 @@ class ModuleName : public Module {
 public:
     explicit                    ModuleName                  (SystemController& controller);
 
+    // optional functions, can be overridden; def is Module.cpp
     void                        begin_routines_required     (const ModuleConfig& cfg)       override;
     void                        begin_routines_init         (const ModuleConfig& cfg)       override;
     void                        begin_routines_regular      (const ModuleConfig& cfg)       override;
@@ -34,6 +35,9 @@ public:
                                                              const bool do_restart=true)    override;
 
     string                      status                      (const bool verbose=false)      const override;
+
+    // custom functions template
+    void                        custom_function             ();
 
 private:
 

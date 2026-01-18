@@ -19,7 +19,7 @@ Buttons::Buttons(SystemController& controller)
                /* module_name         */ "Buttons",
                /* module_description  */ "Allows to bind CLI cmds to physical buttons",
                /* nvs_key             */ "btn",
-               /* requires_init_setup */ true,
+               /* requires_init_setup */ false,
                /* can_be_disabled     */ true,
                /* has_cli_cmds        */ true)
 {

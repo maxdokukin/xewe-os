@@ -19,7 +19,7 @@ Pins::Pins(SystemController& controller)
                /* module_name         */ "Pins",
                /* module_description  */ "Allows direct hardware control (GPIO, ADC, I2C, PWM)",
                /* nvs_key             */ "pns",
-               /* requires_init_setup */ true,
+               /* requires_init_setup */ false,
                /* can_be_disabled     */ true,
                /* has_cli_cmds        */ true)
 {

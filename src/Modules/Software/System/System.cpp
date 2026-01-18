@@ -19,7 +19,7 @@ System::System(SystemController& controller)
                /* module_name         */ "System",
                /* module_description  */ "Stores integral commands and routines",
                /* nvs_key             */ "sys",
-               /* requires_init_setup */ true,
+               /* requires_init_setup */ false,
                /* can_be_disabled     */ false,
                /* has_cli_cmds        */ true) {
 

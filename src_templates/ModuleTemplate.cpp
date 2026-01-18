@@ -67,3 +67,10 @@ std::string ModuleName::status (const bool verbose, const bool do_restart) const
     // do your custom routines here
     return Module::status(verbose, do_restart);
 }
+
+void ModuleName::custom_function () {
+    // make sure to have this, otherwise if other modules call it when disabled, this will lead to undesired bugs.
+    if (is_disabled()) return;
+
+    // do your custom routines here
+}

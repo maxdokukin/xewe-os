@@ -1,55 +1,85 @@
-How to add a nem module:
+# Adding and Integrating a New Module
 
-Say you are adding a new module: ModuleName.
+This guide details the technical steps to create a new module (`ModuleName`) and integrate it into the `SystemController`.
 
-First, depending on whether is build more for hardware of software interaction, create new folded and .cpp .h files in the scr/Modules/<Software|Hardware>/ModuleName
+## 1. Module Creation
 
-For example, if is mopre of a Software module, create these files:
-/src/Modules/Hardware/ModuleName/ModuleName.cpp
-/src/Modules/Hardware/ModuleName/ModuleName.h
-/src/Modules/Hardware/ModuleName/README.md (is good to have)
+Determine if the module interacts primarily with **Hardware** or **Software**. Create the directory structure in `src/Modules/<Type>/ModuleName`.
 
-Now /src_templates is a good starting point; copy paste from 
-/src_templates/ModuleTemplate.h -> ModuleName.h
-/src_templates/ModuleTemplate.cpp -> ModuleName.cpp
+**Example (Software Module):**
 
-Your ModuleName will be inheriting from Module. So, you only need to define a constructor. Other functions are optional for you. That said, make sure that if you have custom code when overriding, you still call parent method.
+* `src/Modules/Software/ModuleName/ModuleName.cpp`
+* `src/Modules/Software/ModuleName/ModuleName.h`
+* `src/Modules/Software/ModuleName/README.md` (Recommended)
 
-Ex: void ModuleName::disable (const bool verbose, const bool do_restart) {
-    // do your custom routines here
+### Using Templates
+
+Use the existing templates in `src_templates` as a base:
+
+* Copy `src_templates/ModuleTemplate.h` -> `ModuleName.h`
+* Copy `src_templates/ModuleTemplate.cpp` -> `ModuleName.cpp`
+
+## 2. Implementation Details
+
+Your class `ModuleName` inherits from `Module`. You must define a constructor. Overriding other functions is optional.
+
+**Important:** When overriding parent methods, ensure the parent method is called within your implementation.
+
+```cpp
+void ModuleName::disable (const bool verbose, const bool do_restart) {
+    // Custom disable routines here
     Module::disable(verbose, do_restart);
 }
 
-Constructor:
-IN the constructor, you can define what happens when the module is beeing created. I don't recommend running any functions here, as there is begin routing logic that will be discussed later.
+```
 
+### Constructor Configuration
+
+Define module properties in the constructor. Avoid running functional logic here; reserve logic for the `begin` routines.
+
+```cpp
 ModuleName::ModuleName(SystemController& controller)
       : Module(controller,
-               /* module_name         */ "",
-               /* module_description  */ "",
-               /* nvs_key             */ "",
+               /* module_name         */ "ModuleName",
+               /* module_description  */ "Brief description",
+               /* nvs_key             */ "key", // ~3 chars ideally
                /* requires_init_setup */ false,
                /* can_be_disabled     */ false,
                /* has_cli_cmds        */ false)
 {}
 
-Here, you should name your module, givit is some description, and set nvs key, ideally around 3 characters.
+```
 
-Now, booleans:
-- requires_init_setup: this is a flag to run begin_routines_init(); it will only happen once, upon the firs boot after the software is uploaded. So in case you need to cofigure something once, that flag should be true. Ex: wifi requires init setup to select a network and enter a password.
-- can_be_disabled: if module can be enabled/disabled
-- has_cli_cmds: if your  module has cli cmds; if this is set to true, by default the module will support status and reset commands; if the can_be_disabled flag is set to true, then the module will also support enable disable commands by default.
+#### Configuration Flags
 
-In the bnody of constructor you can define your custom CLI cmds:
-Each Command has these properties:
+* **`requires_init_setup`**: If `true`, runs `begin_routines_init()` once on the first boot after upload. Used for one-time configurations (e.g., WiFi network selection).
+* **`can_be_disabled`**: If `true`, the module supports enable/disable functionality.
+* **`has_cli_cmds`**: If `true`, enables CLI support.
+* By default, adds `status` and `reset` commands.
+* If `can_be_disabled` is also `true`, adds `enable` and `disable` commands.
+
+
+
+### Defining CLI Commands
+
+Define custom commands within the constructor body using `commands_storage`.
+
+**Command Structure:**
+
+```cpp
 struct Command {
-    string                      name;
-    string                      description;
-    string                      sample_usage;
-    size_t                      arg_count;
-    command_function_t          function;
+    string              name;
+    string              description;
+    string              sample_usage;
+    size_t              arg_count;
+    command_function_t  function;
 };
-Example:
+
+```
+
+**Implementation Example:**
+
+```cpp
 commands_storage.push_back({
     "add",
     "Add a button mapping: <pin> \"<$cmd ...>\" [pullup|pulldown] [on_press|on_release|on_change] [debounce_ms]",
@@ -58,63 +88,127 @@ commands_storage.push_back({
     [this](std::string_view args){ button_add_cli(args); }
 });
 
-You can refer to existing modules constructors to see how it's done.
+```
 
-Begin Logic:
-There are 4 begin functions, which may sound like a lot; but every sinngle one of them has a purpose.
+## 3. Lifecycle Logic (Begin Routines)
 
-begin_routines_required: happens every time on boot
-begin_routines_init: happens on first boot, or after $enable
-begin_routines_regular: happens on regular boot
-begin_routines_common: happens at the end of the boot
+There are four specific initialization phases. You may not need all of them, but they provide flexibility.
 
+1. **`begin_routines_required`**: Runs every boot.
+2. **`begin_routines_init`**: Runs on first boot or after `$enable`.
+3. **`begin_routines_regular`**: Runs on regular boot.
+4. **`begin_routines_common`**: Runs at the end of the boot process.
 ![begin_flow.png](../static/media/resources/readme/begin_flow.png)
+> **Note:** `begin` methods are called even if the module is disabled. This ensures pointers are valid for other modules that may reference this module.
 
-Chances are, you won't need all four. But its good to have options for the flexibility.
-NOTE: even if the module is disabled, begin will still be called. This is done because other modules may refer to disabled module. This would avoid null pointers otherwise.
+## 4. Loop and Custom Functions
 
-Loop:
-Here you can add all the code that you need to execute routinely. Blocking functions will affect all other modules, so maybe don't use delay().
+### Loop
 
-Custom functions:
-All funcitons that you develop for the module should have important consideration. If your module can be disabled, you should check if it is iat the beginning of your custom functions, and return. Alike calling begin() for disabled modules, your custom functions may be called by others, so make sure to include one liner if (is_disabled()) return;
+Place routine execution code here. Avoid blocking functions (like `delay()`) as they affect the entire system.
 
+### Custom Function Guidelines
+
+If your module can be disabled, you must explicitly check the state at the start of every public custom function. External modules may call your functions even when your module is disabled.
+
+```cpp
 void ModuleName::custom_function () {
-    // make sure to have this, otherwise if other modules call it when disabled, this will lead to undesired bugs.
+    // Safety check to prevent bugs when accessed by other modules
     if (is_disabled()) return;
     
-    // do your custom routines here
+    // Custom logic here
 }
 
-That's it on module delevopment practicies; NOw let's go to the integration part
+```
+
+---
+
+## 5. Integrating the New Module
+
+Follow these steps to register `ModuleName` with the `SystemController`.
+
+### Step 1: Update SystemController.h
+
+In `src/SystemController/SystemController.h`:
+
+1. Include the header:
+```cpp
+#include "../Modules/<Hardware|Software>/ModuleName/ModuleName.h"
+
+```
 
 
-Integrating New Module
-Very straightforward and mechanical
+2. Increment `MODULE_COUNT`:
+```cpp
+constexpr size_t MODULE_COUNT = ...; // Increase by 1
 
-in scr/SystemController/SystemController.h:
-add #include "../Modules/<Hardware|Software>/ModuleName/ModuleName.h"
-update constexpr size_t MODULE_COUNT by one.
-
-in SystemController::public:
-add variable ModuleName module_name;
-
-in scr/SystemController/SystemController.cpp:
-in SystemController::SystemController()
-add ", module_name(*this)"
-add "modules[MODULE_COUNT - 1] = &module_name;"
-
-in SystemController::begin()
-if your module depends on other modules (ex: WebServer requires Wifi)
-then add this before calling module begin 
-module_name.add_requirement (module_required);
-then add module_name.begin (ModuleNameConfig {});
-
-note that your dependency setting and begin should be before 
-
-"// should be initialized last to collect all cmds
-command_parser.begin        (CommandParserConfig(modules, MODULE_COUNT));"
-
-That's it, now your custom module is fullly integrated with others.
+```
 
 
+3. Declare the member variable in `SystemController::public`:
+```cpp
+ModuleName module_name;
+
+```
+
+
+
+### Step 2: Update SystemController.cpp
+
+In `src/SystemController/SystemController.cpp`:
+
+**In `SystemController::SystemController()`:**
+
+1. Initialize the module in the constructor list:
+```cpp
+, module_name(*this)
+
+```
+
+
+2. Add to the modules array:
+```cpp
+modules[MODULE_COUNT-1] = &module_name;
+```
+
+**Example:**
+
+```cpp
+MODULE_COUNT = 3;
+
+modules[0] = &serial_port;
+modules[1] = &nvs;
+modules[2] = &module_name;
+```
+
+
+
+**In `SystemController::begin()`:**
+
+1. Define dependencies (if any) before initialization.
+* *Example: If ModuleName requires WiFi:*
+
+
+```cpp
+module_name.add_requirement(wifi); 
+
+```
+
+
+2. Call `begin()`:
+```cpp
+module_name.begin(ModuleNameConfig {});
+
+```
+
+
+
+**Ordering Note:** Ensure your module initialization occurs before the command parser initialization:
+
+```cpp
+// should be initialized last to collect all cmds
+command_parser.begin(CommandParserConfig(modules, MODULE_COUNT));
+
+```
+
+That's it, congrats on getting your module in.

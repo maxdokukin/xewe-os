@@ -85,7 +85,7 @@ void Module::enable(const bool verbose, const bool do_restart) {
         return;
     }
     if (!requirements_enabled(true)) {
-        Serial.printf("%s: requirements not enabled; enable them first\n", module_name.c_str());
+        Serial.printf("%s Module: requirements not enabled; enable them first\n", module_name.c_str());
         return;
     }
     enabled = true;
@@ -280,7 +280,7 @@ bool Module::requirements_enabled(bool verbose) const {
         bool req_enabled = r->is_enabled();
         all_enabled = all_enabled && req_enabled;
         if (!req_enabled && verbose)
-            Serial.printf("%s requires %s module; use $%s enable\n", module_name.c_str(), r->module_name.c_str(), lower(r->module_name).c_str());
+            Serial.printf("%s Module requires %s module; use $%s enable\n", module_name.c_str(), r->module_name.c_str(), lower(r->module_name).c_str());
     }
     return all_enabled;
 }

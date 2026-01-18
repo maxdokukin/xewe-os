@@ -34,6 +34,9 @@ public:
     std::string                 get_live_status             () const;
 
 private:
+    enum                        InputMode                   { BUTTON_PULLUP, BUTTON_PULLDOWN };
+    enum                        TriggerEvent                { BUTTON_ON_PRESS, BUTTON_ON_RELEASE, BUTTON_ON_CHANGE };
+
     struct Button {
         uint8_t pin;
         std::string command;
@@ -44,9 +47,6 @@ private:
         int last_steady_state;
         int last_flicker_state;
     };
-
-    enum                        InputMode                   { BUTTON_PULLUP, BUTTON_PULLDOWN };
-    enum                        TriggerEvent                { BUTTON_ON_PRESS, BUTTON_ON_RELEASE, BUTTON_ON_CHANGE };
 
     bool                        parse_config_string         (const std::string& config, Button& button);
 

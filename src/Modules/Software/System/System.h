@@ -10,24 +10,13 @@
 // src/Modules/Software/System/System.h
 #pragma once
 
-#include <esp_system.h>
-#include <esp_chip_info.h>
-#include <esp_idf_version.h>
-#include <esp_timer.h>
-#include <esp_sleep.h>
-#include <esp_log.h>
-#include <esp_mac.h>
-#include <esp_heap_caps.h>
-#include <esp_partition.h>
-#include <esp_ota_ops.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-#include <time.h>
-#include <sys/time.h>
-
-
 #include "../../Module.h"
 #include "../../../build_info.h"
+
+#include <esp_system.h>
+#include <esp_chip_info.h>
+#include <esp_mac.h>
+#include <mbedtls/sha256.h>
 
 
 struct SystemConfig : public ModuleConfig {};
@@ -39,3 +28,4 @@ public:
 
     void                        begin_routines_required     (const ModuleConfig& cfg)       override;
 };
+

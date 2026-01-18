@@ -11,10 +11,10 @@
 
 
 #include "ModuleName.h"
-#include "../../../ModuleController/ModuleController.h"
+#include "../../../SystemController/SystemController.h"
 
 
-ModuleName::ModuleName(ModuleController& controller)
+ModuleName::ModuleName(SystemController& controller)
       : Module(controller,
                /* module_name         */ "",
                /* module_description  */ "",

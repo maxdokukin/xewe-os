@@ -45,6 +45,13 @@ inline std::string capitalize(std::string s) {
     }
     return s;
 }
+
+inline std::string to_hex(const uint8_t* b, size_t n) {
+    static const char* k = "0123456789ABCDEF";
+    std::string s; s.reserve(n * 2);
+    for (size_t i = 0; i < n; i++) { s.push_back(k[b[i] >> 4]); s.push_back(k[b[i] & 0x0F]); }
+    return s;
+}
 // --------------------------------------------------------------------------------------
 // Small, header-only string utilities intended for embedded targets.
 // Keep allocations modest and avoid exceptions.

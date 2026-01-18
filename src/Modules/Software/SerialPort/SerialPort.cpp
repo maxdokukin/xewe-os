@@ -225,6 +225,114 @@ void SerialPort::print_header(std::string_view message,
     }
 }
 
+void SerialPort::print_table(const std::vector<std::vector<std::string_view>>& table,
+                             const uint16_t max_col_width,
+                             std::string_view edge_character,
+                             std::string_view cross_edge_character,
+                             std::string_view sep_fill) {
+    if (table.empty()) return;
+
+    // 1. Calculate Column Widths
+    size_t num_cols = 0;
+    for (const auto& row : table) num_cols = std::max(num_cols, row.size());
+
+    std::vector<uint16_t> col_widths(num_cols, 0);
+
+    for (const auto& row : table) {
+        for (size_t c = 0; c < row.size(); ++c) {
+            // Raw length + 1 space left + 1 space right
+            size_t req_width = row[c].length() + 2;
+            if (req_width > max_col_width) req_width = max_col_width;
+
+            if (req_width > col_widths[c]) {
+                col_widths[c] = static_cast<uint16_t>(req_width);
+            }
+        }
+    }
+
+    // Helper: Print a divider line (e.g., +-----+-----+)
+    auto print_divider = [&]() {
+        std::string line;
+        line.reserve(128); // rough estimate
+        line.append(cross_edge_character);
+        for (size_t c = 0; c < num_cols; ++c) {
+            // repeat sep_fill for col_widths[c] times
+            for (size_t k = 0; k < col_widths[c]; ++k) {
+                // Handle multi-char fill pattern by modulo if needed,
+                // but usually fill is 1 char ("-").
+                if (!sep_fill.empty())
+                    line += sep_fill[k % sep_fill.size()];
+                else
+                    line += '-';
+            }
+            line.append(cross_edge_character);
+        }
+        write_line_crlf(line);
+    };
+
+    // Helper: Wrap text (simple logic to match request if wrap_words isn't exposed)
+    auto get_wrapped_lines = [&](std::string_view text, uint16_t width) -> std::vector<std::string> {
+        // Effective width for text is width - 2 (margins)
+        if (width <= 2) return { std::string(text) }; // Edge case
+
+        // Use existing wrap logic from 'print' if available, otherwise utilize this:
+        // Assuming we rely on the same 'wrap_words' logic your `print` function uses.
+        // If wrap_words is not accessible, here is a bridge:
+        return wrap_words(std::string(text), width - 2);
+    };
+
+    // 2. Print Top of Table
+    print_divider();
+
+    // 3. Print Rows
+    for (const auto& row : table) {
+        // Pre-calculate wrapped blocks for this row to determine height
+        std::vector<std::vector<std::string>> row_blocks;
+        size_t max_row_height = 0;
+
+        // Process each column in this row
+        for (size_t c = 0; c < num_cols; ++c) {
+            std::string_view entry = (c < row.size()) ? row[c] : "";
+            std::vector<std::string> wrapped = get_wrapped_lines(entry, col_widths[c]);
+            if (wrapped.empty()) wrapped.push_back(""); // ensure at least one empty line
+            max_row_height = std::max(max_row_height, wrapped.size());
+            row_blocks.push_back(std::move(wrapped));
+        }
+
+        // Print physical lines for this row
+        for (size_t h = 0; h < max_row_height; ++h) {
+            std::string line_out;
+            line_out.reserve(128);
+            line_out.append(edge_character);
+
+            for (size_t c = 0; c < num_cols; ++c) {
+                // Get the text segment for this height, or empty if done
+                std::string segment = (h < row_blocks[c].size()) ? row_blocks[c][h] : "";
+
+                // Add margins and padding
+                // Logic: " " + segment + padding + " "
+                line_out += ' '; // Left margin
+                line_out += segment;
+
+                // Calculate remaining padding
+                size_t current_content_len = segment.length();
+                size_t target_content_len  = static_cast<size_t>(col_widths[c]) - 2; // -2 for margins
+
+                if (target_content_len > current_content_len) {
+                    line_out.append(target_content_len - current_content_len, ' ');
+                }
+
+                line_out += ' '; // Right margin
+                line_out += edge_character;
+            }
+            write_line_crlf(line_out);
+        }
+
+        // Print Separator between rows
+        print_divider();
+    }
+}
+
 // getters
 string SerialPort::get_string(string_view prompt,
                                    const uint16_t min_length,

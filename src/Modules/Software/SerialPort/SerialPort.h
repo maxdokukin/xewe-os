@@ -66,6 +66,13 @@ public:
                                                              string_view            cross_edge_character    = "+",
                                                              string_view            sep_fill                = "-"
                                                             );
+    void                        print_table                 (const vector<vector<string_view>>& table,
+                                                             const uint16_t         max_col_width           = 40,
+                                                             string_view            edge_character          = "|",
+                                                             string_view            cross_edge_character    = "+",
+                                                             string_view            sep_fill                = "-"
+                                                            );
+
     // getters
     string                      get_string                  (string_view            prompt                  = {},
                                                              const uint16_t         min_length              = 0,

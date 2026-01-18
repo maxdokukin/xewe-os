@@ -205,7 +205,7 @@ void Module::register_generic_commands() {
     commands_storage.push_back(Command{
         "status",
         "Get module status",
-        string("Sample Use: $") + lower(module_name) + " status",
+        string("$") + lower(module_name) + " status",
         0,
         [this](string) {
             status(true);
@@ -217,7 +217,7 @@ void Module::register_generic_commands() {
     commands_storage.push_back(Command{
         "reset",
         "Reset the module",
-        string("Sample Use: $") + lower(module_name) + " reset",
+        string("$") + lower(module_name) + " reset",
         0,
         [this](string) {
             reset(true);
@@ -230,7 +230,7 @@ void Module::register_generic_commands() {
         commands_storage.push_back(Command{
             "enable",
             "Enable this module",
-            string("Sample Use: $") + lower(module_name) + " enable",
+            string("$") + lower(module_name) + " enable",
             0,
             [this](string) {
                 enable(true);
@@ -239,7 +239,7 @@ void Module::register_generic_commands() {
         commands_storage.push_back(Command{
             "disable",
             "Disable this module",
-            string("Sample Use: $") + lower(module_name) + " disable",
+            string("$") + lower(module_name) + " disable",
             0,
             [this](string) {
                 disable(true);

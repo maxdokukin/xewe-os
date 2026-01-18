@@ -83,7 +83,7 @@ struct Command {
 commands_storage.push_back({
     "add",
     "Add a button mapping: <pin> \"<$cmd ...>\" [pullup|pulldown] [on_press|on_release|on_change] [debounce_ms]",
-    std::string("Sample Use: $") + lower(module_name) + " add 9 \"$system reboot\" pullup on_press 50",
+    std::string("$") + lower(module_name) + " add 9 \"$system reboot\" pullup on_press 50",
     5,
     [this](std::string_view args){ button_add_cli(args); }
 });

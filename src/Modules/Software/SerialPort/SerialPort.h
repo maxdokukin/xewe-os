@@ -29,7 +29,6 @@ public:
     void                        reset                       (const bool             verbose                 = false,
                                                              const bool             do_restart              = true
                                                             ) override;
-    void                        test                        ();
     // printers
     void                        print                       (string_view            message                 = {},
                                                              string_view            end                     = kCRLF,

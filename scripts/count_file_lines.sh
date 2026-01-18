@@ -7,7 +7,7 @@ DIR="${1:-.}"
 
 if [ ! -d "$DIR" ]; then
   echo "Error: '$DIR' is not a directory." >&2
-  echo "Usage: $0 [DIRECTORY]" >&2
+  echo "$0 [DIRECTORY]" >&2
   exit 1
 fi
 

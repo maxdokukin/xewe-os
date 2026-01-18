@@ -101,7 +101,8 @@ public:
     void                        add_requirement             (Module& other);
 
     CommandsGroup               get_commands_group          ();
-    string_view                 get_module_name             ()                              const { return module_name; };
+    string_view                 get_module_name             ()                              const { return module_name; }
+    const bool                  get_has_cli_cmds            ()                              const { return has_cli_commands; }
 
 protected:
     SystemController&           controller;

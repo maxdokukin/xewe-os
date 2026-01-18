@@ -12,6 +12,8 @@
 
 #include "../../Module/Module.h"
 
+#include <algorithm>
+#include <vector>
 
 struct CommandParserConfig : public ModuleConfig {
     CommandParserConfig(Module** mods, size_t count)

@@ -26,7 +26,7 @@ System::System(SystemController& controller)
     commands_storage.push_back({
         "restart",
         "Restart the ESP",
-        string("Sample Use: $") + lower(module_name) + " restart",
+        string("$") + lower(module_name) + " restart",
         0,
         [this](string_view) { ESP.restart(); }
     });
@@ -34,14 +34,14 @@ System::System(SystemController& controller)
     commands_storage.push_back({
         "reboot",
         "Restart the ESP",
-        string("Sample Use: $") + lower(module_name) + " reboot",
+        string("$") + lower(module_name) + " reboot",
         0,
         [this](string_view) { ESP.restart(); }
     });
 
     commands_storage.push_back({
       "info","Chip and build info",
-      string("Sample Use: $")+lower(module_name)+" info",
+      string("$")+lower(module_name)+" info",
       0,
       [this](string_view){
         esp_chip_info_t ci; esp_chip_info(&ci);
@@ -64,7 +64,7 @@ System::System(SystemController& controller)
 
     commands_storage.push_back({
       "mac","Print MAC addresses",
-      string("Sample Use: $")+lower(module_name)+" mac",0,
+      string("$")+lower(module_name)+" mac",0,
       [this](string_view){
         struct Item{ const char* name; esp_mac_type_t t; } items[]={
           {"wifi_sta", ESP_MAC_WIFI_STA},
@@ -83,7 +83,7 @@ System::System(SystemController& controller)
 
     commands_storage.push_back({
       "uid","Device UID from eFuse base MAC (and SHA256-64)",
-      string("Sample Use: $")+lower(module_name)+" uid",0,
+      string("$")+lower(module_name)+" uid",0,
       [this](string_view){
         uint8_t mac[6]; esp_efuse_mac_get_default(mac);
         uint8_t dig[32]; mbedtls_sha256(mac, sizeof(mac), dig, 0 /* is224 */);
@@ -94,7 +94,7 @@ System::System(SystemController& controller)
 
     commands_storage.push_back({
       "stack","Current task stack watermark (words)",
-      string("Sample Use: $")+lower(module_name)+" stack",0,
+      string("$")+lower(module_name)+" stack",0,
       [this](string_view){
         this->controller.serial_port.print(std::to_string((unsigned)uxTaskGetStackHighWaterMark(nullptr)).c_str(), kCRLF);
       }
@@ -102,7 +102,7 @@ System::System(SystemController& controller)
 
     commands_storage.push_back({
       "time","Get or set RTC",
-      string("Sample Use: $")+lower(module_name)+" time 2025-10-22 12:34:56",0,
+      string("$")+lower(module_name)+" time 2025-10-22 12:34:56",0,
       [this](string_view args){
         if(args.empty()){
           time_t now=time(nullptr); struct tm tm_; localtime_r(&now,&tm_);
@@ -122,7 +122,7 @@ System::System(SystemController& controller)
 
     commands_storage.push_back({
       "random","Print N random bytes hex",
-      string("Sample Use: $")+lower(module_name)+" random 16",1,
+      string("$")+lower(module_name)+" random 16",1,
       [this](string_view args){
         size_t n = strtoul(std::string(args).c_str(), nullptr, 10);
         if(n==0 || n>1024) n=16;

@@ -8,8 +8,6 @@
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
 
-
-
 // src/Modules/Software/CommandParser/CommandParser.cpp
 
 #include "CommandParser.h"
@@ -33,7 +31,7 @@ void CommandParser::begin_routines_required(const ModuleConfig& cfg) {
     if (config.modules && config.module_count > 0) {
         for (size_t i = 0; i < config.module_count; ++i) {
             Module* module = config.modules[i];
-            if (module) {
+            if (module && module->get_has_cli_cmds()) {
                 auto grp = module->get_commands_group();
                 if (!grp.commands.empty()) {
                     command_groups.push_back(grp);
@@ -47,47 +45,53 @@ void CommandParser::print_help(const string& group_name) const {
     string target = group_name;
     transform(target.begin(), target.end(), target.begin(), ::tolower);
 
-    for (size_t i = 0; i < command_groups.size(); ++i) {
-        const auto& grp = command_groups[i];
-        string name = grp.name;
-        string group = grp.group;
-        if (target == group) {
-            Serial.println("----------------------------------------");
-            Serial.print(grp.name.c_str());
-            Serial.println(" commands:");
-            for (size_t j = 0; j < grp.commands.size(); ++j) {
-                const auto& cmd = grp.commands[j];
-                Serial.print("    $");
-                Serial.print(grp.group.c_str());
-                Serial.print(" ");
-                Serial.print(cmd.name.c_str());
-                int pad = 20 - int(grp.group.size() + cmd.name.size());
-                for (int k = 0; k < pad; ++k) Serial.print(" ");
-                Serial.print("- ");
-                Serial.print(cmd.description.c_str());
-                Serial.print(" (args: ");
-                Serial.print(cmd.arg_count);
-                Serial.println(")");
-                Serial.print("                          - ");
-                Serial.println(cmd.sample_usage.c_str());
+    for (const auto& grp : command_groups) {
+        string g_name = grp.name;
+        string g_code = grp.group;
+        transform(g_name.begin(), g_name.end(), g_name.begin(), ::tolower);
+        transform(g_code.begin(), g_code.end(), g_code.begin(), ::tolower);
+
+        if (target == g_code || target == g_name) {
+            vector<vector<string_view>> table_data;
+            table_data.push_back({"Name", "Description", "Args Count", "Sample Usage"});
+
+            vector<string> arg_counts_store;
+            arg_counts_store.reserve(grp.commands.size());
+
+            for (const auto& cmd : grp.commands) {
+                arg_counts_store.push_back(to_string(cmd.arg_count));
+
+                table_data.push_back({
+                    cmd.name,
+                    cmd.description,
+                    arg_counts_store.back(), // string_view pointing to the string in vector
+                    cmd.sample_usage
+                });
             }
-            Serial.println("----------------------------------------");
+
+            controller.serial_port.print_table(
+                table_data,     // The data
+                grp.name,       // The Header (Module Name)
+                35              // Max column width
+            );
+            
             return;
         }
     }
+
     Serial.print("Error: Command group '");
     Serial.print(group_name.c_str());
     Serial.println("' not found.");
 }
 
 void CommandParser::print_all_commands() const {
-    Serial.println("\n===== All Available Commands =====");
+    // We iterate manually to add spacing between tables
     for (size_t i = 0; i < command_groups.size(); ++i) {
         if (!command_groups[i].name.empty()) {
             print_help(command_groups[i].name);
+            Serial.print(""); // Spacer between tables
         }
     }
-    Serial.println("==================================");
 }
 
 void CommandParser::parse(string_view input_line) const {

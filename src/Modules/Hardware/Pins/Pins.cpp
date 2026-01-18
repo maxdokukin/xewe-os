@@ -25,7 +25,7 @@ Pins::Pins(SystemController& controller)
 {
     commands_storage.push_back({
       "gpio-read", "Reads the digital logic level of a specific pin (0 or 1).",
-      string("Usage: ") + lower(module_name) + " gpio-read <pin>", 1,
+      "$"+ lower(module_name) + " gpio-read <pin>", 1,
       [this](string_view args){
         int pin = atoi(std::string(args).c_str());
         pinMode(pin, INPUT);
@@ -35,7 +35,7 @@ Pins::Pins(SystemController& controller)
 
     commands_storage.push_back({
       "gpio-write", "Sets a pin to HIGH (1) or LOW (0) logic level.",
-      string("Usage: ") + lower(module_name) + " gpio-write <pin> <0|1>", 2,
+      "$"+ lower(module_name) + " gpio-write <pin> <0|1>", 2,
       [this](string_view args){
         std::string s(args); auto sp = s.find(' ');
         if(sp == std::string::npos){ this->controller.serial_port.print("Error: Missing <pin> or <level>", kCRLF); return; }
@@ -49,7 +49,7 @@ Pins::Pins(SystemController& controller)
 
     commands_storage.push_back({
       "gpio-mode", "Configures pin direction and internal resistors (in, out, in_pullup, in_pulldown).",
-      string("Usage: ") + lower(module_name) + " gpio-mode <pin> <mode>", 2,
+      "$"+ lower(module_name) + " gpio-mode <pin> <mode>", 2,
       [this](string_view args){
         std::string s(args); auto sp = s.find(' ');
         if(sp == std::string::npos){ this->controller.serial_port.print("Error: Missing <pin> or <mode>", kCRLF); return; }
@@ -67,7 +67,7 @@ Pins::Pins(SystemController& controller)
 
     commands_storage.push_back({
       "adc-read", "Reads raw analog voltage from a pin (e.g., 0-4095 for 12-bit ADC).",
-      string("Usage: ") + lower(module_name) + " adc-read <pin>", 1,
+      "$"+ lower(module_name) + " adc-read <pin>", 1,
       [this](string_view args){
         int pin = atoi(std::string(args).c_str());
         int v = analogRead(pin);
@@ -77,7 +77,7 @@ Pins::Pins(SystemController& controller)
 
     commands_storage.push_back({
       "i2c-scan", "Scans the I2C bus for active device addresses (hexadecimal).",
-      string("Usage: ") + lower(module_name) + " i2c-scan", 0,
+      "$"+ lower(module_name) + " i2c-scan", 0,
       [this](string_view){
         Wire.begin();
         int found = 0;
@@ -96,7 +96,7 @@ Pins::Pins(SystemController& controller)
 
     commands_storage.push_back({
       "pwm-setup", "Initializes a PWM frequency and resolution (bits) on a specific pin.",
-      string("Usage: ") + lower(module_name) + " pwm-setup <ch> <pin> <freq_hz> <res_bits>", 4,
+      "$"+ lower(module_name) + " pwm-setup <ch> <pin> <freq_hz> <res_bits>", 4,
       [this](string_view args){
         std::istringstream is{std::string(args)}; int ch, pin; double freq; int bits;
         if(!(is >> ch >> pin >> freq >> bits)){ this->controller.serial_port.print("Error: Required <CH> <PIN> <FREQ> <BITS>", kCRLF); return; }
@@ -109,7 +109,7 @@ Pins::Pins(SystemController& controller)
 
     commands_storage.push_back({
       "pwm-write", "Sets the duty cycle for a PWM channel based on established resolution.",
-      string("Usage: ") + lower(module_name) + " pwm-write <ch> <duty_value>", 2,
+      "$"+ lower(module_name) + " pwm-write <ch> <duty_value>", 2,
       [this](string_view args){
         std::istringstream is{std::string(args)}; int ch; int duty;
         if(!(is >> ch >> duty)){ this->controller.serial_port.print("Error: Required <CH> <DUTY>", kCRLF); return; }
@@ -120,7 +120,7 @@ Pins::Pins(SystemController& controller)
 
     commands_storage.push_back({
       "pwm-stop", "Disables PWM on a pin and sets the duty cycle to 0.",
-      string("Usage: ") + lower(module_name) + " pwm-stop <ch> [pin]", 2,
+      "$"+ lower(module_name) + " pwm-stop <ch> [pin]", 2,
       [this](string_view args){
         std::istringstream is{std::string(args)}; int ch; int pin = -1;
         if(!(is >> ch)){ this->controller.serial_port.print("Error: Required <CH> and optional [PIN]", kCRLF); return; }

@@ -7,7 +7,7 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
-// <filepath from project root>
+// src/Modules/Wifi/Wifi.cpp
 
 
 #include "Wifi.h"
@@ -67,7 +67,14 @@ void Wifi::loop () {
 
     // enforce Wifi connection if the module is active
     while (WiFi.status() != WL_CONNECTED) {
-        bool user_disabled = controller.serial_port.prompt_user_yn("Wifi connection lost\nReconnecting in 5 seconds\nDisable WiFi module?", 5000);
+        // Optimized: Use get_yn with 1 attempt (retry_count=1) to act as a timed prompt
+        bool user_disabled = controller.serial_port.get_yn(
+            "Wifi connection lost\nReconnecting in 5 seconds\nDisable WiFi module?",
+            1,      // retry_count
+            5000,   // timeout_ms
+            false   // default_value
+        );
+
         if (user_disabled) {
             disable(true);
         }
@@ -104,7 +111,7 @@ std::string Wifi::status(bool verbose) const {
                       + "\nLocal ip: " + get_local_ip()
                       + "\nMac: " + get_mac_address();
         if (verbose) {
-            controller.serial_port.println(status_string);
+            controller.serial_port.print(status_string);
         }
     }
     return status_string;
@@ -121,22 +128,22 @@ bool Wifi::connect(bool prompt_for_credentials) {
     if (read_stored_credentials(ssid, pwd)) {
         DBG_PRINTLN(Wifi, "connect(): stored credentials found");
 
-        controller.serial_port.println("Stored WiFi credentials found");
+        controller.serial_port.print("Stored WiFi credentials found");
         if (join(ssid, pwd, 10000, 3)) {
             DBG_PRINTLN(Wifi, "connect(): join() succeeded with stored credentials");
             return true;
         } else {
             DBG_PRINTLN(Wifi, "connect(): join() failed with stored credentials");
-            controller.serial_port.println("Stored WiFi credentials not valid.");
+            controller.serial_port.print("Stored WiFi credentials not valid.");
             if (!prompt_for_credentials) {
-                controller.serial_port.println("Use '$wifi reset' to reset credentials");
+                controller.serial_port.print("Use '$wifi reset' to reset credentials");
             }
         }
     } else {
         DBG_PRINTLN(Wifi, "connect(): no stored credentials");
-        controller.serial_port.println("Stored WiFi credentials not found");
+        controller.serial_port.print("Stored WiFi credentials not found");
         if (!prompt_for_credentials) {
-            controller.serial_port.println("Type '$wifi connect' to select a new network");
+            controller.serial_port.print("Type '$wifi connect' to select a new network");
         }
     }
 
@@ -146,16 +153,17 @@ bool Wifi::connect(bool prompt_for_credentials) {
             DBG_PRINTLN(Wifi, "connect(): prompting for credentials");
             uint8_t prompt_status = prompt_credentials(ssid, pwd);
             DBG_PRINTF(Wifi, "connect(): prompt_credentials returned %d\n", prompt_status);
-            if (prompt_status == 1) {
+
+            if (prompt_status == 1) { // User exit
                 DBG_PRINTLN(Wifi, "connect(): user terminated setup");
-                controller.serial_port.println("Terminated WiFi setup");
+                controller.serial_port.print("Terminated WiFi setup");
                 return false;
-            } else if (prompt_status == 2) {
+            } else if (prompt_status == 2) { // Rescan
                 DBG_PRINTLN(Wifi, "connect(): invalid choice, retrying");
                 continue;
-            } else if (prompt_status == 3) {
+            } else if (prompt_status == 3) { // Invalid
                 DBG_PRINTLN(Wifi, "connect(): invalid choice, retrying");
-                controller.serial_port.println("Invalid choice");
+                controller.serial_port.print("Invalid choice");
                 continue;
             } else {
                 DBG_PRINTLN(Wifi, "connect(): attempting join() with user credentials");
@@ -172,7 +180,6 @@ bool Wifi::connect(bool prompt_for_credentials) {
 }
 
 bool Wifi::disconnect(bool verbose) {
-    // First debug: function name
     DBG_PRINTLN(Wifi, "disconnect()");
     if (is_disabled(verbose)) return true;
     if (is_disconnected(verbose)) return true;
@@ -187,12 +194,11 @@ bool Wifi::disconnect(bool verbose) {
     bool done = (WiFi.status() != WL_CONNECTED);
     DBG_PRINTF(Wifi, "disconnect(): %s\n", done ? "success" : "timeout/failure");
 
-    if (verbose) controller.serial_port.println("WiFi disconnected");
+    if (verbose) controller.serial_port.print("WiFi disconnected");
     return done;
 }
 
 bool Wifi::join(std::string_view ssid, std::string_view password, uint16_t timeout_ms, uint8_t retry_count) {
-    // First debug: function name and parameters
     DBG_PRINTF(Wifi,
         "join(ssid='%.*s', password='%.*s')\n",
         int(ssid.size()), ssid.data(),
@@ -201,33 +207,36 @@ bool Wifi::join(std::string_view ssid, std::string_view password, uint16_t timeo
     if (is_disabled(true)) return false;
 
     for(uint8_t retry_counter = 0; retry_counter < retry_count; retry_counter++){
-        controller.serial_port.print("Joining ");
-        controller.serial_port.print(ssid.data());
+        // Optimized: Print "Joining [ssid]" without a newline (end="") so dots appear on same line
+        controller.serial_port.print(std::string("Joining ") + std::string(ssid), "");
+
         DBG_PRINTF(Wifi, "join(): ssid='%.*s'\n", int(ssid.size()), ssid.data());
         WiFi.begin(ssid.data(), password.data());
         unsigned long start = millis();
 
         while (millis() - start < timeout_ms) {
-            controller.serial_port.print(".");
+            controller.serial_port.print(".", "");
+
             if (WiFi.status() == WL_CONNECTED) {
                 DBG_PRINTLN(Wifi, "join(): connected");
-                // this is not printed for some reason
-                std::string status_string = std::string("\nJoined ") + ssid.data()
-                              + "\nLocal ip: " + get_local_ip()
-                              + "\nMac: " + get_mac_address();
-                controller.serial_port.println(status_string);
+                controller.serial_port.print(""); // Finish the dot line
+                controller.serial_port.printf("\nJoined %s\nLocal ip: %s\nMac: %s",
+                    ssid.data(),
+                    get_local_ip().c_str(),
+                    get_mac_address().c_str()
+                );
                 return true;
             }
             delay(200);
         }
         WiFi.disconnect(true);
-        controller.serial_port.print("\nUnable to join ");
-        controller.serial_port.println(ssid.data());
-        controller.serial_port.println("Check the password\ntry moving closer to router\nand restarting the router\nRetrying");
+        controller.serial_port.printf("\nUnable to join %s\n", ssid.data());
+        controller.serial_port.print("Check the password\ntry moving closer to router\nand restarting the router\nRetrying");
         DBG_PRINTLN(Wifi, "join(): timeout, disconnected");
     }
     if (retry_count > 1) {
-        bool reset_credentials = controller.serial_port.prompt_user_yn("Would you like to reset credentials?", 10000);
+        // Optimized: Use get_yn with 1 attempt/timeout
+        bool reset_credentials = controller.serial_port.get_yn("Would you like to reset credentials?", 1, 10000);
         if (reset_credentials) reset();
     }
 
@@ -235,12 +244,11 @@ bool Wifi::join(std::string_view ssid, std::string_view password, uint16_t timeo
 }
 
 std::vector<std::string> Wifi::scan(bool verbose) {
-    // First debug: function name and parameter
     DBG_PRINTF(Wifi, "scan(verbose=%d)\n", verbose);
     if (is_disabled(true)) return {};
 
     DBG_PRINTLN(Wifi, "scan(): starting scan");
-    controller.serial_port.println("Scanning WiFi networks...");
+    controller.serial_port.print("Scanning WiFi networks...");
     int num_networks = WiFi.scanNetworks(true, true);
     while (num_networks == WIFI_SCAN_RUNNING) {
         delay(10);
@@ -265,9 +273,8 @@ std::vector<std::string> Wifi::scan(bool verbose) {
 
     if (verbose) {
         for (size_t j = 0; j < unique_ssid_list.size(); ++j) {
-            char line[64];
-            snprintf(line, sizeof(line), "%zu. %s", j, unique_ssid_list[j].c_str());
-            controller.serial_port.println(line);
+            // Optimized: Use printf instead of snprintf + print
+            controller.serial_port.printf("%zu. %s", j, unique_ssid_list[j].c_str());
         }
     }
 
@@ -277,7 +284,6 @@ std::vector<std::string> Wifi::scan(bool verbose) {
 }
 
 std::string Wifi::get_local_ip() const {
-    // First debug: function name
     DBG_PRINTLN(Wifi, "get_local_ip()");
     if (is_disabled(true)) return {};
     if (is_disconnected(true)) return {};
@@ -298,7 +304,6 @@ std::string Wifi::get_ssid() const {
 }
 
 std::string Wifi::get_mac_address() const {
-    // First debug: function name
     DBG_PRINTLN(Wifi, "get_mac_address()");
     if (is_disabled(true)) return {};
     if (is_disconnected(true)) return {};
@@ -315,7 +320,6 @@ std::string Wifi::get_mac_address() const {
 }
 
 bool Wifi::read_stored_credentials(std::string& ssid, std::string& password) {
-    // First debug: function name
     DBG_PRINTLN(Wifi, "read_stored_credentials()");
     if (is_disabled(true)) return false;
     DBG_PRINTLN(Wifi, "read_stored_credentials(): reading NVS");
@@ -326,15 +330,21 @@ bool Wifi::read_stored_credentials(std::string& ssid, std::string& password) {
 }
 
 uint8_t Wifi::prompt_credentials(std::string& ssid, std::string& password) {
-    // First debug: function name
     DBG_PRINTLN(Wifi, "prompt_credentials()");
     if (is_disabled(true)) return 2;
 
     std::vector<std::string> networks = scan(true);
+
+    // Optimized: get_int handles parsing and retry logic directly
+    // Min value -3 covers the menu options (-1, -2, -3) and max is high enough for network indices
     int choice = controller.serial_port.get_int(
-        "\nSelect network by number; or enter\n-1 to exit\n-2 to rescan\n-3 to enter custom SSID\nSelection: "
+        "\nSelect network by number; or enter\n-1 to exit\n-2 to rescan\n-3 to enter custom SSID\nSelection: ",
+        -3,
+        std::numeric_limits<int>::max()
     );
+
     DBG_PRINTF(Wifi, "prompt_credentials(): user choice = %d\n", choice);
+
     if (choice == -1) {
         DBG_PRINTLN(Wifi, "prompt_credentials(): user exit");
         return 1;
@@ -352,9 +362,8 @@ uint8_t Wifi::prompt_credentials(std::string& ssid, std::string& password) {
         return 3;
     }
 
-    password = controller.serial_port.get_string(
-        "Selected: '" + ssid + "'\nPassword: "
-    );
+    password = controller.serial_port.get_string("Selected: '" + ssid + "'\nPassword: ");
+
     DBG_PRINTLN(Wifi, "prompt_credentials(): password entered");
     DBG_PRINTF(Wifi,
         "prompt_credentials(): final ssid='%s', password='%s'\n",
@@ -365,25 +374,22 @@ uint8_t Wifi::prompt_credentials(std::string& ssid, std::string& password) {
 }
 
 bool Wifi::is_connected(bool verbose) const {
-    // First debug: function name and parameter
     DBG_PRINTF(Wifi, "is_connected(verbose=%d)\n", verbose);
     bool conn = (WiFi.status() == WL_CONNECTED);
     if (verbose && conn) {
         DBG_PRINTLN(Wifi, "is_connected(): true");
-        controller.serial_port.print("Connected to ");
-        controller.serial_port.println(get_ssid().c_str());
+        controller.serial_port.printf("Connected to %s", get_ssid().c_str());
     }
     DBG_PRINTF(Wifi, "is_connected(): %s\n", conn ? "true" : "false");
     return conn;
 }
 
 bool Wifi::is_disconnected(bool verbose) const {
-    // First debug: function name and parameter
     DBG_PRINTF(Wifi, "is_disconnected(verbose=%d)\n", verbose);
     bool conn = (WiFi.status() == WL_CONNECTED);
     if (verbose && !conn) {
         DBG_PRINTLN(Wifi, "is_disconnected(): true");
-        controller.serial_port.println("Not connected to WiFi; use $wifi connect");
+        controller.serial_port.print("Not connected to WiFi; use $wifi connect");
     }
     DBG_PRINTF(Wifi, "is_disconnected(): %s\n", !conn ? "true" : "false");
     return !conn;

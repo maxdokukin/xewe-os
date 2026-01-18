@@ -16,7 +16,8 @@
 #include "../Modules/Software/Nvs/Nvs.h"
 #include "../Modules/Software/System/System.h"
 #include "../Modules/Software/CommandParser/CommandParser.h"
-constexpr size_t MODULE_COUNT    = 4;
+#include "../Modules/Software/Wifi/Wifi.h"
+constexpr size_t MODULE_COUNT    = 5;
 
 class SystemController {
 public:
@@ -24,11 +25,12 @@ public:
 
     void                        begin();
     void                        loop();
-//    void add_module(Module& m)
+
     SerialPort                  serial_port;
     Nvs                         nvs;
     System                      system;
     CommandParser               command_parser;
+    Wifi                        wifi;
 private:
     Module*                     modules                     [MODULE_COUNT] = {};
     vector<CommandsGroup>       command_groups;

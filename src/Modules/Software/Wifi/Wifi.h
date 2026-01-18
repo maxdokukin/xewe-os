@@ -15,7 +15,7 @@
 #include "../../../Debug.h"
 
 #include <WiFi.h>
-
+#include <set>
 
 struct WifiConfig : public ModuleConfig {};
 

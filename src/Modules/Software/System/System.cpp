@@ -143,3 +143,11 @@ void System::begin_routines_required (const ModuleConfig& cfg) {
         "Build Timestamp " + TO_STRING(BUILD_TIMESTAMP)
     );
 }
+
+std::string System::get_device_name () { return controller.nvs.read_str(nvs_key, "dname"); };
+
+void System::restart (uint16_t delay_ms) {
+    controller.serial_port.print_header("Rebooting");
+    delay(delay_ms);
+    ESP.restart();
+}

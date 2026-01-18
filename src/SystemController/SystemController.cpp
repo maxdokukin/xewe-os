@@ -15,11 +15,13 @@ SystemController::SystemController()
   , nvs(*this)
   , system(*this)
   , command_parser(*this)
+  , wifi(*this)
 {
     modules[0] = &serial_port;
     modules[1] = &nvs;
     modules[2] = &system;
     modules[3] = &command_parser;
+    modules[4] = &wifi;
 }
 
 void SystemController::begin() {
@@ -28,15 +30,11 @@ void SystemController::begin() {
     serial_port.begin           (SerialPortConfig   {});
     nvs.begin                   (NvsConfig          {});
     system.begin                (SystemConfig       {});
+    wifi.begin                  (WifiConfig       {});
 
     if (init_setup_flag) {
-        // serial_port.print_spacer();
-        // serial_port.print_centered("Initial Setup Complete", 50);
-        // serial_port.print_spacer();
-        // serial_port.print_centered("Rebooting...");
-        // serial_port.print_spacer();
-        delay(3000);
-        ESP.restart();
+        serial_port.print_header("Initial Setup Complete");
+        system.restart();
     }
 
     // this can be moved inside of the module begin
@@ -51,17 +49,14 @@ void SystemController::begin() {
     CommandParserConfig parser_cfg;
     parser_cfg.groups      = command_groups.data();
     parser_cfg.group_count = command_groups.size();
-    // this can be moved inside of the module begin
     command_parser.begin(parser_cfg);
-
-    // serial_port.print_spacer();
-    // serial_port.print_centered("System Setup Complete", 50);
-    // serial_port.print_spacer();
+    // this can be moved inside of the module begin
 }
 
 void SystemController::loop() {
     for (size_t i = 0; i < MODULE_COUNT; ++i) {
-        modules[i]->loop();
+        if (modules[i]->is_enabled())
+            modules[i]->loop();
     }
     if (serial_port.has_line()) {
         command_parser.parse(serial_port.read_line());

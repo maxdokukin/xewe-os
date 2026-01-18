@@ -24,19 +24,12 @@ class WebInterface : public Module {
 public:
     explicit                    WebInterface                (SystemController& controller);
 
-    // optional functions, can be overridden; def is Module.cpp
     void                        begin_routines_required     (const ModuleConfig& cfg)       override;
     void                        begin_routines_regular      (const ModuleConfig& cfg)       override;
-    void                        begin_routines_common       (const ModuleConfig& cfg)       override;
 
     void                        loop                        ()                              override;
-                                                             const bool do_restart=true)    override;
-    void                        reset                       (const bool verbose=false,
-                                                             const bool do_restart=true)    override;
-
     string                      status                      (const bool verbose=false)      const override;
 
-    // custom functions template
     WebServer&                  get_server                  ()                              { return httpServer; }
 private:
     WebServer                   httpServer                  {80};

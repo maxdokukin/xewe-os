@@ -11,13 +11,14 @@
 #pragma once
 
 
-#define DEBUG_ModuleController  0
+#define DEBUG_SystemController  0
 #define DEBUG_Module            0
 #define DEBUG_SerialPort        0
 #define DEBUG_Nvs               0
 #define DEBUG_System            0
 #define DEBUG_CommandParser     0
 #define DEBUG_Wifi              0
+#define DEBUG_WebInterface      0
 
 
 #define DBG_ENABLED(cls)      (DEBUG_##cls)

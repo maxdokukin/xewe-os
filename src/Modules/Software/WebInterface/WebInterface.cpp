@@ -24,22 +24,21 @@ WebInterface::WebInterface(SystemController& controller)
                /* has_cli_cmds        */ true)
 {}
 
-void Web::begin_routines_required (const ModuleConfig& cfg) {
-    httpServer.on("/", HTTP_GET, std::bind(&Web::serveMainPage, this));
-    httpServer.on("/cmd", HTTP_GET, std::bind(&Web::handleCommandRequest, this));
+void WebInterface::begin_routines_required (const ModuleConfig& cfg) {
+    httpServer.on("/", HTTP_GET, std::bind(&WebInterface::serveMainPage, this));
+    httpServer.on("/cmd", HTTP_GET, std::bind(&WebInterface::handleCommandRequest, this));
 }
 
 void WebInterface::begin_routines_regular (const ModuleConfig& cfg) {
     httpServer.begin();
 }
 
-void Web::loop () {
+void WebInterface::loop () {
     if (is_disabled()) return;
     httpServer.handleClient();
 }
 
-
-std::string Web::status (const bool verbose) const {
+std::string WebInterface::status (const bool verbose) const {
     std::ostringstream out;
 
     unsigned long uptime_s = millis() / 1000UL;
@@ -64,7 +63,7 @@ std::string Web::status (const bool verbose) const {
         << usedHeap << " / " << totalHeap << " bytes)\n";
     out << "-------------------------";
 
-    if (verbose) controller.serial_port.println(out.str());
+    if (verbose) controller.serial_port.print(out.str());
     return out.str();
 }
 
@@ -72,12 +71,12 @@ std::string Web::status (const bool verbose) const {
 // Handlers
 // --------------------------------------------------------------------------
 
-void Web::serveMainPage() {
+void WebInterface::serveMainPage() {
     if (is_disabled()) return;
     httpServer.send_P(200, "text/html", INDEX_HTML);
 }
 
-void Web::handleCommandRequest() {
+void WebInterface::handleCommandRequest() {
     if (is_disabled()) return;
 
     if (httpServer.hasArg("c")) {
@@ -88,7 +87,7 @@ void Web::handleCommandRequest() {
         controller.command_parser.parse(commandText);
 
         httpServer.send(200, "text/plain", "OK");
-        DBG_PRINTF(Web, "Web Command Executed: %s\n", commandText.c_str());
+        DBG_PRINTF(WebInterface, "Web Command Executed: %s\n", commandText.c_str());
     } else {
         httpServer.send(400, "text/plain", "Empty Command");
     }
@@ -98,7 +97,7 @@ void Web::handleCommandRequest() {
 // HTML Assets
 // --------------------------------------------------------------------------
 
-const char Web::INDEX_HTML[] PROGMEM = R"rawliteral(
+const char WebInterface::INDEX_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
 <head>

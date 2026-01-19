@@ -78,10 +78,9 @@ void WebInterface::handleCommandRequest() {
     if (is_disabled()) return;
 
     if (httpServer.hasArg("c")) {
-        String commandText = httpServer.arg("c");
-
-        // Fixed: Converted Arduino String to C-string for string_view compatibility
-        controller.command_parser.parse(commandText.c_str());
+        string commandText = httpServer.arg("c").c_str();
+        controller.serial_port.print("Got cmd from web: \n" + commandText);
+        controller.command_parser.parse(commandText);
 
         httpServer.send(200, "text/plain", "OK");
     } else {

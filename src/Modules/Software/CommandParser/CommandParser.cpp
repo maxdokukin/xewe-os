@@ -71,7 +71,7 @@ void CommandParser::print_help(const string& group_name) const {
 
             controller.serial_port.print_table(
                 table_data,
-                grp.name
+                grp.name + " Commands"
             );
             
             return;

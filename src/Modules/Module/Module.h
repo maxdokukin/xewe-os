@@ -91,7 +91,8 @@ public:
     virtual void                disable                     (const bool verbose=false,
                                                              const bool do_restart=true);
     virtual void                reset                       (const bool verbose=false,
-                                                             const bool do_restart=true);
+                                                             const bool do_restart=true,
+                                                             const bool keep_enabled=true);
 
     virtual string              status                      (const bool verbose=false)      const;
     bool                        is_enabled                  (const bool verbose=false)      const;

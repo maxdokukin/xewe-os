@@ -58,9 +58,9 @@ void ModuleName::disable (const bool verbose, const bool do_restart) {
     Module::disable(verbose, do_restart);
 }
 
-void ModuleName::reset (const bool verbose, const bool do_restart) {
+void ModuleName::reset (const bool verbose, const bool do_restart, const bool keep_enabled) {
     // do your custom routines here
-    Module::reset(verbose, do_restart);
+    Module::reset(verbose, do_restart, keep_enabled);
 }
 
 std::string ModuleName::status (const bool verbose) const {

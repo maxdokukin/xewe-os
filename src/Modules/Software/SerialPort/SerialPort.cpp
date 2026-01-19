@@ -49,12 +49,12 @@ void SerialPort::loop() {
     }
 }
 
-void SerialPort::reset (const bool verbose, const bool do_restart) {
+void SerialPort::reset (const bool verbose, const bool do_restart, const bool keep_enabled) {
     flush_input();
     input_buffer_pos = 0;
     line_length      = 0;
     line_ready       = false;
-    Module::reset(verbose, do_restart);
+    Module::reset(verbose, do_restart, keep_enabled);
 }
 
 // printers

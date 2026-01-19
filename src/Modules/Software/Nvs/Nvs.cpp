@@ -26,7 +26,7 @@ Nvs::Nvs(SystemController& controller)
 {}
 
 
-void Nvs::reset (const bool verbose, const bool do_restart) {
+void Nvs::reset (const bool verbose, const bool do_restart, const bool keep_enabled) {
     DBG_PRINTLN(Nvs, "reset(): Clearing all stored preferences.");
     if (!preferences.begin(nvs_key.c_str(), false)) {
         DBG_PRINTF(Nvs, "reset(): ERROR opening namespace '%s'.\n", nvs_key.c_str());
@@ -38,7 +38,7 @@ void Nvs::reset (const bool verbose, const bool do_restart) {
         DBG_PRINTLN(Nvs, "reset(): FAILED to clear preferences.");
     }
     preferences.end();
-    Module::reset(verbose, do_restart);
+    Module::reset(verbose, do_restart, keep_enabled);
 }
 
 void Nvs::write_str(string_view ns, string_view key, string_view value) {
@@ -120,6 +120,67 @@ void Nvs::remove(string_view ns, string_view key) {
         DBG_PRINTF(Nvs, "remove(): FAILED to remove key '%s'. Key might not exist.\n", k.c_str());
     }
     preferences.end();
+}
+
+void Nvs::reset_ns(string_view ns) {
+    DBG_PRINTF(Nvs, "reset_ns(): Attempting to clear all keys for namespace prefix '%s'.\n", ns.data());
+
+    // 1. Construct the prefix we are looking for (e.g., "wifi:")
+    string prefix = string(ns) + ":";
+    std::vector<string> keys_to_remove;
+
+    // 2. Use native ESP-IDF iterator (v5 API Style)
+    nvs_iterator_t it = nullptr;
+    esp_err_t res = nvs_entry_find("nvs", nvs_key.c_str(), NVS_TYPE_ANY, &it);
+
+    if (res != ESP_OK) {
+        DBG_PRINTLN(Nvs, "reset_ns(): No entries found in NVS or error starting iteration.");
+        // If it was allocated despite error (rare but possible in some APIs), release it.
+        if (it != nullptr) nvs_release_iterator(it);
+        return;
+    }
+
+    // 3. Collect keys that match the prefix
+    while (res == ESP_OK) {
+        nvs_entry_info_t info;
+        nvs_entry_info(it, &info); // Get info from current iterator
+
+        string current_key = info.key;
+
+        // Check if the key starts with "ns:"
+        if (current_key.find(prefix) == 0) {
+            keys_to_remove.push_back(current_key);
+            DBG_PRINTF(Nvs, "reset_ns(): Found match -> '%s'\n", current_key.c_str());
+        }
+
+        // Move to next entry (Pass address of iterator)
+        res = nvs_entry_next(&it);
+    }
+    // Release the iterator resources
+    nvs_release_iterator(it);
+
+    if (keys_to_remove.empty()) {
+        DBG_PRINTF(Nvs, "reset_ns(): No keys found for namespace '%s'.\n", ns.data());
+        return;
+    }
+
+    // 4. Batch remove using Preferences
+    if (!preferences.begin(nvs_key.c_str(), false)) {
+        DBG_PRINTF(Nvs, "reset_ns(): ERROR opening namespace '%s' for deletion.\n", nvs_key.c_str());
+        return;
+    }
+
+    size_t count = 0;
+    for (const auto& k : keys_to_remove) {
+        if (preferences.remove(k.c_str())) {
+            count++;
+        } else {
+            DBG_PRINTF(Nvs, "reset_ns(): Failed to remove key '%s'.\n", k.c_str());
+        }
+    }
+
+    preferences.end();
+    DBG_PRINTF(Nvs, "reset_ns(): Removed %zu keys for namespace '%s'.\n", count, ns.data());
 }
 
 string Nvs::read_str(string_view ns, string_view key, string_view default_value) {

@@ -66,8 +66,17 @@ void Module::begin_routines_common(const ModuleConfig&) {}
 
 void Module::loop() {}
 
-void Module::reset(const bool verbose, const bool do_restart) {
-    controller.nvs.write_bool(nvs_key, "init_complete", false);
+void Module::reset(const bool verbose, const bool do_restart, const bool keep_enabled) {
+    controller.nvs.reset_ns(nvs_key);
+    enabled = false;
+
+    if (keep_enabled) {
+        enabled = true;
+        controller.nvs.write_bool(nvs_key, "is_enabled", true);
+    }
+//    if (keep_init) {
+//        controller.nvs.write_bool(nvs_key, "init_complete", true);
+//    }
 
     if (verbose) Serial.printf("%s module reset\n", module_name.c_str());
     if (do_restart) {
@@ -138,8 +147,7 @@ void Module::disable(const bool verbose, const bool do_restart) {
     if (verbose) {
         Serial.printf("%s module disabled\n", module_name.c_str());
     }
-    controller.nvs.write_bool(nvs_key, "is_enabled", false);
-    reset(verbose, do_restart);
+    reset(verbose, do_restart, false);
     return;
 }
 
@@ -276,6 +284,7 @@ void Module::add_requirement(Module& other) {
 }
 
 bool Module::requirements_enabled(bool verbose) const {
+    DBG_PRINTF(Module, "'%s'->requirements_enabled(verbose=%s): Called.\n", module_name.c_str(), verbose ? "true" : "false");
     bool all_enabled = true;
     for (auto* r : required_modules) {
         bool req_enabled = r->is_enabled();
@@ -283,5 +292,6 @@ bool Module::requirements_enabled(bool verbose) const {
         if (!req_enabled && verbose)
             Serial.printf("%s Module requires %s module; to enable:\n$%s enable\n", module_name.c_str(), r->module_name.c_str(), lower(r->module_name).c_str());
     }
+    DBG_PRINTF(Module, "requirements_enabled(): Result=%s.\n", all_enabled ? "true" : "false");
     return all_enabled;
 }

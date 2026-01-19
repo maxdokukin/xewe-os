@@ -26,9 +26,9 @@ public:
 
     void                        begin_routines_required     (const ModuleConfig&    cfg)                    override;
     void                        loop                        ()                                              override;
-    void                        reset                       (const bool             verbose                 = false,
-                                                             const bool             do_restart              = true
-                                                            ) override;
+    void                        reset                       (const bool verbose=false,
+                                                             const bool do_restart=true,
+                                                             const bool keep_enabled=true)                  override;
     // printers
     void                        print                       (string_view            message                 = {},
                                                              string_view            end                     = kCRLF,

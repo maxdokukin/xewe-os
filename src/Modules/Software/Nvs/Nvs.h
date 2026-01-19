@@ -14,9 +14,11 @@
 #include "../../Module/Module.h"
 
 #include <Preferences.h>
-#include <array>
-#include <string_view>
-#include <string>
+//#include <array>
+//#include <string_view>
+//#include <string>
+#include <nvs.h>
+#include <nvs_flash.h>
 
 
 struct NvsConfig : public ModuleConfig {};
@@ -28,7 +30,8 @@ public:
 
     // optional implementation
     void                        reset                       (const bool verbose=false,
-                                                             const bool do_restart=true)            override;
+                                                             const bool do_restart=true,
+                                                             const bool keep_enabled=true)    override;
 
     // other methods
     void                        write_str                   (string_view ns,
@@ -46,8 +49,9 @@ public:
     void                        remove                      (string_view ns,
                                                              string_view key);
 
+    void                        reset_ns                    (string_view ns);
     // Generic NVS Read Methods
-    string                 read_str                    (string_view ns,
+    string                      read_str                    (string_view ns,
                                                              string_view key,
                                                              string_view default_value = "");
     uint8_t                     read_uint8                  (string_view ns,

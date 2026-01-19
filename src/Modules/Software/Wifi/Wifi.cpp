@@ -55,7 +55,7 @@ void Wifi::begin_routines_required (const ModuleConfig& cfg) {
 
 void Wifi::begin_routines_init (const ModuleConfig& cfg) {
     if (!connect(true))
-        disable();
+        disable(false, false);
 }
 
 void Wifi::begin_routines_regular (const ModuleConfig& cfg) {
@@ -82,11 +82,9 @@ void Wifi::loop () {
     }
 }
 
-void Wifi::reset (const bool verbose, const bool do_restart) {
-    controller.nvs.remove(nvs_key, "ssid");
-    controller.nvs.remove(nvs_key, "psw");
+void Wifi::reset (const bool verbose, const bool do_restart, const bool keep_enabled) {
     disconnect(false);
-    Module::reset(verbose, do_restart);
+    Module::reset(verbose, do_restart, keep_enabled);
 }
 
 std::string Wifi::status(bool verbose) const {

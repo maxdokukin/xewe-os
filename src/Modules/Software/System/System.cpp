@@ -104,13 +104,13 @@ System::System(SystemController& controller)
 void System::begin_routines_required (const ModuleConfig& cfg) {
     this->controller.serial_port.print_header(
         string("XeWe OS") + "\\sep" +
-        "https://github.com/maxdokukin/XeWe-OS" + "\\sep" +
+        "https://github.com/maxdokukin/xewe-os" + "\\sep" +
         "Version " + TO_STRING(BUILD_VERSION) + "\n" +
         "Build Timestamp " + TO_STRING(BUILD_TIMESTAMP)
     );
 }
 
-void System::reset (const bool verbose, const bool do_restart) {
+void System::reset (const bool verbose, const bool do_restart, const bool keep_enabled) {
     bool disable_confirmed = false;
 
     if (verbose) {
@@ -129,7 +129,7 @@ void System::reset (const bool verbose, const bool do_restart) {
         m->reset(false, false);
     }
 
-    Module::reset(verbose, do_restart);
+    Module::reset(verbose, do_restart, keep_enabled);
 }
 
 string System::status(const bool verbose) const {

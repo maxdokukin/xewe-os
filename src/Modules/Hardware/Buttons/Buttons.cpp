@@ -77,10 +77,10 @@ void Buttons::loop () {
     }
 }
 
-void Buttons::reset (const bool verbose, const bool do_restart) {
+void Buttons::reset (const bool verbose, const bool do_restart, const bool keep_enabled) {
     nvs_clear_all();
     buttons.clear();
-    Module::reset(verbose, do_restart);
+    Module::reset(verbose, do_restart, keep_enabled);
 }
 
 std::string Buttons::status (const bool verbose) const {

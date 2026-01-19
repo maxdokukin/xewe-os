@@ -24,7 +24,7 @@ class WebInterface : public Module {
 public:
     explicit                    WebInterface                (SystemController& controller);
 
-    void                        begin_routines_required     (const ModuleConfig& cfg)       override;
+    void                        begin_routines_common       (const ModuleConfig& cfg)       override;
 
     void                        loop                        ()                              override;
     string                      status                      (const bool verbose=false)      const override;

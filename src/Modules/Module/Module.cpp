@@ -68,7 +68,6 @@ void Module::loop() {}
 
 void Module::reset(const bool verbose, const bool do_restart) {
     controller.nvs.write_bool(nvs_key, "init_complete", false);
-    controller.nvs.write_bool(nvs_key, "is_enabled", false);
 
     if (verbose) Serial.printf("%s module reset\n", module_name.c_str());
     if (do_restart) {
@@ -86,7 +85,7 @@ void Module::enable(const bool verbose, const bool do_restart) {
         return;
     }
     if (!requirements_enabled(true)) {
-        Serial.printf("%s Module: requirements not enabled; enable them first\n", module_name.c_str());
+//        Serial.printf("%s Module: requirements not enabled; enable them first\n", module_name.c_str());
         return;
     }
     enabled = true;
@@ -132,14 +131,15 @@ void Module::disable(const bool verbose, const bool do_restart) {
 
     if (!dependent_modules.empty()) {
         for (auto* m : dependent_modules) {
-            if (verbose) Serial.printf("disabled %s module\n", m->module_name.c_str());
-            m->reset(false, false); // reset with no verbose, and dont reboot
+            if (verbose) Serial.printf("%s module reset and disabled\n", m->module_name.c_str());
+            m->disable(false, false); // disable with no verbose, and dont reboot
         }
     }
     if (verbose) {
-        Serial.printf("%s module disabled.\n", module_name.c_str());
-        reset(true, true);
+        Serial.printf("%s module disabled\n", module_name.c_str());
     }
+    controller.nvs.write_bool(nvs_key, "is_enabled", false);
+    reset(verbose, do_restart);
     return;
 }
 
@@ -167,7 +167,7 @@ bool Module::is_enabled(bool verbose) const {
 bool Module::is_disabled(bool verbose) const {
     DBG_PRINTF(Module, "'%s'->is_disabled(verbose=%s): Called.\n", module_name.c_str(), verbose ? "true" : "false");
     if (can_be_disabled) {
-        if (verbose && !enabled) Serial.printf("%s module disabled; use $%s enable\n", module_name.c_str(), lower(module_name).c_str());
+        if (verbose && !enabled) Serial.printf("%s module disabled; to enable:\n$%s enable\n", module_name.c_str(), lower(module_name).c_str());
         return !enabled;
     }
     DBG_PRINTLN(Module, "is_disabled(): Module cannot be disabled, returning false by default.");
@@ -220,7 +220,7 @@ void Module::register_generic_commands() {
         string("$") + lower(module_name) + " reset",
         0,
         [this](string) {
-            reset(true);
+            reset(true, true);
         }
     });
 
@@ -233,7 +233,7 @@ void Module::register_generic_commands() {
             string("$") + lower(module_name) + " enable",
             0,
             [this](string) {
-                enable(true);
+                enable(true, true);
             }
         });
         commands_storage.push_back(Command{
@@ -242,7 +242,7 @@ void Module::register_generic_commands() {
             string("$") + lower(module_name) + " disable",
             0,
             [this](string) {
-                disable(true);
+                disable(true, true);
             }
         });
     }
@@ -281,7 +281,7 @@ bool Module::requirements_enabled(bool verbose) const {
         bool req_enabled = r->is_enabled();
         all_enabled = all_enabled && req_enabled;
         if (!req_enabled && verbose)
-            Serial.printf("%s Module requires %s module; use $%s enable\n", module_name.c_str(), r->module_name.c_str(), lower(r->module_name).c_str());
+            Serial.printf("%s Module requires %s module; to enable:\n$%s enable\n", module_name.c_str(), r->module_name.c_str(), lower(r->module_name).c_str());
     }
     return all_enabled;
 }

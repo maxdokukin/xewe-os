@@ -29,12 +29,12 @@ public:
     void                        loop                        ()                              override;
     string                      status                      (const bool verbose=false)      const override;
 
-    WebServer&                  get_server                  ()                              { return httpServer; }
+    WebServer&                  get_server                  ()                              { return http_server; }
 private:
-    WebServer                   httpServer                  {80};
+    WebServer                   http_server                  {80};
 
-    void                        serveMainPage               ();
-    void                        handleCommandRequest        ();
+    void                        serve_main_page               ();
+    void                        handle_command_request        ();
 
     static const char           INDEX_HTML                  [] PROGMEM;
 };

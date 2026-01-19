@@ -25,15 +25,16 @@ WebInterface::WebInterface(SystemController& controller)
 {}
 
 void WebInterface::begin_routines_required (const ModuleConfig& cfg) {
-    httpServer.on("/", HTTP_GET, std::bind(&WebInterface::serveMainPage, this));
-    httpServer.on("/cmd", HTTP_GET, std::bind(&WebInterface::handleCommandRequest, this));
-    httpServer.begin();
-    controller.serial_port.print("Web Interface now available at:\nhttp://" + controller.wifi.get_local_ip() + "\n");
+    http_server.on("/", HTTP_GET, std::bind(&WebInterface::serve_main_page, this));
+    http_server.on("/cmd", HTTP_GET, std::bind(&WebInterface::handle_command_request, this));
+    http_server.begin();
+    controller.serial_port.print("Web Interface now available at:\nhttp://" +
+                                 controller.wifi.get_local_ip() + "\n");
 }
 
 void WebInterface::loop () {
     if (is_disabled()) return;
-    httpServer.handleClient();
+    http_server.handleClient();
 }
 
 std::string WebInterface::status (const bool verbose) const {
@@ -45,10 +46,10 @@ std::string WebInterface::status (const bool verbose) const {
     int mins  = static_cast<int>((uptime_s % 3600UL) / 60UL);
     int secs  = static_cast<int>(uptime_s % 60UL);
 
-    uint32_t freeHeap  = ESP.getFreeHeap();
-    uint32_t totalHeap = ESP.getHeapSize();
-    uint32_t usedHeap  = totalHeap - freeHeap;
-    float heapUsage    = (totalHeap ? (usedHeap * 100.0f) / totalHeap : 0.0f);
+    uint32_t free_heap  = ESP.getFreeHeap();
+    uint32_t total_heap = ESP.getHeapSize();
+    uint32_t used_heap  = total_heap - free_heap;
+    float heap_usage    = (total_heap ? (used_heap * 100.0f) / total_heap : 0.0f);
 
     out << "--- Web Server Status ---\n";
     out << "  - Uptime:       "
@@ -57,34 +58,34 @@ std::string WebInterface::status (const bool verbose) const {
         << std::setw(2) << std::setfill('0') << mins  << ':'
         << std::setw(2) << std::setfill('0') << secs  << '\n';
     out << "  - Memory Usage: "
-        << std::fixed << std::setprecision(2) << heapUsage << "% ("
-        << usedHeap << " / " << totalHeap << " bytes)\n";
+        << std::fixed << std::setprecision(2) << heap_usage << "% ("
+        << used_heap << " / " << total_heap << " bytes)\n";
     out << "-------------------------\n";
 
-    if (verbose) controller.serial_port.print(out.str());
+    if (verbose) {
+        controller.serial_port.print(out.str());
+    }
+
     return out.str();
 }
 
-// --------------------------------------------------------------------------
-// Handlers
-// --------------------------------------------------------------------------
-
-void WebInterface::serveMainPage() {
+void WebInterface::serve_main_page() {
     if (is_disabled()) return;
-    httpServer.send_P(200, "text/html", INDEX_HTML);
+    http_server.send_P(200, "text/html", INDEX_HTML);
 }
 
-void WebInterface::handleCommandRequest() {
+void WebInterface::handle_command_request() {
     if (is_disabled()) return;
 
-    if (httpServer.hasArg("c")) {
-        string commandText = httpServer.arg("c").c_str();
-        controller.serial_port.print("Got cmd from web: \n" + commandText);
-        controller.command_parser.parse(commandText);
+    if (http_server.hasArg("c")) {
+        std::string command_text = http_server.arg("c").c_str();
 
-        httpServer.send(200, "text/plain", "OK");
+        controller.serial_port.print("Got cmd from web: \n" + command_text);
+        controller.command_parser.parse(command_text);
+
+        http_server.send(200, "text/plain", "OK");
     } else {
-        httpServer.send(400, "text/plain", "Empty Command");
+        http_server.send(400, "text/plain", "Empty Command");
     }
 }
 
@@ -182,15 +183,18 @@ const char WebInterface::INDEX_HTML[] PROGMEM = R"rawliteral(
     <script>
         const input = document.getElementById('cmdInput');
         const flash = document.getElementById('flash');
+
         input.addEventListener("keypress", function(event) {
             if (event.key === "Enter") {
                 event.preventDefault();
                 sendCmd();
             }
         });
+
         function sendCmd() {
             const val = input.value.trim();
             if(!val) return;
+
             fetch('/cmd?c=' + encodeURIComponent(val))
                 .then(r => {
                     if(r.ok) {
@@ -202,6 +206,7 @@ const char WebInterface::INDEX_HTML[] PROGMEM = R"rawliteral(
                 })
                 .catch(e => showFlash('Connection Error'));
         }
+
         let flashTimer;
         function showFlash(msg) {
             flash.textContent = msg;

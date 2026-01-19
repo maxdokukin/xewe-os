@@ -82,11 +82,6 @@ void Wifi::loop () {
     }
 }
 
-void Wifi::enable (const bool verbose, const bool do_restart) {
-    connect(true);
-    Module::enable(verbose, do_restart);
-}
-
 void Wifi::reset (const bool verbose, const bool do_restart) {
     controller.nvs.remove(nvs_key, "ssid");
     controller.nvs.remove(nvs_key, "psw");

@@ -29,8 +29,6 @@ public:
 
     void                        loop                        ()                              override;
 
-    void                        enable                      (const bool verbose=false,
-                                                             const bool do_restart=true)    override;
     void                        reset                       (const bool verbose=false,
                                                              const bool do_restart=true)    override;
 

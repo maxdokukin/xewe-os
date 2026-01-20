@@ -64,6 +64,12 @@ inline std::string repeat(char ch, size_t count) {
     return std::string(count, ch);
 }
 
+inline void trim(std::string& s) {
+    const char* ws = " \t\r\n";
+    s.erase(0, s.find_first_not_of(ws));
+    s.erase(s.find_last_not_of(ws) + 1);
+}
+
 // Trim a single trailing '\r' (typical from CRLF when splitting on '\n').
 inline void rtrim_cr(std::string& s) {
     if (!s.empty() && s.back() == '\r') s.pop_back();

@@ -138,14 +138,6 @@ void Buttons::remove_button(uint8_t pin) {
         [pin](const Button& btn) { return btn.pin == pin; }), buttons.end());
 }
 
-static inline void trim(std::string& s) {
-    if (is_disabled()) return;
-
-    const char* ws = " \t\r\n";
-    s.erase(0, s.find_first_not_of(ws));
-    s.erase(s.find_last_not_of(ws) + 1);
-}
-
 bool Buttons::parse_config_string(const std::string& config, Button& button) {
     if (is_disabled()) return false;
 

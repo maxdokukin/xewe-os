@@ -55,7 +55,7 @@ private:
     bool                        nvs_remove_by_pin           (const std::string& pin_str);
     void                        nvs_append_config           (const std::string& cfg);
     void                        nvs_clear_all               ();
-    static std::string          pin_prefix                  (const std::string& cfg);
+    std::string                 pin_prefix                  (const std::string& cfg);
 
     void                        button_add_cli              (std::string_view args);
     void                        button_remove_cli           (std::string_view args);

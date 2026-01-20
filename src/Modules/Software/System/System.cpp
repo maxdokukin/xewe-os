@@ -126,7 +126,7 @@ void System::reset (const bool verbose, const bool do_restart, const bool keep_e
     auto& modules = controller.get_modules();
     for (auto* m : modules) {
         if (m == this) continue;
-        m->reset(false, false);
+        m->reset(true, false, false);
     }
 
     Module::reset(verbose, do_restart, keep_enabled);

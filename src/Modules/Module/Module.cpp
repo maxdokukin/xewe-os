@@ -75,7 +75,7 @@ void Module::reset(const bool verbose, const bool do_restart, const bool keep_en
     controller.nvs.write_bool(nvs_key, "not_first_boot", true);
     DBG_PRINTF(Module, "'%s': NVS namespace wiped and re-initialized.\n", module_name.c_str());
 
-    enabled = keep_enabled;
+    enabled = !can_be_disabled || keep_enabled;
 
     if (keep_enabled) {
         DBG_PRINTF(Module, "'%s': Persisting 'is_enabled'=true to NVS.\n", module_name.c_str());

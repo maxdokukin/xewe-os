@@ -63,7 +63,7 @@ void Module::begin (const ModuleConfig& cfg) {
 
 void Module::begin_routines_required(const ModuleConfig&) {}
 void Module::begin_routines_init(const ModuleConfig&) {}
-void Module::begin_routines_regular(const ModuleConfig&) { /* controller.serial_port.print(module_name + " setup complete"); */ }
+void Module::begin_routines_regular(const ModuleConfig&) {}
 void Module::begin_routines_common(const ModuleConfig&) {}
 
 void Module::loop() {}

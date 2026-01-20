@@ -37,6 +37,8 @@ void WebInterface::loop () {
 }
 
 std::string WebInterface::status (const bool verbose) const {
+    if (is_disabled()) return "Disabled";
+
     std::ostringstream out;
 
     unsigned long uptime_s = millis() / 1000UL;

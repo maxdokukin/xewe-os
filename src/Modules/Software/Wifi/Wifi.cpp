@@ -63,8 +63,6 @@ void Wifi::begin_routines_regular (const ModuleConfig& cfg) {
 }
 
 void Wifi::loop () {
-    if (is_disabled()) return;
-
     // enforce Wifi connection if the module is active
     while (WiFi.status() != WL_CONNECTED) {
         // Optimized: Use get_yn with 1 attempt (retry_count=1) to act as a timed prompt
@@ -88,6 +86,8 @@ void Wifi::reset (const bool verbose, const bool do_restart, const bool keep_ena
 }
 
 std::string Wifi::status(bool verbose) const {
+    if (is_disabled()) return "Disabled";
+
     DBG_PRINTF(Wifi, "status(verbose=%d)\n", verbose);
     Module::status(verbose);
 
@@ -363,6 +363,7 @@ uint8_t Wifi::prompt_credentials(std::string& ssid, std::string& password) {
 
 bool Wifi::is_connected(bool verbose) const {
     DBG_PRINTF(Wifi, "is_connected(verbose=%d)\n", verbose);
+    if (is_disabled()) return false;
     bool conn = (WiFi.status() == WL_CONNECTED);
     if (verbose && conn) {
         DBG_PRINTLN(Wifi, "is_connected(): true");
@@ -374,6 +375,7 @@ bool Wifi::is_connected(bool verbose) const {
 
 bool Wifi::is_disconnected(bool verbose) const {
     DBG_PRINTF(Wifi, "is_disconnected(verbose=%d)\n", verbose);
+    if (is_disabled()) return true;
     bool conn = (WiFi.status() == WL_CONNECTED);
     if (verbose && !conn) {
         DBG_PRINTLN(Wifi, "is_disconnected(): true");

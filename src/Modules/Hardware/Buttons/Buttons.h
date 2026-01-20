@@ -32,7 +32,6 @@ public:
     void                        load_configs                (const std::vector<std::string>& configs);
     bool                        add_button_from_config      (const std::string& config);
     void                        remove_button               (uint8_t pin);
-    std::string                 get_live_status             () const;
 
 private:
     enum                        InputMode                   { BUTTON_PULLUP, BUTTON_PULLDOWN };

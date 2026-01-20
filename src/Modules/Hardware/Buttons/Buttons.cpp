@@ -84,6 +84,8 @@ void Buttons::reset (const bool verbose, const bool do_restart, const bool keep_
 }
 
 std::string Buttons::status (const bool verbose) const {
+    if (is_disabled()) return "Disabled";
+
     std::string s = "";
     if (buttons.empty()) {
         s = "No buttons are currently active in memory.";
@@ -99,6 +101,8 @@ std::string Buttons::status (const bool verbose) const {
 }
 
 void Buttons::load_configs(const std::vector<std::string>& configs) {
+    if (is_disabled()) return;
+
     buttons.clear();
     for (const auto& cfg : configs) {
         if (!cfg.empty()) add_button_from_config(cfg);
@@ -107,6 +111,8 @@ void Buttons::load_configs(const std::vector<std::string>& configs) {
 }
 
 bool Buttons::add_button_from_config(const std::string& config) {
+    if (is_disabled()) return false;
+
     Button new_button;
     if (parse_config_string(config, new_button)) {
         if (new_button.type == InputMode::BUTTON_PULLUP) {
@@ -126,21 +132,23 @@ bool Buttons::add_button_from_config(const std::string& config) {
 }
 
 void Buttons::remove_button(uint8_t pin) {
+    if (is_disabled()) return;
+
     buttons.erase(std::remove_if(buttons.begin(), buttons.end(),
         [pin](const Button& btn) { return btn.pin == pin; }), buttons.end());
 }
 
-std::string Buttons::get_live_status() const {
-    return status(false);
-}
-
 static inline void trim(std::string& s) {
+    if (is_disabled()) return;
+
     const char* ws = " \t\r\n";
     s.erase(0, s.find_first_not_of(ws));
     s.erase(s.find_last_not_of(ws) + 1);
 }
 
 bool Buttons::parse_config_string(const std::string& config, Button& button) {
+    if (is_disabled()) return false;
+
     std::string s = config;
     trim(s);
 
@@ -200,6 +208,8 @@ bool Buttons::parse_config_string(const std::string& config, Button& button) {
 /* --- NVS helpers (encapsulated) --- */
 
 void Buttons::load_from_nvs() {
+    if (is_disabled()) return;
+
     int btn_count = controller.nvs.read_uint8(nvs_key, "btn_count", 0);
     std::vector<std::string> cfgs;
     cfgs.reserve(btn_count);
@@ -212,6 +222,8 @@ void Buttons::load_from_nvs() {
 }
 
 bool Buttons::nvs_has_pin(const std::string& pin_str) const {
+    if (is_disabled()) return false;
+
     int btn_count = controller.nvs.read_uint8(nvs_key, "btn_count", 0);
     std::string prefix = pin_str + std::string(" ");
     for (int i = 0; i < btn_count; i++) {
@@ -223,6 +235,8 @@ bool Buttons::nvs_has_pin(const std::string& pin_str) const {
 }
 
 bool Buttons::nvs_remove_by_pin(const std::string& pin_str) {
+    if (is_disabled()) return false;
+
     int btn_count = controller.nvs.read_uint8(nvs_key, "btn_count", 0);
     int found_index = -1;
     std::string prefix = pin_str + std::string(" ");
@@ -246,6 +260,8 @@ bool Buttons::nvs_remove_by_pin(const std::string& pin_str) {
 }
 
 void Buttons::nvs_append_config(const std::string& cfg) {
+    if (is_disabled()) return;
+
     int btn_count = controller.nvs.read_uint8(nvs_key, "btn_count", 0);
     std::string key = "btn_cfg_" + std::to_string(btn_count);
     controller.nvs.write_str(nvs_key, key, cfg);
@@ -253,6 +269,8 @@ void Buttons::nvs_append_config(const std::string& cfg) {
 }
 
 void Buttons::nvs_clear_all() {
+    if (is_disabled()) return;
+
     int btn_count = controller.nvs.read_uint8(nvs_key, "btn_count", 0);
     for (int i = 0; i < btn_count; i++) {
         std::string key = "btn_cfg_" + std::to_string(i);
@@ -262,6 +280,8 @@ void Buttons::nvs_clear_all() {
 }
 
 std::string Buttons::pin_prefix(const std::string& cfg) {
+    if (is_disabled()) return "";
+
     auto sp = cfg.find(' ');
     if (sp == std::string::npos) return {};
     return cfg.substr(0, sp);
@@ -269,6 +289,8 @@ std::string Buttons::pin_prefix(const std::string& cfg) {
 
 /* --- CLI handlers (called by ctor-registered lambdas) --- */
 void Buttons::button_add_cli(std::string_view args_sv) {
+    if (is_disabled()) return;
+
     if (!is_enabled()) {
         controller.serial_port.print("Buttons Module is disabled. Use '$buttons enable'");
         return;
@@ -294,6 +316,8 @@ void Buttons::button_add_cli(std::string_view args_sv) {
 }
 
 void Buttons::button_remove_cli(std::string_view args_sv) {
+    if (is_disabled()) return;
+
     if (!is_enabled()) {
         controller.serial_port.print("Buttons Module is disabled. Use '$buttons enable'");
         return;

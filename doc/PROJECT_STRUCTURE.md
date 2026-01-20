@@ -3,10 +3,10 @@ xewe-os/                                           # Project root (ESP32 “xewe
 │
 ├── build/                                         # Build tooling + build artifacts
 │   ├── releases/                                  
-│   ├── builds/                                    # Individual build runs
+│   ├── builds/                                    
 │   │   ├── .version_state                         # Tracks version/build state used by scripts (bump/last build info)
-│   │   ├── latest/                                # Pointer/symlink to most recent build output
-│   │   ├── cache/                                 # Compiler/toolchain cache (object files, libs, intermediate outputs)
+│   │   ├── latest/                                # Pointer to most recent build output
+│   │   ├── cache/                                 # Compiler/toolchain cache
 │   │   └── DATETIME-VERSION-ESP32-CHIP-xewe-os/   # One build “snapshot” (logs, binaries, merged images, copied src)
 │   │
 │   └── scripts/                                   
@@ -66,5 +66,4 @@ xewe-os/                                           # Project root (ESP32 “xewe
 │   └── ModuleTemplate.h                           # Example header skeleton
 │
 └── static/                                        # Static assets (images/files served by web UI or used in docs)
-
 ```

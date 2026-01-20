@@ -106,7 +106,7 @@ write_kv() {
 
 # ---------- Detect project name & manifest name ----------
 [[ -z "${PROJECT_NAME}" ]] && PROJECT_NAME="$(basename "${PROJECT_ROOT}")"
-[[ -z "${MANIFEST_NAME}" ]] && MANIFEST_NAME="XeWe-LedOS"
+[[ -z "${MANIFEST_NAME}" ]] && PROJECT_NAME="$(basename "${PROJECT_ROOT}")"
 
 # ---------- Initialize version state if needed ----------
 if [[ ! -f "${STATE_FILE}" ]]; then

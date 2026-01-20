@@ -23,8 +23,5 @@ class Pins : public Module {
 public:
     explicit                    Pins                        (SystemController& controller);
 
-//    string                      status                      (const bool verbose=false)      const override;
-
 private:
-
 };

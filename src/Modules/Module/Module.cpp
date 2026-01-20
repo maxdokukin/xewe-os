@@ -51,7 +51,9 @@ void Module::begin (const ModuleConfig& cfg) {
 
     if (!init_setup_complete()) {
         begin_routines_init(cfg);
-        controller.nvs.write_bool(nvs_key, "init_complete", true);
+        if (enabled) { // could have been disabled during begin_routines_init()
+            controller.nvs.write_bool(nvs_key, "init_complete", true);
+        }
     } else {
         begin_routines_regular(cfg);
     }
@@ -67,17 +69,23 @@ void Module::begin_routines_common(const ModuleConfig&) {}
 void Module::loop() {}
 
 void Module::reset(const bool verbose, const bool do_restart, const bool keep_enabled) {
+    DBG_PRINTF(Module, "'%s'->reset(v=%d, r=%d, k=%d): Called.\n", module_name.c_str(), verbose, do_restart, keep_enabled);
+
     controller.nvs.reset_ns(nvs_key);
     controller.nvs.write_bool(nvs_key, "not_first_boot", true);
+    DBG_PRINTF(Module, "'%s': NVS namespace wiped and re-initialized.\n", module_name.c_str());
 
     enabled = keep_enabled;
 
     if (keep_enabled) {
+        DBG_PRINTF(Module, "'%s': Persisting 'is_enabled'=true to NVS.\n", module_name.c_str());
         controller.nvs.write_bool(nvs_key, "is_enabled", true);
     }
 
     if (verbose) Serial.printf("%s module reset\n", module_name.c_str());
+
     if (do_restart) {
+        DBG_PRINTF(Module, "'%s': do_restart is true. Rebooting system now.\n", module_name.c_str());
         if (verbose) Serial.printf("Restarting...\n\n\n");
         ESP.restart();
     }
@@ -103,14 +111,16 @@ void Module::enable(const bool verbose, const bool do_restart) {
     return;
 }
 
-// returns success of the operation
 void Module::disable(const bool verbose, const bool do_restart) {
     DBG_PRINTF(Module, "'%s'->disable(verbose=%s): Called.\n", module_name.c_str(), verbose ? "true" : "false");
+
     if (is_disabled()){
+        DBG_PRINTF(Module, "'%s': Already disabled. Returning.\n", module_name.c_str());
         if (verbose) Serial.printf("%s module already disabled\n", module_name.c_str());
         return;
     }
     if (!can_be_disabled) {
+        DBG_PRINTF(Module, "'%s': Locked (can_be_disabled=false). Returning.\n", module_name.c_str());
         if (verbose) Serial.printf("%s module can't be disabled\n", module_name.c_str());
         return;
     }
@@ -118,6 +128,7 @@ void Module::disable(const bool verbose, const bool do_restart) {
     bool disable_confirmed = true;
 
     if (verbose) {
+        DBG_PRINTF(Module, "'%s': Preparing confirmation prompt.\n", module_name.c_str());
         std::string msg = "[WARNING]\nDisabling " + module_name + "\nWill reset it";
         if (!dependent_modules.empty()) {
             msg += ", and all dependents: \\sep";
@@ -129,15 +140,19 @@ void Module::disable(const bool verbose, const bool do_restart) {
         }
         controller.serial_port.print_header(msg);
         disable_confirmed = controller.serial_port.get_yn("OK?");
+        DBG_PRINTF(Module, "'%s': User confirmation result: %s\n", module_name.c_str(), disable_confirmed ? "YES" : "NO");
     }
 
     if (!disable_confirmed) {
+        DBG_PRINTF(Module, "'%s': Action aborted.\n", module_name.c_str());
         controller.serial_port.print("Aborted");
         return;
     }
 
     if (!dependent_modules.empty()) {
+        DBG_PRINTF(Module, "'%s': Disabling %d dependencies.\n", module_name.c_str(), dependent_modules.size());
         for (auto* m : dependent_modules) {
+            DBG_PRINTF(Module, "'%s': recursing disable() on dependent '%s'.\n", module_name.c_str(), m->module_name.c_str());
             if (verbose) Serial.printf("%s module reset and disabled\n", m->module_name.c_str());
             m->disable(false, false); // disable with no verbose, and dont reboot
         }
@@ -145,6 +160,8 @@ void Module::disable(const bool verbose, const bool do_restart) {
     if (verbose) {
         Serial.printf("%s module disabled\n", module_name.c_str());
     }
+
+    DBG_PRINTF(Module, "'%s': Executing final reset().\n", module_name.c_str());
     reset(verbose, do_restart, false);
     return;
 }

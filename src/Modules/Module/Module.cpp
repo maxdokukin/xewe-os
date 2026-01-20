@@ -68,15 +68,13 @@ void Module::loop() {}
 
 void Module::reset(const bool verbose, const bool do_restart, const bool keep_enabled) {
     controller.nvs.reset_ns(nvs_key);
-    enabled = false;
+    controller.nvs.write_bool(nvs_key, "not_first_boot", true);
+
+    enabled = keep_enabled;
 
     if (keep_enabled) {
-        enabled = true;
         controller.nvs.write_bool(nvs_key, "is_enabled", true);
     }
-//    if (keep_init) {
-//        controller.nvs.write_bool(nvs_key, "init_complete", true);
-//    }
 
     if (verbose) Serial.printf("%s module reset\n", module_name.c_str());
     if (do_restart) {
@@ -184,11 +182,11 @@ bool Module::is_disabled(bool verbose) const {
 
 bool Module::init_setup_complete (bool verbose) const {
     DBG_PRINTF(Module, "'%s'->init_setup_complete(verbose=%s): Called.\n", module_name.c_str(), verbose ? "true" : "false");
-    bool stp_cmp_flag = controller.nvs.read_bool(nvs_key, "init_complete");
-    bool result = !requires_init_setup || stp_cmp_flag;
+    bool init_complete = controller.nvs.read_bool(nvs_key, "init_complete");
+    bool result = !requires_init_setup || init_complete;
     DBG_PRINTF(Module, "init_setup_complete(): requires_init_setup=%s, nvs 'stp_cmp' flag=%s. Final result=%s\n",
         requires_init_setup ? "true" : "false",
-        stp_cmp_flag ? "true" : "false",
+        init_complete ? "true" : "false",
         result ? "true" : "false"
     );
     return result;

@@ -1,0 +1,13 @@
+{
+  "name": "xewe-os",
+  "version": "1.0.100",
+  "new_install_improv_wait_time": 0,
+  "builds": [
+    {
+      "chipFamily": "ESP32-C6",
+      "parts": [
+        { "path": "1.0.100-ESP32-C6-xewe-os.bin", "offset": 0 }
+      ]
+    }
+  ]
+}

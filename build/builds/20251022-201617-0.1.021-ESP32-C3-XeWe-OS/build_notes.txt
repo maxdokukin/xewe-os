@@ -1,1 +1,0 @@
-do i need delay after serial begin?

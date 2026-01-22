@@ -1,5 +1,12 @@
 # XeWe OS
 
+---
+
+<img src="static/media/resources/readme/boot_log.webp" style="max-width:300px;width:100%;height:auto;">
+
+
+---
+
 ## The Idea
 
 I noticed that in many ESP/Arduino projects I write the same code again and again.

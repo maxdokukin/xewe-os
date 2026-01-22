@@ -14,6 +14,7 @@ xewe-os/                                           # Project root (ESP32 “xewe
 │       ├── compile.sh                             # Performs compilation of the src
 │       ├── listen_serial.sh                       # Monitor serial port
 │       ├── push_to_git.sh                         # Helper to commit/push .bin firmware to binaries branch
+│       ├── release.sh                             # Builds and pushes for multiple targets, bumps .version_state
 │       └── setup_build_enviroment.sh              # Installs/sets env vars/tools needed to build
 │
 ├── doc/                                           

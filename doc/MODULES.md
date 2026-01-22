@@ -2,6 +2,8 @@
 
 The XeWe OS functions through independent modules. Below is a detailed breakdown of each module and its available commands, listed in initialization order.
 
+<img src="../static/media/resources/readme/system_status.webp" style="max-width:300px;width:100%;height:auto;">
+
 ## SerialPort Module
 **Internal Infrastructure**
 

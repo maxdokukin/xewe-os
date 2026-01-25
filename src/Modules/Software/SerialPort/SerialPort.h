@@ -16,7 +16,7 @@
 
 
 struct SerialPortConfig : public ModuleConfig {
-    unsigned long baud_rate = 9600;
+    unsigned long baud_rate = 115200;
 };
 
 

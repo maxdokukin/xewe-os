@@ -1,0 +1,12 @@
+Release Version: 1.0.100
+Project: xewe-os
+----------------------------------------
+Supported Modules:
+- Serial Port
+- Nvs
+- System
+- Command Parser
+- Pins
+- Buttons
+- Wifi
+- Web Interface

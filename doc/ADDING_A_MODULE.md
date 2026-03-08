@@ -98,7 +98,7 @@ There are four specific initialization phases. You may not need all of them, but
 2. **`begin_routines_init`**: Runs on first boot or after `$enable`.
 3. **`begin_routines_regular`**: Runs on regular boot.
 4. **`begin_routines_common`**: Runs at the end of the boot process.
-![begin_flow.png](../static/media/resources/readme/begin_flow.png)
+![begin_flow.png](../static/media/resources/readme/begin_flow.webp)
 > **Note:** `begin` methods are called even if the module is disabled. This ensures pointers are valid for other modules that may reference this module.
 
 You can pass custom parameters to `begin()` using `ModuleNameConfig`.

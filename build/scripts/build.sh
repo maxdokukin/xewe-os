@@ -46,7 +46,10 @@ try:
     d=json.loads(sys.argv[1]); f=sys.argv[2]
     with open(f,"r") as file: c=file.read()
     for k,v in d.items():
-        c=re.sub(r"(?m)^#define\s+"+re.escape(k)+r"\s+.*$", f"#define {k} {v}", c)
+        # \g<1> captures "#define " and \g<2> captures the original spacing before the value
+        c, n = re.subn(r"(?m)^(#define\s+)"+re.escape(k)+r"(\s+).*$", r"\g<1>"+k+r"\g<2>"+str(v), c)
+        if n == 0:
+            sys.exit(f"❌ Error: Key \"{k}\" not found in {f}")
     with open(f,"w") as file: file.write(c)
 except Exception as e:
     sys.exit(f"❌ JSON parse/write error: {e}")' "${CONFIG_JSON_RAW}" "${CONFIG_FILE}" || exit 1

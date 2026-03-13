@@ -7,12 +7,15 @@ set -euo pipefail
 #   ./build.sh -c c3
 #   ./build.sh -c s3 -p /dev/cu.usbmodem11143201
 #   ./build.sh -c c6 --config_json '{"WIFI_SSID": "\"MyNet\"", "DEBUG_LEVEL": "2"}'
+#   ./build.sh -c s3 --build_notes "Fixed Wi-Fi stability"
+#   ./build.sh -c s3 --build_notes "" # Skips prompt and skips writing notes file
 #
 # Flags:
 #   -c, --chip         c3|c6|s3            (required)
 #   -p, --port         Serial port (optional; if omitted -> compile only)
 # Optional flags:
 # --config_json <JSON string> (additional params replaced in Config.h)
+# --build_notes <string>      (Pass build notes directly, skipping the prompt)
 
 BUILD_CONFIG_FILE="../build_config"
 source "${BUILD_CONFIG_FILE}"
@@ -27,11 +30,15 @@ PYTHON_BIN="$(get_cfg python_bin)"
 ESP_CHIP="" ESP_PORT="" CONFIG_JSON_RAW=""
 ESP_BAUD="921600" SERIAL_BAUD="115200"
 
+BUILD_NOTES=""
+BUILD_NOTES_PROVIDED=0
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -t|--type|-c|--chip) ESP_CHIP="$2"; shift 2 ;;
     -p|--port)           ESP_PORT="$2"; shift 2 ;;
     --config_json)       CONFIG_JSON_RAW="$2"; shift 2 ;;
+    --build_notes)       BUILD_NOTES="$2"; BUILD_NOTES_PROVIDED=1; shift 2 ;;
     *) echo "❌ Unknown arg: $1"; exit 1 ;;
   esac
 done
@@ -67,7 +74,9 @@ VERSION_NEXT="$(read_kv MAJOR "$STATE_FILE").$(read_kv MINOR "$STATE_FILE").$(pr
 TS_SHORT="$(date +"%Y%m%d-%H%M%S")"
 TS_ISO="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
-read -rp "✍️  Build notes (Enter to skip): " BUILD_NOTES || true
+if [[ "$BUILD_NOTES_PROVIDED" -eq 0 ]]; then
+  read -rp "✍️  Build notes (Enter to skip): " BUILD_NOTES || true
+fi
 
 BUILD_INFO_H="${PROJECT_ROOT}/src/build_info.h"
 mkdir -p "${BUILD_INFO_H%/*}"

@@ -16,7 +16,7 @@ BUILD_CONFIG_FILE="../build_config"
 source "${BUILD_CONFIG_FILE}"
 
 BUILD_DIR="$(get_cfg builds_latest_dir)"
-PYTHON_BIN="$(get_cfg venv_python)"
+PYTHON_BIN="$(get_cfg venv_python_bin)"
 
 ESP_CHIP=""
 ESP_PORT=""

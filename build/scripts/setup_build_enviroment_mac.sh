@@ -245,6 +245,21 @@ ensure_esptool() {
   fi
 }
 
+init_state_file() {
+  if [[ ! -f "${STATE_FILE}" ]]; then
+    cat > "${STATE_FILE}" <<EOF
+MAJOR=0
+MINOR=0
+PATCH=0
+BUILD_ID=0
+LAST_BUILD_TS=0
+EOF
+    echo "✅ Created state file: ${STATE_FILE}" >&2
+  else
+    echo "✅ State file already exists: ${STATE_FILE}" >&2
+  fi
+}
+
 init_release_matrix() {
   if [[ ! -f "${RELEASE_MATRIX_FILE}" ]]; then
     cat > "${RELEASE_MATRIX_FILE}" <<EOF
@@ -367,7 +382,7 @@ write_build_config() {
   arduino_cli_path="$(command -v arduino-cli)"
   brew_path="$(command -v brew || true)"
   git_path="$(command -v git || true)"
-  venv_python="${VENV_DIR}/bin/python"
+  venv_python_bin="${VENV_DIR}/bin/python"
   venv_pip="${VENV_DIR}/bin/pip"
 
   project_root="$(cd "${SCRIPT_DIR}/../.." && pwd)"
@@ -391,14 +406,14 @@ build_root="${BUILD_ROOT}"
 builds_dir="${BUILD_ROOT}/builds"
 builds_cache_dir="${BUILD_ROOT}/builds/cache"
 builds_latest_dir="${BUILD_ROOT}/builds/latest"
+build_state_file="${STATE_FILE}"
 
 venv_dir="${VENV_DIR}"
-venv_python="${venv_python}"
+venv_python_bin="${venv_python_bin}"
 venv_pip="${venv_pip}"
 
 libraries_dir="${LIBRARIES_DIR}"
 
-state_file="${STATE_FILE}"
 release_matrix_file="${RELEASE_MATRIX_FILE}"
 
 arduino_cli="${arduino_cli_path}"
@@ -409,61 +424,9 @@ esp32_core_fqbn="${ESP32_CORE_FQBN}"
 esp32_board_manager_url="${ESP32_BOARD_MANAGER_URL}"
 build_config_file="${BUILD_CONFIG_FILE}"
 
-# version state
-version_major=0
-version_minor=0
-version_patch=0
-version_build_id=0
-version_last_build_ts=0
-
-get_version() {
-  printf '%d.%d.%03d\n' \
-    "\${version_major:-0}" \
-    "\${version_minor:-0}" \
-    "\${version_patch:-0}"
-}
-
-set_version() {
-  local major="\${1:-0}"
-  local minor="\${2:-0}"
-  local patch="\${3:-0}"
-
-  [[ "\$major" =~ ^[0-9]+$ ]] || { echo "invalid major: \$major" >&2; return 1; }
-  [[ "\$minor" =~ ^[0-9]+$ ]] || { echo "invalid minor: \$minor" >&2; return 1; }
-  [[ "\$patch" =~ ^[0-9]+$ ]] || { echo "invalid patch: \$patch" >&2; return 1; }
-
-  version_major="\$major"
-  version_minor="\$minor"
-  version_patch="\$patch"
-  version_last_build_ts="\$(date +%s)"
-}
-
-bump_patch() {
-  version_major="\${version_major:-0}"
-  version_minor="\${version_minor:-0}"
-  version_patch="\${version_patch:-0}"
-
-  ((version_patch++))
-  version_last_build_ts="\$(date +%s)"
-}
-
-bump_minor() {
-  version_major="\${version_major:-0}"
-  version_minor="\${version_minor:-0}"
-
-  ((version_minor++))
-  version_patch=0
-  version_last_build_ts="\$(date +%s)"
-}
-
-bump_major() {
-  version_major="\${version_major:-0}"
-
-  ((version_major++))
-  version_minor=0
-  version_patch=0
-  version_last_build_ts="\$(date +%s)"
-}
+####################
+# Helper Functions #
+####################
 
 get_cfg() {
   local key="\$1"
@@ -498,6 +461,7 @@ main() {
   ensure_venv "${PY_BIN}"
   ensure_esptool
 
+  init_state_file
   init_release_matrix
   ensure_project_ino
   ensure_project_config_h

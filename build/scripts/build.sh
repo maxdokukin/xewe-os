@@ -22,10 +22,12 @@ source "${BUILD_CONFIG_FILE}"
 
 PROJECT_ROOT="$(get_cfg project_root)"
 PROJECT_NAME="$(get_cfg project_name)"
-STATE_FILE="$(get_cfg state_file)"
+STATE_FILE="$(get_cfg build_state_file)"
 BUILDS_DIR="$(get_cfg builds_dir)"
 CONFIG_FILE="$(get_cfg project_config_h_file)"
-PYTHON_BIN="$(get_cfg venv_python)"
+PYTHON_BIN="$(get_cfg venv_python_bin)"
+
+TS_ISO="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
 ESP_CHIP="" ESP_PORT="" CONFIG_JSON_RAW=""
 ESP_BAUD="921600" SERIAL_BAUD="115200"
@@ -62,17 +64,46 @@ except Exception as e:
     sys.exit(f"❌ JSON parse/write error: {e}")' "${CONFIG_JSON_RAW}" "${CONFIG_FILE}" || exit 1
 fi
 
-# ---------- Helpers ----------
-read_kv() { grep -E "^$1=" "$2" | cut -d'=' -f2- || true; }
-write_kv() { grep -qE "^$1=" "$2" && sed -i.bak -E "s|^$1=.*|$1=$2|" "$2" && rm -f "$2.bak" || echo "$1=$2" >> "$2"; }
+# ---------- VC Helpers ----------
+get_version() {
+  if [[ -f "$STATE_FILE" ]]; then
+    source "$STATE_FILE"
+    echo "${MAJOR:-0}.${MINOR:-0}.${PATCH:-0}"
+  else
+    echo "0.0.0"
+  fi
+}
 
-[[ -f "$STATE_FILE" ]] || printf "MAJOR=0\nMINOR=0\nPATCH=0\nBUILD_ID=0\nLAST_BUILD_TS=\nPROJECT=%s\n" "$PROJECT_NAME" > "$STATE_FILE"
+bump_patch() {
+  if [[ -f "$STATE_FILE" ]]; then
+    source "$STATE_FILE"
+    MAJOR="${MAJOR:-0}"
+    MINOR="${MINOR:-0}"
+    PATCH="${PATCH:-0}"
+    BUILD_ID="${BUILD_ID:-0}"
 
-PATCH="$(read_kv PATCH "$STATE_FILE")"
-PATCH_NEXT="$((10#$PATCH + 1))"
-VERSION_NEXT="$(read_kv MAJOR "$STATE_FILE").$(read_kv MINOR "$STATE_FILE").$(printf "%03d" "$PATCH_NEXT")"
-TS_SHORT="$(date +"%Y%m%d-%H%M%S")"
-TS_ISO="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    PATCH=$((PATCH + 1))
+    BUILD_ID=$((BUILD_ID + 1))
+  else
+    # Initialize if missing
+    MAJOR=0
+    MINOR=0
+    PATCH=1
+    BUILD_ID=1
+  fi
+
+  LAST_BUILD_TS="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+  cat <<EOF > "$STATE_FILE"
+MAJOR=$MAJOR
+MINOR=$MINOR
+PATCH=$PATCH
+BUILD_ID=$BUILD_ID
+LAST_BUILD_TS=$LAST_BUILD_TS
+EOF
+}
+
+VERSION_NEXT="$(get_version)"
 
 # ---------- Inject Build Params into Config.h ----------
 echo "⚙️  Injecting build params (Project, Version, Timestamp) into ${CONFIG_FILE}..."
@@ -99,21 +130,16 @@ fi
 
 ./compile.sh --chip "$ESP_CHIP" --version "$VERSION_NEXT" --timestamp "$TS_ISO" ${FQBN_EXTRA_OPTS:+--fqbn-extra "$FQBN_EXTRA_OPTS"} ${CONFIG_JSON_RAW:+--config_json "$CONFIG_JSON_RAW"}
 
-TARGET_DIR="${BUILDS_DIR}/${TS_ISO}-${VERSION_NEXT}-${ESP_CHIP}-${PROJECT_NAME}"
-[[ -n "${BUILD_NOTES//[[:space:]]/}" ]] && echo "$BUILD_NOTES" > "$TARGET_DIR/build_notes.txt"
-ln -sfn "$TARGET_DIR" "${BUILDS_DIR}/latest"
+[[ -n "${BUILD_NOTES//[[:space:]]/}" ]] && echo "$BUILD_NOTES" > "$(get_cfg builds_latest_dir)/build_notes.txt"
 
 # ---------- Upload Execution ----------
 if [[ -n "$ESP_PORT" ]]; then
   echo "📤 Upload → $ESP_PORT @ $ESP_BAUD"
   ./upload.sh -c "$ESP_CHIP" -p "$ESP_PORT"
 
-  write_kv "$STATE_FILE" PATCH "$(printf "%03d" "$PATCH_NEXT")"
-  write_kv "$STATE_FILE" BUILD_ID "$((10#$(read_kv BUILD_ID "$STATE_FILE") + 1))"
-  write_kv "$STATE_FILE" LAST_BUILD_TS "$TS_SHORT"
-  write_kv "$STATE_FILE" PROJECT "$PROJECT_NAME"
+  bump_patch
 
-  echo -e "✅ Version bumped → $VERSION_NEXT\n🖥️  Serial monitor..."
+  echo -e "✅ Version bumped → $(get_version)\n🖥️  Serial monitor..."
   ./listen_serial.sh -p "$ESP_PORT" -b "$SERIAL_BAUD"
 else
   echo "ℹ️  No port provided. Upload skipped."

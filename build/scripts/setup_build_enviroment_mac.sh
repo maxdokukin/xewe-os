@@ -245,21 +245,6 @@ ensure_esptool() {
   fi
 }
 
-init_state_file() {
-  if [[ ! -f "${STATE_FILE}" ]]; then
-    cat > "${STATE_FILE}" <<EOF
-MAJOR=0
-MINOR=0
-PATCH=0
-BUILD_ID=0
-LAST_BUILD_TS=
-EOF
-    echo "✅ Created state file: ${STATE_FILE}" >&2
-  else
-    echo "✅ State file already exists: ${STATE_FILE}" >&2
-  fi
-}
-
 init_release_matrix() {
   if [[ ! -f "${RELEASE_MATRIX_FILE}" ]]; then
     cat > "${RELEASE_MATRIX_FILE}" <<EOF
@@ -346,36 +331,6 @@ EOF
   echo "✅ Config header ready: ${config_file}" >&2
 }
 
-ensure_project_config_h() {
-  local project_root
-  local config_file
-
-  project_root="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-  config_file="${project_root}/Config.h"
-
-  if [[ -f "${config_file}" ]]; then
-    echo "✅ Config header found: ${config_file}" >&2
-    return 0
-  fi
-
-  echo "⚠️  Config.h not found in project root. Creating: ${config_file}" >&2
-
-  cat > "${config_file}" <<'EOF'
-#ifndef CONFIG_H
-#define CONFIG_H
-
-// Project configuration goes here.
-// Example:
-// #define WIFI_SSID "your-ssid"
-// #define WIFI_PASSWORD "your-password"
-
-#endif // CONFIG_H
-EOF
-
-  chmod 644 "${config_file}"
-  echo "✅ Config header ready: ${config_file}" >&2
-}
-
 generate_gitignore() {
   local gitignore_file="${BUILD_ROOT}/.gitignore"
   local required_lines=(
@@ -402,7 +357,6 @@ write_build_config() {
   local arduino_cli_path
   local brew_path
   local git_path
-  local python_path
   local venv_python
   local venv_pip
   local project_root
@@ -413,7 +367,6 @@ write_build_config() {
   arduino_cli_path="$(command -v arduino-cli)"
   brew_path="$(command -v brew || true)"
   git_path="$(command -v git || true)"
-  python_path="$(command -v "${py_bin}")"
   venv_python="${VENV_DIR}/bin/python"
   venv_pip="${VENV_DIR}/bin/pip"
 
@@ -449,13 +402,68 @@ state_file="${STATE_FILE}"
 release_matrix_file="${RELEASE_MATRIX_FILE}"
 
 arduino_cli="${arduino_cli_path}"
-python_bin="${python_path}"
 brew_bin="${brew_path}"
 git_bin="${git_path}"
 
 esp32_core_fqbn="${ESP32_CORE_FQBN}"
 esp32_board_manager_url="${ESP32_BOARD_MANAGER_URL}"
 build_config_file="${BUILD_CONFIG_FILE}"
+
+# version state
+version_major=0
+version_minor=0
+version_patch=0
+version_build_id=0
+version_last_build_ts=0
+
+get_version() {
+  printf '%d.%d.%03d\n' \
+    "\${version_major:-0}" \
+    "\${version_minor:-0}" \
+    "\${version_patch:-0}"
+}
+
+set_version() {
+  local major="\${1:-0}"
+  local minor="\${2:-0}"
+  local patch="\${3:-0}"
+
+  [[ "\$major" =~ ^[0-9]+$ ]] || { echo "invalid major: \$major" >&2; return 1; }
+  [[ "\$minor" =~ ^[0-9]+$ ]] || { echo "invalid minor: \$minor" >&2; return 1; }
+  [[ "\$patch" =~ ^[0-9]+$ ]] || { echo "invalid patch: \$patch" >&2; return 1; }
+
+  version_major="\$major"
+  version_minor="\$minor"
+  version_patch="\$patch"
+  version_last_build_ts="\$(date +%s)"
+}
+
+bump_patch() {
+  version_major="\${version_major:-0}"
+  version_minor="\${version_minor:-0}"
+  version_patch="\${version_patch:-0}"
+
+  ((version_patch++))
+  version_last_build_ts="\$(date +%s)"
+}
+
+bump_minor() {
+  version_major="\${version_major:-0}"
+  version_minor="\${version_minor:-0}"
+
+  ((version_minor++))
+  version_patch=0
+  version_last_build_ts="\$(date +%s)"
+}
+
+bump_major() {
+  version_major="\${version_major:-0}"
+
+  ((version_major++))
+  version_minor=0
+  version_patch=0
+  version_last_build_ts="\$(date +%s)"
+}
 
 get_cfg() {
   local key="\$1"
@@ -490,9 +498,7 @@ main() {
   ensure_venv "${PY_BIN}"
   ensure_esptool
 
-  init_state_file
   init_release_matrix
-  generate_gitignore
   ensure_project_ino
   ensure_project_config_h
   write_build_config "${PY_BIN}"

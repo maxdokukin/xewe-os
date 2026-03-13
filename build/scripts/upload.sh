@@ -16,35 +16,54 @@ BUILD_CONFIG_FILE="../build_config"
 source "${BUILD_CONFIG_FILE}"
 
 BUILD_DIR="$(get_cfg builds_latest_dir)"
+PYTHON_BIN="$(get_cfg venv_python)"
 
 ESP_CHIP=""
 ESP_PORT=""
 ESP_BAUD="921600"
 
+usage() {
+  echo "Usage: $0 -c <chip> -p <port> [-b <baud>] [--build-dir <dir>]"
+  exit 1
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -c|--chip)      ESP_CHIP="${2:-}"; shift 2 ;;
-    -p|--port)      ESP_PORT="${2:-}"; shift 2 ;;
-    -b|--baud)      ESP_BAUD="${2:-}"; shift 2 ;;
-    --build-dir)    BUILD_DIR="${2:-}"; shift 2 ;;
-    *) echo "Unknown arg: $1"; usage ;;
+    -c|--chip)          ESP_CHIP="${2:-}"; shift 2 ;;
+    -p|--port)          ESP_PORT="${2:-}"; shift 2 ;;
+    --build-dir)        BUILD_DIR="${2:-}"; shift 2 ;;
+    --baud)             ESP_BAUD="${2:-}"; shift 2 ;;
+    *) echo "❌ Unknown arg: $1"; usage ;;
   esac
 done
 
-[[ -z "${ESP_CHIP}"  ]] && usage
-[[ -z "${ESP_PORT}"  ]] && usage
+[[ -z "${ESP_CHIP}" ]] && { echo "❌ Missing chip (-c)."; usage; }
+[[ -z "${ESP_PORT}" ]] && { echo "❌ Missing port (-p)."; usage; }
 
 chip_to_esptool_id() {
   case "$1" in
     c3) echo "esp32c3" ;;
     c6) echo "esp32c6" ;;
     s3) echo "esp32s3" ;;
+    *)  echo "❌ Unsupported chip: $1"; exit 1 ;;
   esac
 }
 
 ESPID="$(chip_to_esptool_id "${ESP_CHIP}")"
-ESPTOOL_CMD=$(python_bin) -m esptool;
-FIRMWARE_BIN = BUILD_DIR/binary/.bin
+ESPTOOL_CMD="${PYTHON_BIN} -m esptool"
+
+shopt -s nullglob
+BIN_FILES=("${BUILD_DIR}/binary/"*.bin)
+shopt -u nullglob
+
+if [[ ${#BIN_FILES[@]} -eq 0 ]]; then
+  echo "❌ Error: No .bin file found in ${BUILD_DIR}/binary/"
+  exit 1
+elif [[ ${#BIN_FILES[@]} -gt 1 ]]; then
+  echo "⚠️ Warning: Multiple .bin files found. Using the first one: ${BIN_FILES[0]}"
+fi
+
+FIRMWARE_BIN="${BIN_FILES[0]}"
 
 echo "📦 Build       : ${BUILD_DIR}"
 echo "📄 Image       : ${FIRMWARE_BIN}"
@@ -52,7 +71,7 @@ echo "🔌 Port        : ${ESP_PORT}"
 echo "⚡ Baud        : ${ESP_BAUD}"
 echo "🔧 Chip        : ${ESPID}"
 echo "🧰 Esptool     : ${ESPTOOL_CMD}"
-echo "🚀 Flashing merged image @ 0x00000000 …"
+echo "🚀 Flashing merged image at 0x00000000 …"
 
 # shellcheck disable=SC2086
 ${ESPTOOL_CMD} \

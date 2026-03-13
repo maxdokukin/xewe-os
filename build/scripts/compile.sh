@@ -28,7 +28,7 @@ BUILDS_DIR="$(get_cfg builds_dir)"
 WORK_DIR="$(get_cfg builds_cache_dir)"
 PROJECT_NAME="$(get_cfg project_name)"
 LIBS_DIR="$(get_cfg libraries_dir)"
-PYTHON_BIN="$(get_cfg python_bin)"
+PYTHON_BIN="$(get_cfg venv_python)"
 
 ESP_CHIP="" VERSION="" TS_ISO="" FQBN_EXTRA_OPTS="" CONFIG_JSON_RAW=""
 

@@ -25,7 +25,7 @@ PROJECT_NAME="$(get_cfg project_name)"
 STATE_FILE="$(get_cfg state_file)"
 BUILDS_DIR="$(get_cfg builds_dir)"
 CONFIG_FILE="$(get_cfg project_config_h_file)"
-PYTHON_BIN="$(get_cfg python_bin)"
+PYTHON_BIN="$(get_cfg venv_python)"
 
 ESP_CHIP="" ESP_PORT="" CONFIG_JSON_RAW=""
 ESP_BAUD="921600" SERIAL_BAUD="115200"

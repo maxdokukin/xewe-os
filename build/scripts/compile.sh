@@ -8,11 +8,18 @@ set -euo pipefail
 # --chip c3|c6|s3
 # --version <X.Y.ZZZ>
 # --timestamp <ISO-8601 UTC>
+# Optional flags:
 # --fqbn-extra <comma-separated FQBN opts>
 # --config_json <JSON string> (additional params written into meta.json)
 #
 # Output layout (under --target-dir):
 # output/ binary/{firmware.bin, <ver>-<chip>-<project>.bin, manifest.json, meta.json}
+
+#-------------------------#
+#--- GET THE VARIABLES ---#
+#-------------------------#
+# ---------- Build timing ----------
+BUILD_START_EPOCH="$(date -u +%s)"
 
 # load config
 CONFIG_FILE="/Users/max/Codebase/github/xewe-os/build/build_config"
@@ -54,9 +61,6 @@ case "${ESP_CHIP}" in
   *) usage_fail "Invalid --chip: ${ESP_CHIP} (expected c3, c6, or s3)" ;;
 esac
 
-# ---------- Build timing ----------
-BUILD_START_EPOCH="$(date -u +%s)"
-
 # ---------- validate/normalize --config_json ----------
 
 if [[ -n "${CONFIG_JSON_RAW//[[:space:]]/}" ]]; then
@@ -72,7 +76,7 @@ print(json.dumps(obj, separators=(",",":"), sort_keys=True))
     usage_fail "Invalid --config_json (must be valid JSON): ${CONFIG_JSON_RAW}"
   fi
 else
-  CONFIG_JSON_VALIDATED=""
+  CONFIG_JSON_VALIDATED="\"\""
 fi
 
 # ---------- Chip mapping ----------
@@ -130,15 +134,6 @@ echo "📚 Using libs: ${LIBS_DIR}"
 echo "📁 Target dir: ${TARGET_DIR}"
 echo "🧰 Work path: ${WORK_DIR}"
 
-# ---------- Snapshot sources & libs ----------
-if [[ -d "${PROJECT_ROOT}/src" ]]; then
-  cp -a "${PROJECT_ROOT}/src" "${TARGET_DIR}/src"
-else
-  mkdir -p "${TARGET_DIR}/src"
-  cp -a "${SKETCH_PATH}" "${TARGET_DIR}/src/"
-fi
-
-
 COMPILE_ARGS=(
   compile
   --fqbn "${FQBN}"
@@ -148,6 +143,25 @@ COMPILE_ARGS=(
   "${SKETCH_PATH}"
 )
 
+
+#--------------------------#
+#--- /GET THE VARIABLES ---#
+#--------------------------#
+#-------------------#
+#--- PRE COMPILE ---#
+#-------------------#
+
+# ---------- Snapshot sources & libs ----------
+cp -a "${PROJECT_ROOT}/src" "${TARGET_DIR}/src"
+cp -a "${LIBS_DIR}" "${TARGET_DIR}/libs"
+
+
+#--------------------#
+#--- /PRE COMPILE ---#
+#--------------------#
+#--------------#
+#--- COMPILE---#
+#--------------#
 BUILD_RC=0
 if arduino-cli "${COMPILE_ARGS[@]}"; then
   BUILD_RC=0
@@ -160,9 +174,14 @@ fi
   exit "${BUILD_RC}"
 }
 
+#---------------#
+#--- /COMPILE---#
+#---------------#
+#-------------------------#
+#--- PROCESS ARTIFACTS ---#
+#-------------------------#
 # ---------- Find or create merged binary ----------
 MERGED_BIN="$(find "${WORK_DIR}" -maxdepth 1 -name "${PROJECT_NAME}.ino.merged.bin" -print -quit || true)"
-
 
 # Place final merged image (versioned + generic alias)
 MERGED_BIN_FILENAME="${VERSION}-${ESP_CHIP}-${PROJECT_NAME}.bin"
@@ -187,13 +206,13 @@ EOF
 
 echo "📝 Wrote manifest -> ${BINARY_DIR}/manifest.json"
 
+# --- meta.json (build parameters/context) ---
 # ---------- Build timing end ----------
 BUILD_END_EPOCH="$(date -u +%s)"
 BUILD_TIME_SEC=$(( BUILD_END_EPOCH - BUILD_START_EPOCH ))
 MINS=$(( BUILD_TIME_SEC / 60 ))
 SECS=$(( BUILD_TIME_SEC % 60 ))
 
-# --- meta.json (build parameters/context) ---
 json_escape() {
   local s="${1-}"
   s="${s//\\/\\\\}"
@@ -204,9 +223,10 @@ json_escape() {
   echo -n "$s"
 }
 
-REL_BINARY_PATH="binary/${MERGED_BIN_FILENAME}"
-REL_MANIFEST_PATH="binary/manifest.json"
-REL_META_PATH="binary/meta.json"
+TARGET_DIR_REL="${PROJECT_NAME}${TARGET_DIR#*${PROJECT_NAME}}"
+REL_BINARY_PATH="${TARGET_DIR_REL}/binary/${MERGED_BIN_FILENAME}"
+REL_MANIFEST_PATH="${TARGET_DIR_REL}/binary/manifest.json"
+REL_META_PATH="${TARGET_DIR_REL}/binary/meta.json"
 META_PATH="${BINARY_DIR}/meta.json"
 
 {
@@ -216,10 +236,8 @@ META_PATH="${BINARY_DIR}/meta.json"
   echo "  \"project_name\": \"$(json_escape "${PROJECT_NAME}")\","
   echo "  \"version\": \"$(json_escape "${VERSION}")\","
   echo "  \"timestamp_param\": \"$(json_escape "${TS_ISO}")\","
-  echo "  \"merge_method\": \"$(json_escape "${MERGE_METHOD}")\","
   echo "  \"config\": ${CONFIG_JSON_VALIDATED},"
   echo "  \"fqbn\": \"$(json_escape "${FQBN}")\","
-  echo "  \"fqbn_base\": \"$(json_escape "${FQBN_BASE}")\","
   echo "  \"fqbn_extra\": \"$(json_escape "${FQBN_EXTRA_OPTS}")\","
   echo "  \"build_time_sec\": ${BUILD_TIME_SEC},"
   echo "  \"artifacts\": {"
@@ -239,3 +257,6 @@ echo "⏱️ Total build time: ${MINS}m ${SECS}s"
 echo " ➤ Final dir : ${TARGET_DIR}"
 echo " ➤ Firmware  : ${BINARY_DIR}/firmware.bin"
 echo " ➤ Version   : ${VERSION}"
+#--------------------------#
+#--- /PROCESS ARTIFACTS ---#
+#--------------------------#

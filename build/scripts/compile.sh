@@ -15,7 +15,9 @@ set -euo pipefail
 #       --timestamp      <ISO-8601 UTC>
 #       --libs           <path[:path...]>  (each becomes --libraries)
 #       --fqbn-extra     <comma-separated FQBN opts>
-#       --config_json    <other params meta.json>
+#
+# Optional flags:
+#       --config_json    <JSON string> (additional params written into meta.json)
 #
 # Output layout (under --target-dir):
 #   src/  lib/ (if any)  version.txt
@@ -34,6 +36,7 @@ VERSION_NEXT=""
 TS_ISO=""
 LIBS_LIST=""
 FQBN_EXTRA_OPTS=""
+CONFIG_JSON_RAW=""
 VENV_DIR="${SCRIPT_DIR}/../.venv"
 
 usage_fail() { echo "❌ $1"; exit 1; }
@@ -50,7 +53,8 @@ while [[ $# -gt 0 ]]; do
     --timestamp)       TS_ISO="${2:-}"; shift 2 ;;
     --libs)            LIBS_LIST="${2:-}"; shift 2 ;;
     --fqbn-extra)      FQBN_EXTRA_OPTS="${2:-}"; shift 2 ;;
-    -h|--help)         sed -n '1,120p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --config_json)     CONFIG_JSON_RAW="${2:-}"; shift 2 ;;
+    -h|--help)         sed -n '1,140p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) usage_fail "Unknown arg: $1" ;;
   esac
 done
@@ -64,8 +68,8 @@ done
 [[ -z "${VERSION_NEXT}"  ]] && usage_fail "Missing --version"
 [[ -z "${TS_ISO}"        ]] && usage_fail "Missing --timestamp"
 
-# time the compilation
-BUILD_START_ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+# ---------- Build timing ----------
+BUILD_START_EPOCH="$(date -u +%s)"
 
 # ---------- Tooling checks ----------
 if ! command -v arduino-cli >/dev/null 2>&1; then
@@ -73,6 +77,50 @@ if ! command -v arduino-cli >/dev/null 2>&1; then
 fi
 if ! arduino-cli core list | grep -q 'esp32:esp32'; then
   usage_fail "Espressif core not installed. Run: arduino-cli core install esp32:esp32"
+fi
+
+# ---------- NEW: validate/normalize --config_json ----------
+pick_python_for_json() {
+  if [[ -n "${VENV_DIR}" && -x "${VENV_DIR}/bin/python3" ]]; then
+    echo "${VENV_DIR}/bin/python3"; return 0
+  fi
+  if [[ -n "${VENV_DIR}" && -x "${VENV_DIR}/bin/python" ]]; then
+    echo "${VENV_DIR}/bin/python"; return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    echo "python3"; return 0
+  fi
+  if command -v python >/dev/null 2>&1; then
+    echo "python"; return 0
+  fi
+  return 1
+}
+
+CONFIG_JSON_NORM=""
+CONFIG_JSON_EMBED="null"
+if [[ -n "${CONFIG_JSON_RAW}" ]]; then
+  PY_FOR_JSON=""
+  if ! PY_FOR_JSON="$(pick_python_for_json)"; then
+    usage_fail "--config_json provided but no python found to validate it (python3/python)."
+  fi
+
+  set +e
+  CONFIG_JSON_NORM="$("${PY_FOR_JSON}" -c 'import json,sys
+s=sys.argv[1]
+try:
+  obj=json.loads(s)
+except Exception as e:
+  print(str(e), file=sys.stderr)
+  sys.exit(2)
+print(json.dumps(obj, separators=(",",":"), sort_keys=True))
+' "${CONFIG_JSON_RAW}")"
+  RC=$?
+  set -e
+  if [[ $RC -ne 0 ]]; then
+    usage_fail "Invalid --config_json (must be valid JSON): ${CONFIG_JSON_RAW}"
+  fi
+
+  CONFIG_JSON_EMBED="${CONFIG_JSON_NORM}"
 fi
 
 # ---------- Chip mapping ----------
@@ -273,10 +321,13 @@ cat > "${BINARY_DIR}/manifest.json" <<EOF
 EOF
 echo "📝 Wrote manifest → ${BINARY_DIR}/manifest.json"
 
-BUILD_END_ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-BUILD_TIME_SEC = BUILD_START_ISO - BUILD_END_ISO
+# ---------- Build timing end ----------
+BUILD_END_EPOCH="$(date -u +%s)"
+BUILD_TIME_SEC=$(( BUILD_END_EPOCH - BUILD_START_EPOCH ))
+MINS=$(( BUILD_TIME_SEC / 60 ))
+SECS=$(( BUILD_TIME_SEC % 60 ))
 
-# --- NEW: meta.json (build parameters/context) ---
+# --- meta.json (build parameters/context) ---
 json_escape() {
   local s="${1-}"
   s="${s//\\/\\\\}"
@@ -306,20 +357,18 @@ META_PATH="${BINARY_DIR}/meta.json"
   echo "  \"project_name\": \"$(json_escape "${PROJECT_NAME}")\","
   echo "  \"version\": \"$(json_escape "${VERSION_NEXT}")\","
   echo "  \"timestamp_param\": \"$(json_escape "${TS_ISO}")\","
-  echo "  \"project_root\": \"$(json_escape "${PROJECT_ROOT}")\","
-  echo "  \"target_dir\": \"$(json_escape "${TARGET_DIR}")\","
   echo "  \"fqbn\": \"$(json_escape "${FQBN}")\","
   echo "  \"fqbn_base\": \"$(json_escape "${FQBN_BASE}")\","
   echo "  \"fqbn_extra\": \"$(json_escape "${FQBN_EXTRA_OPTS}")\","
   echo "  \"esptool_command\": \"$(json_escape "${ESPTOOL_CMD}")\","
+  echo "  \"config\": ${CONFIG_JSON_EMBED},"
+  echo "  \"config_json_param\": \"$(json_escape "${CONFIG_JSON_RAW}")\","
   echo "  \"build_time_sec\": ${BUILD_TIME_SEC},"
-  echo "  \"paths\": {"
-  echo "    \"output_dir\": \"$(json_escape "${OUTPUT_DIR}")\","
-  echo "    \"binary_dir\": \"$(json_escape "${BINARY_DIR}")\","
-  echo "    \"compile_log\": \"$(json_escape "${TARGET_DIR}/compile.log")\","
-  echo "    \"merged_bin_filename\": \"$(json_escape "${MERGED_BIN_FILENAME}")\","
-  echo "    \"firmware_bin\": \"$(json_escape "${BINARY_DIR}/firmware.bin")\","
-  echo "    \"manifest_json\": \"$(json_escape "${BINARY_DIR}/manifest.json")\""
+  echo "  \"output_artifacts\": {"
+  echo "    \"binary_filename\": \"$(json_escape "${MERGED_BIN_FILENAME}")\","
+  echo "    \"binary_path\": \"$(json_escape "${BINARY_DIR}/${MERGED_BIN_FILENAME}")\""
+  echo "    \"manifest_json_path\": \"$(json_escape "${BINARY_DIR}/manifest.json")\""
+  echo "    \"meta_json_path\": \"$(json_escape "${BINARY_DIR}/meta.json")\""
   echo "  }"
   echo "}"
 } > "${META_PATH}"

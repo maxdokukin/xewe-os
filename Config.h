@@ -7,9 +7,14 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/XeWe-LED-OS
  *********************************************************************************/
+// Config.h
 
+#define SAMPLE_CONFIG_DEFINITION "2"
 
+#define LED_PIN_DATA                4
+#define LED_PIN_CLOCK               0
+#define LED_STRIP_NUM_LEDS_MAX      600
 
-// DEVELOPMENT
-#define SAMPLE_CONFIG_DEFINITION 1
-
+#define PROJECT_NAME "xewe-os"
+#define BUILD_VERSION "0.0.001"
+#define BUILD_TIMESTAMP "2026-03-13T21:13:59Z"

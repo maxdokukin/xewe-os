@@ -11,13 +11,13 @@ set -euo pipefail
 # - Clones Arduino libraries from ../required_libraries.txt into ../libraries (removes .git) <-- NEW
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VENV_DIR="${SCRIPT_DIR}/.venv"
+VENV_DIR="${SCRIPT_DIR}/../.venv"
 
 # Define library paths relative to script location (build/scripts/)
 # According to instructions, requirements is in ../required_libraries.txt (so, build/required_libraries.txt)
 # If your file is actually in the project root, change this to "../../required_libraries.txt"
-REQUIREMENTS_FILE="${SCRIPT_DIR}/../required_libraries.txt"
 LIBRARIES_DIR="${SCRIPT_DIR}/../libraries"
+REQUIREMENTS_FILE="${LIBRARIES_DIR}/required_libraries.txt"
 
 confirm() {
   local prompt="${1:-Continue?}"
@@ -234,6 +234,26 @@ ensure_esptool() {
   fi
 }
 
+init_state_file() {
+  STATE_FILE = "../version_state"
+  if [[ ! -f "${STATE_FILE}" ]]; then
+    cat > "${STATE_FILE}" <<EOF
+  MAJOR=0
+  MINOR=0
+  PATCH=0
+  BUILD_ID=0
+  LAST_BUILD_TS=
+  EOF
+  fi
+
+}
+
+init_release_matrix() {
+  RELEASE_MATRIX = "../release_matrix.csv"
+  if [[ ! -f "${STATE_FILE}" ]]; then
+    cat > "${STATE_FILE}" <<EOF
+}
+
 main() {
   ensure_brew
   ensure_arduino_cli
@@ -247,6 +267,9 @@ main() {
 
   ensure_venv "${PY_BIN}"
   ensure_esptool
+
+  init_state_file
+  init_release_matrix
 
   echo >&2
   echo "✅ Setup complete." >&2

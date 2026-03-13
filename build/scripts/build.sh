@@ -87,9 +87,9 @@ fi
 BUILD_ROOT="${PROJECT_ROOT}/build"
 BUILDS_DIR="${BUILD_ROOT}/builds"
 WORK_DIR="${BUILDS_DIR}/cache"         # shared incremental work dir
-STATE_FILE="${BUILD_ROOT}/builds/.version_state"
-CONFIG_FILE="${PROJECT_ROOT}/src/config.h" # Location of config.h
-DEFAULT_VENV="${SCRIPT_DIR}/.venv"
+STATE_FILE="${BUILD_ROOT}/../.version_state"
+CONFIG_FILE="${PROJECT_ROOT}/src/Config.h" # Location of config.h
+DEFAULT_VENV="${SCRIPT_DIR}/../.venv"
 [[ -z "${VENV_DIR}" ]] && [[ -d "${DEFAULT_VENV}" ]] && VENV_DIR="${DEFAULT_VENV}"
 
 mkdir -p "${BUILDS_DIR}" "${WORK_DIR}"
@@ -231,11 +231,9 @@ if [[ -n "${PIN_RANGE}" ]]; then
         ./compile.sh \
           -t "${ESP_CHIP}" \
           --project-root "${PROJECT_ROOT}" \
-          --builds-dir "${BUILDS_DIR}" \
           --work-dir "${WORK_DIR}" \
           --target-dir "${TARGET_DIR}" \
           --project-name "${CURRENT_PROJECT_NAME}" \
-          --manifest-name "${MANIFEST_NAME}" \
           --version "${VERSION_NEXT}" \
           --timestamp "${TS_ISO}" \
           ${LIBS_LIST:+--libs "${LIBS_LIST}"} \
@@ -269,11 +267,9 @@ else
     ./compile.sh \
       -t "${ESP_CHIP}" \
       --project-root "${PROJECT_ROOT}" \
-      --builds-dir "${BUILDS_DIR}" \
       --work-dir "${WORK_DIR}" \
       --target-dir "${TARGET_DIR}" \
       --project-name "${PROJECT_NAME}" \
-      --manifest-name "${MANIFEST_NAME}" \
       --version "${VERSION_NEXT}" \
       --timestamp "${TS_ISO}" \
       ${LIBS_LIST:+--libs "${LIBS_LIST}"} \

@@ -12,11 +12,11 @@ set -euo pipefail
 # - Clones Arduino libraries from ../required_libraries.txt into ../libraries (removes .git)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VENV_DIR="${SCRIPT_DIR}/.venv"
+VENV_DIR="${SCRIPT_DIR}/../.venv"
 
 # Define library paths relative to script location (build/scripts/)
-REQUIREMENTS_FILE="${SCRIPT_DIR}/../required_libraries.txt"
 LIBRARIES_DIR="${SCRIPT_DIR}/../libraries"
+REQUIREMENTS_FILE="${LIBRARIES_DIR}/required_libraries.txt"
 
 # Optional override (Linux fallback installer):
 #   export ARDUINO_CLI_VERSION="0.35.3"

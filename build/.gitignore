@@ -1,0 +1,5 @@
+.venv/
+builds/
+libraries/
+build_config
+version_state

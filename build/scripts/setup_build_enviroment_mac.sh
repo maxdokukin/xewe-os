@@ -1,23 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# setup_build_enviroment.sh — one-time environment setup for this repo.
+# setup_build_environment.sh — one-time environment setup for this repo.
 # - Checks Homebrew; offers to install if missing
 # - Checks Arduino CLI; offers to install via brew if missing
 # - Checks ESP32 Core; offers to install if missing
 # - Checks Python; offers to install (macOS via brew) if missing
 # - Creates .venv next to this script
 # - Checks esptool; offers to install into .venv if missing
-# - Clones Arduino libraries from ../required_libraries.txt into ../libraries (removes .git) <-- NEW
+# - Clones Arduino libraries from required_libraries.txt into libraries
+# - Creates build_config for reuse by build/upload scripts
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VENV_DIR="${SCRIPT_DIR}/../.venv"
+BUILD_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-# Define library paths relative to script location (build/scripts/)
-# According to instructions, requirements is in ../required_libraries.txt (so, build/required_libraries.txt)
-# If your file is actually in the project root, change this to "../../required_libraries.txt"
-LIBRARIES_DIR="${SCRIPT_DIR}/../libraries"
+VENV_DIR="${BUILD_ROOT}/.venv"
+LIBRARIES_DIR="${BUILD_ROOT}/libraries"
 REQUIREMENTS_FILE="${LIBRARIES_DIR}/required_libraries.txt"
+STATE_FILE="${BUILD_ROOT}/version_state"
+RELEASE_MATRIX_FILE="${BUILD_ROOT}/release_matrix.csv"
+BUILD_CONFIG_FILE="${BUILD_ROOT}/build_config"
+
+ESP32_CORE_FQBN="esp32:esp32"
+ESP32_BOARD_MANAGER_URL="https://espressif.github.io/arduino-esp32/package_esp32_index.json"
 
 confirm() {
   local prompt="${1:-Continue?}"
@@ -57,6 +62,7 @@ ensure_brew() {
     echo "✅ Homebrew found: $(command -v brew)" >&2
     return 0
   fi
+
   echo "⚠️  Homebrew not found." >&2
   if confirm "Install Homebrew now?"; then
     install_brew
@@ -70,9 +76,10 @@ ensure_brew() {
 
 ensure_arduino_cli() {
   if have_cmd arduino-cli; then
-    echo "✅ arduino-cli found: $(arduino-cli version 2>/dev/null || echo "$(command -v arduino-cli)")" >&2
+    echo "✅ arduino-cli found: $(arduino-cli version 2>/dev/null || command -v arduino-cli)" >&2
     return 0
   fi
+
   echo "⚠️  arduino-cli not found." >&2
   if confirm "Install Arduino CLI via Homebrew now?"; then
     brew update
@@ -86,22 +93,25 @@ ensure_arduino_cli() {
 }
 
 ensure_esp32_core() {
-  if arduino-cli core list 2>/dev/null | grep -q "esp32:esp32"; then
-    echo "✅ ESP32 core (esp32:esp32) is already installed." >&2
+  if arduino-cli core list 2>/dev/null | grep -q "^${ESP32_CORE_FQBN}[[:space:]]"; then
+    echo "✅ ESP32 core (${ESP32_CORE_FQBN}) is already installed." >&2
     return 0
   fi
 
   echo "⚠️  ESP32 core not found." >&2
-  if confirm "Install ESP32 core (esp32:esp32) now?"; then
+  if confirm "Install ESP32 core (${ESP32_CORE_FQBN}) now?"; then
     echo "➡️  Initializing Arduino config and adding Espressif URL..." >&2
     arduino-cli config init >/dev/null 2>&1 || true
-    arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json >/dev/null 2>&1 || true
+    arduino-cli config add board_manager.additional_urls "${ESP32_BOARD_MANAGER_URL}" >/dev/null 2>&1 || true
 
     echo "➡️  Updating core index..." >&2
     arduino-cli core update-index
 
-    echo "➡️  Installing esp32:esp32..." >&2
-    arduino-cli core install esp32:esp32 || { echo "❌ Failed to install ESP32 core."; exit 1; }
+    echo "➡️  Installing ${ESP32_CORE_FQBN}..." >&2
+    arduino-cli core install "${ESP32_CORE_FQBN}" || {
+      echo "❌ Failed to install ESP32 core." >&2
+      exit 1
+    }
 
     echo "✅ ESP32 core installed." >&2
   else
@@ -110,7 +120,6 @@ ensure_esp32_core() {
   fi
 }
 
-# --- NEW FUNCTION FOR LIBRARIES ---
 ensure_libraries() {
   if [[ ! -f "${REQUIREMENTS_FILE}" ]]; then
     echo "⚠️  Requirements file not found at: ${REQUIREMENTS_FILE}" >&2
@@ -122,25 +131,16 @@ ensure_libraries() {
   mkdir -p "${LIBRARIES_DIR}"
 
   while read -r line || [[ -n "$line" ]]; do
-    # Trim whitespace from the whole line
-    line=$(echo "$line" | xargs)
-
-    # Skip empty lines or comments
+    line="$(echo "$line" | xargs)"
     [[ -z "$line" || "$line" =~ ^# ]] && continue
 
-    # 1. Split the line into an array based on spaces
-    #    Example: "https://...git --branch 3.10.3"
-    #    Becomes: parts[0]="https://...git", parts[1]="--branch", parts[2]="3.10.3"
-    IFS=' ' read -r -a parts <<< "$line"
+    IFS=' ' read -r -a parts <<< "${line}"
 
     local repo_url="${parts[0]}"
+    local git_args=("${parts[@]:1}")
 
-    # 2. Extract specific args (all parts after the URL)
-    local git_args="${parts[@]:1}"
-
-    # 3. Extract repo name from the URL only
     local repo_name
-    repo_name=$(basename "${repo_url}" .git)
+    repo_name="$(basename "${repo_url}" .git)"
     local target_path="${LIBRARIES_DIR}/${repo_name}"
 
     if [[ -d "${target_path}" ]]; then
@@ -148,10 +148,18 @@ ensure_libraries() {
     else
       echo "   ⬇️  Cloning ${repo_name}..." >&2
 
-      # 4. Inject $git_args into the command (unquoted so flags expand correctly)
-      git clone --quiet --depth 1 $git_args "${repo_url}" "${target_path}" || { echo "❌ Failed to clone ${repo_url}"; exit 1; }
+      if [[ ${#git_args[@]} -gt 0 ]]; then
+        git clone --quiet --depth 1 "${git_args[@]}" "${repo_url}" "${target_path}" || {
+          echo "❌ Failed to clone ${repo_url}" >&2
+          exit 1
+        }
+      else
+        git clone --quiet --depth 1 "${repo_url}" "${target_path}" || {
+          echo "❌ Failed to clone ${repo_url}" >&2
+          exit 1
+        }
+      fi
 
-      # CRITICAL: Remove .git folder to keep the root repo clean
       rm -rf "${target_path}/.git"
       echo "      (Removed .git from ${repo_name})" >&2
     fi
@@ -159,7 +167,6 @@ ensure_libraries() {
 
   echo "✅ Libraries are ready." >&2
 }
-# ----------------------------------
 
 choose_python() {
   if have_cmd python3; then
@@ -176,7 +183,7 @@ choose_python() {
 ensure_python() {
   local py=""
   if py="$(choose_python)"; then
-    echo "✅ Python found: $(${py} --version 2>&1)" >&2
+    echo "✅ Python found: $("${py}" --version 2>&1)" >&2
     printf "%s" "${py}"
     return 0
   fi
@@ -198,12 +205,13 @@ ensure_python() {
   ensure_brew_shellenv
 
   py="$(choose_python)" || { echo "❌ Python still not found after install." >&2; exit 1; }
-  echo "✅ Python installed: $(${py} --version 2>&1)" >&2
+  echo "✅ Python installed: $("${py}" --version 2>&1)" >&2
   printf "%s" "${py}"
 }
 
 ensure_venv() {
   local py="$1"
+
   if [[ -d "${VENV_DIR}" && -x "${VENV_DIR}/bin/python" ]]; then
     echo "✅ .venv already exists: ${VENV_DIR}" >&2
     return 0
@@ -226,7 +234,10 @@ ensure_esptool() {
   echo "⚠️  esptool not found in .venv (required for merge/upload fallback)." >&2
   if confirm "Install esptool into .venv now?"; then
     "${VENV_DIR}/bin/python" -m pip install --upgrade esptool
-    "${VENV_DIR}/bin/python" -c "import esptool" >/dev/null 2>&1 || { echo "❌ esptool install failed." >&2; exit 1; }
+    "${VENV_DIR}/bin/python" -c "import esptool" >/dev/null 2>&1 || {
+      echo "❌ esptool install failed." >&2
+      exit 1
+    }
     echo "✅ esptool installed in .venv" >&2
   else
     echo "❌ esptool is required for compile.sh merge fallback and upload.sh when no merged bin exists." >&2
@@ -235,31 +246,81 @@ ensure_esptool() {
 }
 
 init_state_file() {
-  STATE_FILE = "../version_state"
   if [[ ! -f "${STATE_FILE}" ]]; then
     cat > "${STATE_FILE}" <<EOF
-  MAJOR=0
-  MINOR=0
-  PATCH=0
-  BUILD_ID=0
-  LAST_BUILD_TS=
-  EOF
+MAJOR=0
+MINOR=0
+PATCH=0
+BUILD_ID=0
+LAST_BUILD_TS=
+EOF
+    echo "✅ Created state file: ${STATE_FILE}" >&2
+  else
+    echo "✅ State file already exists: ${STATE_FILE}" >&2
   fi
-
 }
 
 init_release_matrix() {
-  RELEASE_MATRIX = "../release_matrix.csv"
-  if [[ ! -f "${STATE_FILE}" ]]; then
-    cat > "${STATE_FILE}" <<EOF
+  if [[ ! -f "${RELEASE_MATRIX_FILE}" ]]; then
+    cat > "${RELEASE_MATRIX_FILE}" <<EOF
+timestamp,major,minor,patch,build_id,version,artifact,notes
+EOF
+    echo "✅ Created release matrix: ${RELEASE_MATRIX_FILE}" >&2
+  else
+    echo "✅ Release matrix already exists: ${RELEASE_MATRIX_FILE}" >&2
+  fi
+}
+
+write_build_config() {
+  local py_bin="$1"
+  local arduino_cli_path
+  local brew_path
+  local git_path
+  local venv_python
+  local venv_pip
+
+  arduino_cli_path="$(command -v arduino-cli)"
+  brew_path="$(command -v brew || true)"
+  git_path="$(command -v git || true)"
+  venv_python="${VENV_DIR}/bin/python"
+  venv_pip="${VENV_DIR}/bin/pip"
+
+  cat > "${BUILD_CONFIG_FILE}" <<EOF
+# Auto-generated by setup_build_environment.sh
+# Source this file from compile/upload scripts:
+#   source "${BUILD_CONFIG_FILE}"
+
+setup_success=true
+
+build_root="${BUILD_ROOT}"
+venv_dir="${VENV_DIR}"
+venv_python="${venv_python}"
+venv_pip="${venv_pip}"
+
+libraries_dir="${LIBRARIES_DIR}"
+requirements_file="${REQUIREMENTS_FILE}"
+
+state_file="${STATE_FILE}"
+release_matrix_file="${RELEASE_MATRIX_FILE}"
+
+arduino_cli="${arduino_cli_path}"
+python_bin="$(command -v "${py_bin}")"
+brew_bin="${brew_path}"
+git_bin="${git_path}"
+
+esp32_core_fqbn="${ESP32_CORE_FQBN}"
+esp32_board_manager_url="${ESP32_BOARD_MANAGER_URL}"
+build_config_file="${BUILD_CONFIG_FILE}"
+EOF
+
+  chmod 600 "${BUILD_CONFIG_FILE}"
+  echo "✅ Wrote build config: ${BUILD_CONFIG_FILE}" >&2
 }
 
 main() {
   ensure_brew
   ensure_arduino_cli
   ensure_esp32_core
-
-  # --- New Step: Install Libraries ---
   ensure_libraries
 
   local PY_BIN
@@ -270,6 +331,7 @@ main() {
 
   init_state_file
   init_release_matrix
+  write_build_config "${PY_BIN}"
 
   echo >&2
   echo "✅ Setup complete." >&2
@@ -277,8 +339,9 @@ main() {
   echo "   - python:      $(${PY_BIN} --version 2>&1)" >&2
   echo "   - venv:        ${VENV_DIR}" >&2
   echo "   - libraries:   ${LIBRARIES_DIR}" >&2
+  echo "   - config:      ${BUILD_CONFIG_FILE}" >&2
   echo >&2
-  echo "Next: use your build.sh script."
+  echo "Next: source ${BUILD_CONFIG_FILE} from your build/upload scripts." >&2
 }
 
 main "$@"

@@ -1,0 +1,5 @@
+https://github.com/FastLED/FastLED.git --branch 3.10.3
+https://github.com/maxdokukin/xewe-led-library-espalexa
+https://github.com/maxdokukin/xewe-led-library-homespan
+https://github.com/maxdokukin/xewe-led-library-websockets
+https://github.com/bblanchon/ArduinoJson

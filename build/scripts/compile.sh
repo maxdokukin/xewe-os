@@ -18,7 +18,7 @@ set -euo pipefail
 #-------------------------#
 #--- GET THE VARIABLES ---#
 #-------------------------#
-BUILD_START_EPOCH="$(date -u +%s)"
+COMPILE_START_EPOCH="$(date -u +%s)"
 
 CONFIG_FILE="/Users/max/Codebase/github/xewe-os/build/build_config"
 source "${CONFIG_FILE}"
@@ -118,7 +118,7 @@ cat > "${BINARY_DIR}/manifest.json" <<EOF
 }
 EOF
 
-BUILD_TIME_SEC=$(( $(date -u +%s) - BUILD_START_EPOCH ))
+COMPILE_TIME_SEC=$(( $(date -u +%s) - COMPILE_START_EPOCH ))
 
 json_escape() {
   local s="${1-}"
@@ -138,7 +138,7 @@ cat > "${BINARY_DIR}/meta.json" <<EOF
   "config": ${CONFIG_JSON_VALIDATED},
   "fqbn": "$(json_escape "${FQBN}")",
   "fqbn_extra": "$(json_escape "${FQBN_EXTRA_OPTS}")",
-  "build_time_sec": ${BUILD_TIME_SEC},
+  "compile_time_sec": ${COMPILE_TIME_SEC},
   "artifacts": {
     "binary_filename": "$(json_escape "${MERGED_BIN_FILENAME}")",
     "path_rel_binary": "$(json_escape "${TARGET_DIR_REL}/binary/${MERGED_BIN_FILENAME}")",
@@ -151,7 +151,7 @@ cat > "${BINARY_DIR}/meta.json" <<EOF
 }
 EOF
 
-echo -e "🎉 Build complete.\n⏱️ Total build time: $((BUILD_TIME_SEC / 60))m $((BUILD_TIME_SEC % 60))s\n ➤ Final dir : ${TARGET_DIR}\n ➤ Firmware  : ${BINARY_DIR}/firmware.bin\n ➤ Version   : ${VERSION}"
+echo -e "🎉 Build complete.\n⏱️ Total compile time: $((COMPILE_TIME_SEC / 60))m $((COMPILE_TIME_SEC % 60))s\n ➤ Final dir : ${TARGET_DIR}\n ➤ Firmware  : ${BINARY_DIR}/firmware.bin\n ➤ Version   : ${VERSION}"
 #--------------------------#
 #--- /PROCESS ARTIFACTS ---#
 #--------------------------#

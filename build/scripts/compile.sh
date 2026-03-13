@@ -20,7 +20,6 @@ set -euo pipefail
 #       --config_json    <JSON string> (additional params written into meta.json)
 #
 # Output layout (under --target-dir):
-#   src/  lib/ (if any)  version.txt
 #   output/  binary/{firmware.bin, <ver>-<chip>-<project>.bin, manifest.json, meta.json}
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -293,9 +292,6 @@ if [[ -n "${LIBS_LIST}" ]]; then
   done
 fi
 
-# ---------- version.txt ----------
-echo "${VERSION_NEXT}" > "${TARGET_DIR}/version.txt"
-
 # ---------- Collect outputs ----------
 find "${WORK_DIR}" -maxdepth 1 -type f \( -name "*.bin" -o -name "*.elf" -o -name "*.map" \) -exec cp -a {} "${OUTPUT_DIR}/" \;
 
@@ -366,8 +362,8 @@ META_PATH="${BINARY_DIR}/meta.json"
   echo "  \"build_time_sec\": ${BUILD_TIME_SEC},"
   echo "  \"output_artifacts\": {"
   echo "    \"binary_filename\": \"$(json_escape "${MERGED_BIN_FILENAME}")\","
-  echo "    \"binary_path\": \"$(json_escape "${BINARY_DIR}/${MERGED_BIN_FILENAME}")\""
-  echo "    \"manifest_json_path\": \"$(json_escape "${BINARY_DIR}/manifest.json")\""
+  echo "    \"binary_path\": \"$(json_escape "${BINARY_DIR}/${MERGED_BIN_FILENAME}")\","
+  echo "    \"manifest_json_path\": \"$(json_escape "${BINARY_DIR}/manifest.json")\","
   echo "    \"meta_json_path\": \"$(json_escape "${BINARY_DIR}/meta.json")\""
   echo "  }"
   echo "}"

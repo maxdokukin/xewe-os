@@ -20,6 +20,8 @@ PROJECT_ROOT="$(get_cfg project_root)"
 PROJECT_NAME="$(get_cfg project_name)"
 STATE_FILE="$(get_cfg state_file)"
 BUILDS_DIR="$(get_cfg builds_dir)"
+CONFIG_FILE="$(get_cfg config_file)"
+PYTHON_BIN="$(get_cfg python_bin || echo "python3")"
 
 ESP_CHIP="" ESP_PORT="" ESP_BAUD="921600" SERIAL_BAUD="115200"
 

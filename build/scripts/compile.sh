@@ -22,7 +22,7 @@ set -euo pipefail
 #
 # Output layout (under --target-dir):
 #   src/  lib/ (if any)  version.txt
-#   output/  binary/{firmware.bin, <ver>-<chip>-<project>.bin, manifest.json}
+#   output/  binary/{firmware.bin, <ver>-<chip>-<project>.bin, manifest.json, meta.json}
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -81,6 +81,7 @@ fi
 
 # time the compilation
 START_TIME=$SECONDS
+BUILD_START_ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 # ---------- Tooling checks ----------
 if ! command -v arduino-cli >/dev/null 2>&1; then
@@ -154,17 +155,36 @@ COMPILE_ARGS=( compile --fqbn "${FQBN}" --build-path "${WORK_DIR}" --warnings de
 
 # Libraries (split colon-separated)
 declare -a LIB_FLAGS=()
+declare -a USED_LIBS=()
 if [[ -n "${LIBS_LIST}" ]]; then
   IFS=':' read -r -a _libarr <<< "${LIBS_LIST}"
   for lp in "${_libarr[@]}"; do
     if [[ -d "${lp}" ]]; then
       LIB_FLAGS+=( --libraries "${lp}" )
+      USED_LIBS+=( "${lp}" )
       echo "📚 Using libs: ${lp}"
     else
       echo "⚠️  Skipping non-existent libs dir: ${lp}"
     fi
   done
 fi
+
+# Capture compile command (for meta.json)
+declare -a _COMPILE_CMD_ARR=( arduino-cli "${COMPILE_ARGS[@]}" )
+if ((${#LIB_FLAGS[@]})); then
+  _COMPILE_CMD_ARR+=( "${LIB_FLAGS[@]}" )
+fi
+_COMPILE_CMD_ARR+=( "${SKETCH_PATH}" )
+
+shell_join() {
+  local out=""
+  local a
+  for a in "$@"; do
+    out+="$(printf '%q ' "$a")"
+  done
+  echo -n "${out% }"
+}
+COMPILE_CMD_STR="$(shell_join "${_COMPILE_CMD_ARR[@]}")"
 
 # ---------- Compile ----------
 set +e
@@ -178,9 +198,12 @@ set -e
 [[ "${BUILD_RC}" -eq 0 ]] || { echo "❌ Compile failed (see ${TARGET_DIR}/compile.log)"; exit "${BUILD_RC}"; }
 
 # ---------- Find or create merged binary ----------
+ESPTOOL_CMD=""
+MERGE_METHOD="found"
 MERGED_BIN="$(find "${WORK_DIR}" -maxdepth 1 -name "${SKETCH_NAME}.ino.merged.bin" -print -quit || true)"
 if [[ -z "${MERGED_BIN}" ]]; then
   echo "ℹ️  No *.merged.bin found; attempting merge via esptool…"
+  MERGE_METHOD="merged"
 
   pick_esptool() {
     if [[ -n "${VENV_DIR}" && -x "${VENV_DIR}/bin/python3" ]]; then
@@ -271,6 +294,71 @@ echo "📝 Wrote manifest → ${BINARY_DIR}/manifest.json"
 ELAPSED=$(( SECONDS - START_TIME ))
 MINS=$(( ELAPSED / 60 ))
 SECS=$(( ELAPSED % 60 ))
+
+# --- NEW: meta.json (build parameters/context) ---
+json_escape() {
+  local s="${1-}"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  echo -n "$s"
+}
+json_array() {
+  local first=1
+  local s
+  echo -n "["
+  for s in "$@"; do
+    if [[ $first -eq 0 ]]; then echo -n ", "; fi
+    first=0
+    echo -n "\"$(json_escape "$s")\""
+  done
+  echo -n "]"
+}
+
+BUILD_END_ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+META_PATH="${BINARY_DIR}/meta.json"
+{
+  echo "{"
+  echo "  \"type\": \"$(json_escape "${ESP_CHIP}")\","
+  echo "  \"chip_family\": \"$(json_escape "${CHIP_FAMILY}")\","
+  echo "  \"project_root\": \"$(json_escape "${PROJECT_ROOT}")\","
+  echo "  \"builds_dir\": \"$(json_escape "${BUILDS_DIR}")\","
+  echo "  \"work_dir\": \"$(json_escape "${WORK_DIR}")\","
+  echo "  \"target_dir\": \"$(json_escape "${TARGET_DIR}")\","
+  echo "  \"project_name\": \"$(json_escape "${PROJECT_NAME}")\","
+  echo "  \"sketch_path\": \"$(json_escape "${SKETCH_PATH}")\","
+  echo "  \"sketch_name\": \"$(json_escape "${SKETCH_NAME}")\","
+  echo "  \"version\": \"$(json_escape "${VERSION_NEXT}")\","
+  echo "  \"timestamp_param\": \"$(json_escape "${TS_ISO}")\","
+  echo "  \"manifest_name\": \"$(json_escape "${MANIFEST_NAME}")\","
+  echo "  \"fqbn\": \"$(json_escape "${FQBN}")\","
+  echo "  \"fqbn_base\": \"$(json_escape "${FQBN_BASE}")\","
+  echo "  \"fqbn_extra\": \"$(json_escape "${FQBN_EXTRA_OPTS}")\","
+  echo "  \"libs_requested\": \"$(json_escape "${LIBS_LIST}")\","
+  echo "  \"libs_used\": $(json_array "${USED_LIBS[@]}"),"
+  echo "  \"venv\": \"$(json_escape "${VENV_DIR}")\","
+  echo "  \"compile_command\": \"$(json_escape "${COMPILE_CMD_STR}")\","
+  echo "  \"compile_rc\": ${BUILD_RC},"
+  echo "  \"merge_method\": \"$(json_escape "${MERGE_METHOD}")\","
+  echo "  \"esptool_command\": \"$(json_escape "${ESPTOOL_CMD}")\","
+  echo "  \"build_start_utc\": \"$(json_escape "${BUILD_START_ISO}")\","
+  echo "  \"build_end_utc\": \"$(json_escape "${BUILD_END_ISO}")\","
+  echo "  \"elapsed_seconds\": ${ELAPSED},"
+  echo "  \"elapsed_pretty\": \"${MINS}m ${SECS}s\","
+  echo "  \"paths\": {"
+  echo "    \"output_dir\": \"$(json_escape "${OUTPUT_DIR}")\","
+  echo "    \"binary_dir\": \"$(json_escape "${BINARY_DIR}")\","
+  echo "    \"compile_log\": \"$(json_escape "${TARGET_DIR}/compile.log")\","
+  echo "    \"merged_bin\": \"$(json_escape "${MERGED_BIN}")\","
+  echo "    \"merged_bin_filename\": \"$(json_escape "${MERGED_BIN_FILENAME}")\","
+  echo "    \"firmware_bin\": \"$(json_escape "${BINARY_DIR}/firmware.bin")\","
+  echo "    \"manifest_json\": \"$(json_escape "${BINARY_DIR}/manifest.json")\""
+  echo "  }"
+  echo "}"
+} > "${META_PATH}"
+
 echo "⏱️  Total build time: ${MINS}m ${SECS}s"
 
 echo
@@ -278,11 +366,3 @@ echo "🎉 Build complete."
 echo "   ➤ Final dir : ${TARGET_DIR}"
 echo "   ➤ Firmware  : ${BINARY_DIR}/firmware.bin"
 echo "   ➤ Version   : ${VERSION_NEXT}"
-
-# this script should take in the code, libs, config
-# generate the firmware in the
-# ../builds/datetime-project_name-version/
-# it should have the firmware project_name-version-platform.bin
-# manifest.json
-# meta.json
-#   it should contain all the information that we have about the build

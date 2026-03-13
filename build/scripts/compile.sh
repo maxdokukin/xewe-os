@@ -36,19 +36,18 @@ usage_fail() { echo "❌ $1" >&2; exit 1; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-  --chip) ESP_CHIP="${2:-}"; shift 2 ;;
-  --version) VERSION_NEXT="${2:-}"; shift 2 ;;
-  --timestamp) TS_ISO="${2:-}"; shift 2 ;;
-  --fqbn-extra) FQBN_EXTRA_OPTS="${2:-}"; shift 2 ;;
-  --config_json) CONFIG_JSON_RAW="${2:-}"; shift 2 ;;
-  *) usage_fail "Unknown arg: $1" ;;
+    --chip) ESP_CHIP="${2:?missing value}"; shift 2 ;;
+    --version) VERSION="${2:?missing value}"; shift 2 ;;
+    --timestamp) TS_ISO="${2:?missing value}"; shift 2 ;;
+    --fqbn-extra) FQBN_EXTRA_OPTS="${2:?missing value}"; shift 2 ;;
+    --config_json) CONFIG_JSON_RAW="${2:?missing value}"; shift 2 ;;
+    *) usage_fail "Unknown arg: $1" ;;
   esac
 done
 
 [[ -z "${ESP_CHIP}" ]] && usage_fail "Missing --chip"
-[[ -z "${VERSION_NEXT}" ]] && usage_fail "Missing --version"
+[[ -z "${VERSION}" ]] && usage_fail "Missing --version"
 [[ -z "${TS_ISO}" ]] && usage_fail "Missing --timestamp"
-[[ -z "${TARGET_DIR}" ]] && usage_fail "Missing --target-dir"
 
 case "${ESP_CHIP}" in
   c3|c6|s3) ;;
@@ -59,7 +58,9 @@ esac
 BUILD_START_EPOCH="$(date -u +%s)"
 
 # ---------- validate/normalize --config_json ----------
-if ! CONFIG_JSON_NORM="$("${PYTHON_BIN}" -c 'import json,sys
+
+if [[ -n "${CONFIG_JSON_RAW//[[:space:]]/}" ]]; then
+  if ! CONFIG_JSON_VALIDATED="$("${PYTHON_BIN}" -c 'import json,sys
 s=sys.argv[1]
 try:
     obj=json.loads(s)
@@ -68,26 +69,28 @@ except Exception as e:
     sys.exit(2)
 print(json.dumps(obj, separators=(",",":"), sort_keys=True))
 ' "${CONFIG_JSON_RAW}")"; then
-  usage_fail "Invalid --config_json (must be valid JSON): ${CONFIG_JSON_RAW}"
+    usage_fail "Invalid --config_json (must be valid JSON): ${CONFIG_JSON_RAW}"
+  fi
+else
+  CONFIG_JSON_VALIDATED=""
 fi
 
 # ---------- Chip mapping ----------
 chip_to_fqbn_board() {
-case "$1" in
-c3) echo "esp32c3" ;;
-c6) echo "esp32c6" ;;
-s3) echo "esp32s3" ;;
-*) echo "esp32c3" ;;
-esac
-
+  case "$1" in
+    c3) echo "esp32c3" ;;
+    c6) echo "esp32c6" ;;
+    s3) echo "esp32s3" ;;
+    *) echo "esp32c3" ;;
+  esac
 }
 
 chip_to_family_str() {
-case "$1" in
-c3) echo "ESP32-C3" ;;
-c6) echo "ESP32-C6" ;;
-s3) echo "ESP32-S3" ;;
-esac
+  case "$1" in
+    c3) echo "ESP32-C3" ;;
+    c6) echo "ESP32-C6" ;;
+    s3) echo "ESP32-S3" ;;
+  esac
 }
 
 FQBN_BOARD="$(chip_to_fqbn_board "${ESP_CHIP}")"
@@ -111,12 +114,10 @@ FQBN_OPTS="${FQBN_OPTS_DEFAULT}${FQBN_EXTRA_OPTS:+,${FQBN_EXTRA_OPTS}}"
 FQBN="${FQBN_BASE}:${FQBN_OPTS}"
 
 # ---------- Detect sketch ----------
-
-
-SKETCH_PATH="$(get_cfg project_ino_file).ino"
+SKETCH_PATH="$(get_cfg project_ino_file)"
 
 # ---------- Prep directories ----------
-TARGET_DIR="$(TS_ISO)-$(VERSION)-$(ESP_CHIP)-$(PROJECT_NAME)"
+TARGET_DIR="${BUILDS_DIR}/${TS_ISO}-${VERSION}-${ESP_CHIP}-${PROJECT_NAME}"
 mkdir -p "${TARGET_DIR}"
 OUTPUT_DIR="${TARGET_DIR}/output"
 BINARY_DIR="${TARGET_DIR}/binary"
@@ -137,13 +138,6 @@ else
   cp -a "${SKETCH_PATH}" "${TARGET_DIR}/src/"
 fi
 
-if [[ -n "${LIBS_LIST}" ]]; then
-  mkdir -p "${TARGET_DIR}/lib"
-  IFS=':' read -r -a _libarr2 <<< "${LIBS_LIST}"
-  for lp in "${_libarr2[@]}"; do
-    [[ -d "${lp}" ]] && cp -a "${lp}" "${TARGET_DIR}/lib/$(basename "${lp}")"
-  done
-fi
 
 COMPILE_ARGS=(
   compile
@@ -155,7 +149,9 @@ COMPILE_ARGS=(
 )
 
 BUILD_RC=0
-if ! arduino-cli "${COMPILE_ARGS[@]}"; then
+if arduino-cli "${COMPILE_ARGS[@]}"; then
+  BUILD_RC=0
+else
   BUILD_RC=$?
 fi
 
@@ -165,82 +161,18 @@ fi
 }
 
 # ---------- Find or create merged binary ----------
-ESPTOOL_CMD=""
-MERGE_METHOD="found"
+MERGED_BIN="$(find "${WORK_DIR}" -maxdepth 1 -name "${PROJECT_NAME}.ino.merged.bin" -print -quit || true)"
 
-MERGED_BIN="$(find "${WORK_DIR}" -maxdepth 1 -name "${SKETCH_STEM}.ino.merged.bin" -print -quit || true)"
-if [[ -z "${MERGED_BIN}" ]]; then
-  MERGED_BIN="$(find "${WORK_DIR}" -maxdepth 1 -name '*.merged.bin' -print -quit || true)"
-fi
-
-if [[ -z "${MERGED_BIN}" ]]; then
-  echo "ℹ️ No *.merged.bin found; attempting merge via esptool..."
-  MERGE_METHOD="merged"
-
-  pick_esptool() {
-    if [[ -n "${VENV_DIR}" && -x "${VENV_DIR}/bin/python3" ]]; then
-      echo "${VENV_DIR}/bin/python3 -m esptool"
-      return 0
-    fi
-    if [[ -n "${VENV_DIR}" && -x "${VENV_DIR}/bin/python" ]]; then
-      echo "${VENV_DIR}/bin/python -m esptool"
-      return 0
-    fi
-    if command -v esptool.py >/dev/null 2>&1; then
-      echo "esptool.py"
-      return 0
-    fi
-    if command -v python3 >/dev/null 2>&1; then
-      echo "python3 -m esptool"
-      return 0
-    fi
-    if command -v python >/dev/null 2>&1; then
-      echo "python -m esptool"
-      return 0
-    fi
-    return 1
-  }
-
-  if ! ESPTOOL_CMD=$(pick_esptool); then
-    echo "❌ esptool not found; cannot merge binaries. Install via brew/pip or provide a venv_dir in config."
-    exit 1
-  fi
-
-  APP_BIN="$(find "${WORK_DIR}" -maxdepth 1 -name "${SKETCH_STEM}.ino.bin" -print -quit || true)"
-  [[ -n "${APP_BIN}" ]] || APP_BIN="$(find "${WORK_DIR}" -maxdepth 1 -name '*.ino.bin' -print -quit || true)"
-  BOOT_BIN="$(find "${WORK_DIR}" -type f -name 'bootloader*.bin' -print -quit || true)"
-  PART_BIN="$(find "${WORK_DIR}" -type f -name '*partitions*.bin' -print -quit || true)"
-
-  [[ -f "${APP_BIN}" && -f "${BOOT_BIN}" && -f "${PART_BIN}" ]] || {
-    echo "❌ Missing components to merge"
-    exit 1
-  }
-
-  MERGED_BIN="${WORK_DIR}/${SKETCH_STEM}.ino.merged.bin"
-  echo "🔗 Merging -> ${MERGED_BIN}"
-  # shellcheck disable=SC2086
-  ${ESPTOOL_CMD} merge_bin -o "${MERGED_BIN}" \
-    0x0 "${BOOT_BIN}" \
-    0x8000 "${PART_BIN}" \
-    0x10000 "${APP_BIN}"
-  echo "✅ Created merged image."
-else
-  echo "✅ Found merged image: ${MERGED_BIN}"
-fi
-
-# ---------- Collect outputs ----------
-find "${WORK_DIR}" -maxdepth 1 -type f \( -name '*.bin' -o -name '*.elf' -o -name '*.map' \) -exec cp -a {} "${OUTPUT_DIR}/" \;
 
 # Place final merged image (versioned + generic alias)
-MERGED_BIN_FILENAME="${VERSION_NEXT}-${ESP_CHIP}-${PROJECT_NAME}.bin"
+MERGED_BIN_FILENAME="${VERSION}-${ESP_CHIP}-${PROJECT_NAME}.bin"
 cp -a "${MERGED_BIN}" "${BINARY_DIR}/${MERGED_BIN_FILENAME}"
-cp -a "${MERGED_BIN}" "${BINARY_DIR}/firmware.bin"
 
 # ---------- Manifest (ESP Web Tools v10) ----------
 cat > "${BINARY_DIR}/manifest.json" <<EOF
 {
   "name": "${PROJECT_NAME}",
-  "version": "${VERSION_NEXT}",
+  "version": "${VERSION}",
   "new_install_improv_wait_time": 0,
   "builds": [
     {
@@ -282,10 +214,10 @@ META_PATH="${BINARY_DIR}/meta.json"
   echo "  \"type\": \"$(json_escape "${ESP_CHIP}")\","
   echo "  \"chip_family\": \"$(json_escape "${CHIP_FAMILY}")\","
   echo "  \"project_name\": \"$(json_escape "${PROJECT_NAME}")\","
-  echo "  \"version\": \"$(json_escape "${VERSION_NEXT}")\","
+  echo "  \"version\": \"$(json_escape "${VERSION}")\","
   echo "  \"timestamp_param\": \"$(json_escape "${TS_ISO}")\","
   echo "  \"merge_method\": \"$(json_escape "${MERGE_METHOD}")\","
-  echo "  \"config\": ${CONFIG_JSON_EMBED},"
+  echo "  \"config\": ${CONFIG_JSON_VALIDATED},"
   echo "  \"fqbn\": \"$(json_escape "${FQBN}")\","
   echo "  \"fqbn_base\": \"$(json_escape "${FQBN_BASE}")\","
   echo "  \"fqbn_extra\": \"$(json_escape "${FQBN_EXTRA_OPTS}")\","
@@ -306,4 +238,4 @@ echo "🎉 Build complete."
 echo "⏱️ Total build time: ${MINS}m ${SECS}s"
 echo " ➤ Final dir : ${TARGET_DIR}"
 echo " ➤ Firmware  : ${BINARY_DIR}/firmware.bin"
-echo " ➤ Version   : ${VERSION_NEXT}"
+echo " ➤ Version   : ${VERSION}"

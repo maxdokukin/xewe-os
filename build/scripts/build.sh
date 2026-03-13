@@ -28,296 +28,131 @@ set -euo pipefail
 #       --pin-range    Range of pins to compile batch (e.g. "1-10")
 #   -h, --help
 
+#!/usr/bin/env bash
+set -euo pipefail
+
+# build.sh — Orchestrates compile → optional upload → optional serial monitor for ESP32.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 usage() {
-  sed -n '1,70p' "$0" | sed -n '1,60p' | sed 's/^# \{0,1\}//'
+  sed -n '1,20p' "$0" | sed 's/^# \?//'
   exit 0
 }
 
-# ---------- Parse args ----------
+# ---------- Defaults & Parse Args ----------
 ESP_CHIP=""
 ESP_PORT=""
-LIBS_DIR=""
+LIBS_DIR="${SCRIPT_DIR}/../libraries"
 ESP_BAUD="921600"
 SERIAL_BAUD="9600"
-VENV_DIR=""
-PROJECT_NAME=""
-MANIFEST_NAME=""
+VENV_DIR="${SCRIPT_DIR}/../.venv"
+PROJECT_NAME="$(basename "${PROJECT_ROOT}")"
 FQBN_EXTRA_OPTS=""
 DO_MONITOR=1
 COMPILE_ONLY=0
 PIN_RANGE=""
-BUILD_NOTES=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -t|--type)       ESP_CHIP="${2:-}"; shift 2 ;;
-    -p|--port)       ESP_PORT="${2:-}"; shift 2 ;;
-    -l|--libs)       LIBS_DIR="${2:-}"; shift 2 ;;
-    -b|--baud)       ESP_BAUD="${2:-}"; shift 2 ;;
-    --venv)          VENV_DIR="${2:-}"; shift 2 ;;
-    --name)          PROJECT_NAME="${2:-}"; shift 2 ;;
-    --manifest)      MANIFEST_NAME="${2:-}"; shift 2 ;;
-    --fqbn-extra)    FQBN_EXTRA_OPTS="${2:-}"; shift 2 ;;
+    -t|--type)       ESP_CHIP="$2"; shift 2 ;;
+    -p|--port)       ESP_PORT="$2"; shift 2 ;;
+    -l|--libs)       LIBS_DIR="$2"; shift 2 ;;
+    -b|--baud)       ESP_BAUD="$2"; shift 2 ;;
+    --venv)          VENV_DIR="$2"; shift 2 ;;
+    --name)          PROJECT_NAME="$2"; shift 2 ;;
+    --fqbn-extra)    FQBN_EXTRA_OPTS="$2"; shift 2 ;;
     --no-monitor)    DO_MONITOR=0; shift ;;
     --compile-only)  COMPILE_ONLY=1; shift ;;
-    --pin-range)     PIN_RANGE="${2:-}"; shift 2 ;;
+    --pin-range)     PIN_RANGE="$2"; shift 2 ;;
     -h|--help)       usage ;;
     *) echo "Unknown arg: $1"; usage ;;
   esac
 done
 
-# ---------- Default Libs Check (NEW) ----------
-# If no -l flag was provided, check if the setup script created a libraries dir
-if [[ -z "${LIBS_DIR}" ]]; then
-  DEFAULT_LIBS="${SCRIPT_DIR}/../libraries"
-  if [[ -d "${DEFAULT_LIBS}" ]]; then
-    LIBS_DIR="${DEFAULT_LIBS}"
-    echo "ℹ️  Using default libraries at: ${LIBS_DIR}"
-  fi
-fi
-# ----------------------------------------------
+# Validate requirements
+[[ ! "$ESP_CHIP" =~ ^(c3|c6|s3)$ ]] && { echo "❌ Missing/Invalid -t|--type (c3|c6|s3)"; exit 1; }
+[[ ! -d "$LIBS_DIR" ]] && LIBS_DIR=""
+[[ ! -x "${VENV_DIR}/bin/python" ]] && { echo "❌ Venv missing at ${VENV_DIR}. Run setup script."; exit 1; }
 
-[[ -z "${ESP_CHIP}" ]] && { echo "❌ Missing -t|--type (c3|c6|s3)"; exit 1; }
-[[ "${ESP_CHIP}" =~ ^(c3|c6|s3)$ ]] || { echo "❌ Invalid chip type: ${ESP_CHIP}"; exit 1; }
-
-# ---------- Paths (all owned here) ----------
-BUILD_ROOT="${PROJECT_ROOT}/build"
-BUILDS_DIR="${BUILD_ROOT}/builds"
-WORK_DIR="${BUILDS_DIR}/cache"         # shared incremental work dir
-STATE_FILE="${BUILD_ROOT}/../.version_state"
-CONFIG_FILE="${PROJECT_ROOT}/src/Config.h" # Location of config.h
-DEFAULT_VENV="${SCRIPT_DIR}/../.venv"
-[[ -z "${VENV_DIR}" ]] && [[ -d "${DEFAULT_VENV}" ]] && VENV_DIR="${DEFAULT_VENV}"
+# ---------- Paths & Initialization ----------
+BUILDS_DIR="${PROJECT_ROOT}/build/builds"
+WORK_DIR="${BUILDS_DIR}/cache"
+STATE_FILE="${PROJECT_ROOT}/.version_state"
+CONFIG_FILE="${PROJECT_ROOT}/src/Config.h"
 
 mkdir -p "${BUILDS_DIR}" "${WORK_DIR}"
 
-# ---------- Require venv (same folder as this script) ----------
-if [[ -z "${VENV_DIR}" || ! -x "${VENV_DIR}/bin/python" ]]; then
-  echo "❌ Could not find venv at: ${DEFAULT_VENV}"
-  echo "   Run setup script: ${SCRIPT_DIR}/setup_build_enviroment.sh"
-  exit 1
-fi
-
 # ---------- Helpers ----------
-chip_to_family_str() {
-  case "$1" in
-    c3) echo "ESP32-C3" ;;
-    c6) echo "ESP32-C6" ;;
-    s3) echo "ESP32-S3" ;;
-  esac
-}
 read_kv() { grep -E "^$1=" "$2" | cut -d'=' -f2- || true; }
-write_kv() {
-  local file="$1" k="$2" v="$3"
-  if grep -qE "^${k}=" "${file}"; then
-    sed -i.bak -E "s|^${k}=.*|${k}=${v}|" "${file}" && rm -f "${file}.bak"
-  else
-    echo "${k}=${v}" >> "${file}"
-  fi
-}
-update_pin_config() {
-    local pin="$1"
-    local file="$2"
-    # Regex looks for #define PIN_LED_STRIP [spaces] [digits]
-    sed -i.bak -E "s/^#define PIN_LED_STRIP[[:space:]]+[0-9]+/#define PIN_LED_STRIP              ${pin}/" "${file}" && rm -f "${file}.bak"
-}
+write_kv() { grep -qE "^$1=" "$2" && sed -i.bak -E "s|^$1=.*|$1=$2|" "$2" && rm -f "$2.bak" || echo "$1=$2" >> "$2"; }
 
-# ---------- Detect project name & manifest name ----------
-[[ -z "${PROJECT_NAME}" ]] && PROJECT_NAME="$(basename "${PROJECT_ROOT}")"
-[[ -z "${MANIFEST_NAME}" ]] && PROJECT_NAME="$(basename "${PROJECT_ROOT}")"
-ORIGINAL_PROJECT_NAME="${PROJECT_NAME}"
+# ---------- State & Versioning ----------
+[[ ! -f "$STATE_FILE" ]] && printf "MAJOR=0\nMINOR=0\nPATCH=0\nBUILD_ID=0\nLAST_BUILD_TS=\nPROJECT=%s\n" "$PROJECT_NAME" > "$STATE_FILE"
 
-# ---------- Initialize version state if needed ----------
-if [[ ! -f "${STATE_FILE}" ]]; then
-  cat > "${STATE_FILE}" <<EOF
-MAJOR=0
-MINOR=0
-PATCH=0
-BUILD_ID=0
-LAST_BUILD_TS=
-PROJECT=${PROJECT_NAME}
-EOF
-fi
-MAJOR="$(read_kv MAJOR "${STATE_FILE}")"
-MINOR="$(read_kv MINOR "${STATE_FILE}")"
-PATCH="$(read_kv PATCH "${STATE_FILE}")"
-BUILD_ID="$(read_kv BUILD_ID "${STATE_FILE}")"
+PATCH=$(read_kv PATCH "$STATE_FILE")
+VERSION_NEXT="$(read_kv MAJOR "$STATE_FILE").$(read_kv MINOR "$STATE_FILE").$(printf "%03d" "$((10#$PATCH + 1))")"
+TS_SHORT=$(date +"%Y%m%d-%H%M%S")
+TS_ISO=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+CHIP_FAMILY="ESP32-$(echo "$ESP_CHIP" | tr '[:lower:]' '[:upper:]')"
 
-# ---------- Compute candidate version + timestamps ----------
-PATCH_NEXT=$(( 10#$PATCH + 1 ))                            # safe with leading zeros
-VERSION_NEXT="$(printf "%d.%d.%03d" "${MAJOR}" "${MINOR}" "${PATCH_NEXT}")"
-TS_SHORT="$(date +"%Y%m%d-%H%M%S")"
-TS_ISO="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-CHIP_FAMILY="$(chip_to_family_str "${ESP_CHIP}")"
+read -rp "✍️  Build notes (Enter to skip): " BUILD_NOTES || true
 
-# ---------- Prompt for build notes (before build begins) ----------
-echo -n "✍️  Build notes (optional, press Enter to skip): "
-IFS= read -r BUILD_NOTES || true
-
-# ---------- Generate src/build_info.h BEFORE compile ----------
 BUILD_INFO_H="${PROJECT_ROOT}/src/build_info.h"
 mkdir -p "$(dirname "${BUILD_INFO_H}")"
-cat > "${BUILD_INFO_H}" <<EOF
-#pragma once
-// Auto-generated by build/scripts/build.sh — DO NOT EDIT.
-#define BUILD_VERSION   ${VERSION_NEXT}
-#define BUILD_TIMESTAMP ${TS_ISO}
-EOF
-echo "📝 Wrote ${BUILD_INFO_H}"
+printf "#pragma once\n// Auto-generated by build.sh\n#define BUILD_VERSION %s\n#define BUILD_TIMESTAMP %s\n" "$VERSION_NEXT" "$TS_ISO" > "$BUILD_INFO_H"
 
-# ---------- Compose library search paths (all passed to compile.sh) ----------
-LIBS_LIST=""
-if [[ -n "${LIBS_DIR}" ]]; then
-  if [[ -d "${LIBS_DIR}" ]]; then
-    LIBS_LIST="${LIBS_DIR}"
-  else
-    echo "⚠️  Provided libs path doesn't exist: ${LIBS_DIR}"
-  fi
-fi
-# Also include project lib/ if present
-if [[ -d "${PROJECT_ROOT}/lib" ]]; then
-  if [[ -z "${LIBS_LIST}" ]]; then
-    LIBS_LIST="${PROJECT_ROOT}/lib"
-  else
-    LIBS_LIST="${LIBS_LIST}:${PROJECT_ROOT}/lib"
-  fi
-fi
+# Compose Libs List
+LIBS_LIST="$LIBS_DIR"
+[[ -d "${PROJECT_ROOT}/lib" ]] && LIBS_LIST="${LIBS_LIST:+${LIBS_LIST}:}${PROJECT_ROOT}/lib"
+
+# ---------- Reusable Compile Execution ----------
+do_compile() {
+  local p_name="$1" t_dir="$2"
+  echo "🧱 Compile → $(basename "$t_dir")"
+  ./compile.sh -t "$ESP_CHIP" --project-root "$PROJECT_ROOT" --work-dir "$WORK_DIR" --target-dir "$t_dir" --project-name "$p_name" --version "$VERSION_NEXT" --timestamp "$TS_ISO" ${LIBS_LIST:+--libs "$LIBS_LIST"} ${FQBN_EXTRA_OPTS:+--fqbn-extra "$FQBN_EXTRA_OPTS"}
+  [[ -n "${BUILD_NOTES//[[:space:]]/}" ]] && echo "$BUILD_NOTES" > "$t_dir/build_notes.txt"
+}
 
 # ==============================================================================
-# LOGIC BRANCH: BATCH PIN COMPILATION vs SINGLE STANDARD BUILD
+# LOGIC BRANCH: BATCH VS SINGLE BUILD
 # ==============================================================================
 
-if [[ -n "${PIN_RANGE}" ]]; then
-    # --- BATCH MODE ---
-    echo "🚀 BATCH MODE DETECTED: Compiling for pins ${PIN_RANGE}"
+if [[ -n "$PIN_RANGE" ]]; then
+  echo "🚀 BATCH MODE: pins $PIN_RANGE"
+  [[ ! "$PIN_RANGE" =~ ^[0-9]+-[0-9]+$ ]] && { echo "❌ Invalid format. Use START-END"; exit 1; }
+  [[ ! -f "$CONFIG_FILE" ]] && { echo "❌ Config not found: $CONFIG_FILE"; exit 1; }
 
-    # 1. Disable Upload/Monitor explicitly
-    COMPILE_ONLY=1
-    DO_UPLOAD=0
-    DO_MONITOR_FINAL=0
+  for (( pin=${PIN_RANGE%-*}; pin<=${PIN_RANGE#*-}; pin++ )); do
+    echo "📌 PROCESSING PIN: $pin"
+    sed -i.bak -E "s/^#define PIN_LED_STRIP[[:space:]]+[0-9]+/#define PIN_LED_STRIP              $pin/" "$CONFIG_FILE" && rm -f "$CONFIG_FILE.bak"
 
-    # 2. Parse Range
-    if [[ ! "${PIN_RANGE}" =~ ^[0-9]+-[0-9]+$ ]]; then
-        echo "❌ Invalid pin range format. Use START-END (e.g. 1-10)"
-        exit 1
-    fi
-    PIN_START="${PIN_RANGE%-*}"
-    PIN_END="${PIN_RANGE#*-}"
-
-    # 3. Check config existence
-    if [[ ! -f "${CONFIG_FILE}" ]]; then
-        echo "❌ Config file not found at: ${CONFIG_FILE}"
-        exit 1
-    fi
-
-    # 4. LOOP
-    for (( pin=PIN_START; pin<=PIN_END; pin++ )); do
-        echo "----------------------------------------------------"
-        echo "📌 PROCESSING PIN: ${pin}"
-
-        # Modify config.h
-        update_pin_config "${pin}" "${CONFIG_FILE}"
-
-        # Create unique project name for this iteration -> creates unique folder/bin name
-        # Format: <TS>-<VER>-<CHIP>-<PROJECT_NAME>-pin-<PIN>
-        CURRENT_PROJECT_NAME="${ORIGINAL_PROJECT_NAME}-pin-${pin}"
-        TARGET_DIR_NAME="${TS_SHORT}-${VERSION_NEXT}-${CHIP_FAMILY}-${CURRENT_PROJECT_NAME}"
-        TARGET_DIR="${BUILDS_DIR}/${TARGET_DIR_NAME}"
-
-        echo "🧱 Compile → ${TARGET_DIR_NAME}"
-        ./compile.sh \
-          -t "${ESP_CHIP}" \
-          --project-root "${PROJECT_ROOT}" \
-          --work-dir "${WORK_DIR}" \
-          --target-dir "${TARGET_DIR}" \
-          --project-name "${CURRENT_PROJECT_NAME}" \
-          --version "${VERSION_NEXT}" \
-          --timestamp "${TS_ISO}" \
-          ${LIBS_LIST:+--libs "${LIBS_LIST}"} \
-          ${FQBN_EXTRA_OPTS:+--fqbn-extra "${FQBN_EXTRA_OPTS}"}
-
-        # Persist notes if any
-        if [[ -n "${BUILD_NOTES//[[:space:]]/}" ]]; then
-          printf "%s\n" "${BUILD_NOTES}" > "${TARGET_DIR}/build_notes.txt"
-        fi
-    done
-
-    echo "✅ Batch compilation complete for pins ${PIN_RANGE}."
-    echo "ℹ️  Note: Version state was NOT incremented (upload skipped)."
+    CUR_NAME="${PROJECT_NAME}-pin-$pin"
+    do_compile "$CUR_NAME" "${BUILDS_DIR}/${TS_SHORT}-${VERSION_NEXT}-${CHIP_FAMILY}-${CUR_NAME}"
+  done
+  echo "✅ Batch complete. Upload skipped."
 
 else
-    # --- SINGLE BUILD MODE (Standard) ---
+  TARGET_DIR="${BUILDS_DIR}/${TS_SHORT}-${VERSION_NEXT}-${CHIP_FAMILY}-${PROJECT_NAME}"
+  do_compile "$PROJECT_NAME" "$TARGET_DIR"
+  ln -sfn "$TARGET_DIR" "${BUILDS_DIR}/latest"
 
-    # Decide phases
-    DO_UPLOAD=0
-    DO_MONITOR_FINAL=0
-    if [[ -n "${ESP_PORT}" && "${COMPILE_ONLY}" -eq 0 ]]; then
-      DO_UPLOAD=1
-      DO_MONITOR_FINAL=${DO_MONITOR}
-    fi
+  if [[ -n "$ESP_PORT" && "$COMPILE_ONLY" -eq 0 ]]; then
+    echo "📤 Upload → $ESP_PORT @ $ESP_BAUD"
+    ./upload.sh -t "$ESP_CHIP" -p "$ESP_PORT" -b "$ESP_BAUD" --build-dir "$TARGET_DIR" ${VENV_DIR:+--venv "$VENV_DIR"} || { echo "❌ Upload failed"; exit 1; }
 
-    # Calc Paths
-    TARGET_DIR_NAME="${TS_SHORT}-${VERSION_NEXT}-${CHIP_FAMILY}-${PROJECT_NAME}"
-    TARGET_DIR="${BUILDS_DIR}/${TARGET_DIR_NAME}"
+    write_kv "$STATE_FILE" PATCH "$(printf "%03d" "$((10#$PATCH + 1))")"
+    write_kv "$STATE_FILE" BUILD_ID "$((10#$(read_kv BUILD_ID "$STATE_FILE") + 1))"
+    write_kv "$STATE_FILE" LAST_BUILD_TS "$TS_SHORT"
+    write_kv "$STATE_FILE" PROJECT "$PROJECT_NAME"
+    echo "✅ Version committed → $VERSION_NEXT"
 
-    echo "🧱 Compile → ${TARGET_DIR_NAME}"
-    ./compile.sh \
-      -t "${ESP_CHIP}" \
-      --project-root "${PROJECT_ROOT}" \
-      --work-dir "${WORK_DIR}" \
-      --target-dir "${TARGET_DIR}" \
-      --project-name "${PROJECT_NAME}" \
-      --version "${VERSION_NEXT}" \
-      --timestamp "${TS_ISO}" \
-      ${LIBS_LIST:+--libs "${LIBS_LIST}"} \
-      ${FQBN_EXTRA_OPTS:+--fqbn-extra "${FQBN_EXTRA_OPTS}"}
+    "${SCRIPT_DIR}/push_to_git.sh" --project-root "$PROJECT_ROOT" --target-dir "$TARGET_DIR" --version "$VERSION_NEXT"
 
-    # Maintain 'latest' symlink under builds/
-    ln -sfn "${TARGET_DIR}" "${BUILDS_DIR}/latest"
-
-    # Persist build notes
-    if [[ -n "${BUILD_NOTES//[[:space:]]/}" ]]; then
-      printf "%s\n" "${BUILD_NOTES}" > "${TARGET_DIR}/build_notes.txt"
-      echo "📝 Wrote ${TARGET_DIR}/build_notes.txt"
-    fi
-
-    # ---------- Optional upload ----------
-    if [[ "${DO_UPLOAD}" -eq 1 ]]; then
-      echo "📤 Upload → ${ESP_PORT} @ ${ESP_BAUD}"
-      ./upload.sh \
-        -t "${ESP_CHIP}" \
-        -p "${ESP_PORT}" \
-        -b "${ESP_BAUD}" \
-        --build-dir "${TARGET_DIR}" \
-        ${VENV_DIR:+--venv "${VENV_DIR}"} || { echo "❌ Upload failed"; exit 1; }
-
-      # Commit version ONLY on successful upload
-      write_kv "${STATE_FILE}" PATCH "$(printf "%03d" "${PATCH_NEXT}")"
-      write_kv "${STATE_FILE}" BUILD_ID "$(( 10#${BUILD_ID} + 1 ))"
-      write_kv "${STATE_FILE}" LAST_BUILD_TS "${TS_SHORT}"
-      write_kv "${STATE_FILE}" PROJECT "${PROJECT_NAME}"
-      echo "✅ Version committed → ${VERSION_NEXT}"
-
-      # Publish only the two artifacts.
-      "${SCRIPT_DIR}/push_to_git.sh" \
-        --project-root "${PROJECT_ROOT}" \
-        --target-dir   "${TARGET_DIR}" \
-        --version      "${VERSION_NEXT}"
-    else
-      echo "ℹ️  No port provided (or --compile-only). Skipping upload; version NOT incremented."
-    fi
-
-    # ---------- Optional serial monitor ----------
-    if [[ "${DO_MONITOR_FINAL}" -eq 1 ]]; then
-      echo "🖥️  Serial monitor (Ctrl-C to exit)…"
-      ./listen_serial.sh -p "${ESP_PORT}" -b "${SERIAL_BAUD}"
-    fi
-
-    echo
-    echo "✅ Done."
+    [[ "$DO_MONITOR" -eq 1 ]] && { echo "🖥️  Serial monitor..."; ./listen_serial.sh -p "$ESP_PORT" -b "$SERIAL_BAUD"; }
+  else
+    echo "ℹ️  No port provided (or --compile-only). Upload skipped."
+  fi
+  echo -e "\n✅ Done."
 fi
-
-# -----------------------------------------------

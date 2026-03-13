@@ -74,6 +74,25 @@ VERSION_NEXT="$(read_kv MAJOR "$STATE_FILE").$(read_kv MINOR "$STATE_FILE").$(pr
 TS_SHORT="$(date +"%Y%m%d-%H%M%S")"
 TS_ISO="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
+# ---------- Inject Build Params into Config.h ----------
+echo "⚙️  Injecting build params (Project, Version, Timestamp) into ${CONFIG_FILE}..."
+"${PYTHON_BIN}" -c 'import sys,re
+try:
+    d={"PROJECT_NAME": f"\"{sys.argv[1]}\"", "BUILD_VERSION": f"\"{sys.argv[2]}\"", "BUILD_TIMESTAMP": f"\"{sys.argv[3]}\""}; f=sys.argv[4]
+    with open(f,"r") as file: c=file.read()
+    if c and not c.endswith("\n"): c += "\n"
+    for k,v in d.items():
+        pattern = r"(?m)^(#define\s+)"+re.escape(k)+r"(\s+).*$"
+        if re.search(pattern, c):
+            c = re.sub(pattern, r"\g<1>"+k+r"\g<2>"+v, c)
+        else:
+            # Append if it doesn'\''t exist
+            c += f"#define {k} {v}\n"
+    with open(f,"w") as file: file.write(c)
+except Exception as e:
+    sys.exit(f"❌ Build param injection error: {e}")' "$PROJECT_NAME" "$VERSION_NEXT" "$TS_ISO" "$CONFIG_FILE" || exit 1
+
+
 if [[ "$BUILD_NOTES_PROVIDED" -eq 0 ]]; then
   read -rp "✍️  Build notes (Enter to skip): " BUILD_NOTES || true
 fi

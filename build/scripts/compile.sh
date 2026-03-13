@@ -13,12 +13,9 @@ set -euo pipefail
 #       --project-name   <name>
 #       --version        <X.Y.ZZZ>
 #       --timestamp      <ISO-8601 UTC>
-#
-# Optional:
-#       --manifest-name  <product name> (default: PROJECT_NAME)
 #       --libs           <path[:path...]>  (each becomes --libraries)
 #       --fqbn-extra     <comma-separated FQBN opts>
-#       --venv           <path> (used only if merge is needed)
+#       --config_json    <other params meta.json>
 #
 # Output layout (under --target-dir):
 #   src/  lib/ (if any)  version.txt
@@ -35,10 +32,9 @@ TARGET_DIR=""
 PROJECT_NAME=""
 VERSION_NEXT=""
 TS_ISO=""
-MANIFEST_NAME=""
 LIBS_LIST=""
 FQBN_EXTRA_OPTS=""
-VENV_DIR=""
+VENV_DIR="${SCRIPT_DIR}/../.venv"
 
 usage_fail() { echo "❌ $1"; exit 1; }
 
@@ -52,10 +48,8 @@ while [[ $# -gt 0 ]]; do
     --project-name)    PROJECT_NAME="${2:-}"; shift 2 ;;
     --version)         VERSION_NEXT="${2:-}"; shift 2 ;;
     --timestamp)       TS_ISO="${2:-}"; shift 2 ;;
-    --manifest-name)   MANIFEST_NAME="${2:-}"; shift 2 ;;
     --libs)            LIBS_LIST="${2:-}"; shift 2 ;;
     --fqbn-extra)      FQBN_EXTRA_OPTS="${2:-}"; shift 2 ;;
-    --venv)            VENV_DIR="${2:-}"; shift 2 ;;
     -h|--help)         sed -n '1,120p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) usage_fail "Unknown arg: $1" ;;
   esac
@@ -69,18 +63,8 @@ done
 [[ -z "${PROJECT_NAME}"  ]] && usage_fail "Missing --project-name"
 [[ -z "${VERSION_NEXT}"  ]] && usage_fail "Missing --version"
 [[ -z "${TS_ISO}"        ]] && usage_fail "Missing --timestamp"
-[[ -z "${MANIFEST_NAME}" ]] && MANIFEST_NAME="${PROJECT_NAME}"
-
-DEFAULT_VENV="${SCRIPT_DIR}/../.venv"
-[[ -z "${VENV_DIR}" ]] && [[ -d "${DEFAULT_VENV}" ]] && VENV_DIR="${DEFAULT_VENV}"
-if [[ -z "${VENV_DIR}" || ! -x "${VENV_DIR}/bin/python" ]]; then
-  echo "❌ Could not find venv at: ${DEFAULT_VENV}"
-  echo "   Run setup script: ${SCRIPT_DIR}/setup_build_enviroment.sh"
-  exit 1
-fi
 
 # time the compilation
-START_TIME=$SECONDS
 BUILD_START_ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 # ---------- Tooling checks ----------
@@ -270,12 +254,11 @@ find "${WORK_DIR}" -maxdepth 1 -type f \( -name "*.bin" -o -name "*.elf" -o -nam
 # Place final merged image (Versioned + generic alias)
 MERGED_BIN_FILENAME="${VERSION_NEXT}-${CHIP_FAMILY}-${PROJECT_NAME}.bin"
 cp -a "${MERGED_BIN}" "${BINARY_DIR}/${MERGED_BIN_FILENAME}"
-cp -a "${MERGED_BIN}" "${BINARY_DIR}/firmware.bin"
 
 # ---------- Manifest (ESP Web Tools v10) ----------
 cat > "${BINARY_DIR}/manifest.json" <<EOF
 {
-  "name": "${MANIFEST_NAME}",
+  "name": "${PROJECT_NAME}",
   "version": "${VERSION_NEXT}",
   "new_install_improv_wait_time": 0,
   "builds": [
@@ -290,10 +273,8 @@ cat > "${BINARY_DIR}/manifest.json" <<EOF
 EOF
 echo "📝 Wrote manifest → ${BINARY_DIR}/manifest.json"
 
-# --- NEW: Calculate and print build duration ---
-ELAPSED=$(( SECONDS - START_TIME ))
-MINS=$(( ELAPSED / 60 ))
-SECS=$(( ELAPSED % 60 ))
+BUILD_END_ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+BUILD_TIME_SEC = BUILD_START_ISO - BUILD_END_ISO
 
 # --- NEW: meta.json (build parameters/context) ---
 json_escape() {
@@ -317,41 +298,25 @@ json_array() {
   echo -n "]"
 }
 
-BUILD_END_ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 META_PATH="${BINARY_DIR}/meta.json"
 {
   echo "{"
   echo "  \"type\": \"$(json_escape "${ESP_CHIP}")\","
   echo "  \"chip_family\": \"$(json_escape "${CHIP_FAMILY}")\","
-  echo "  \"project_root\": \"$(json_escape "${PROJECT_ROOT}")\","
-  echo "  \"builds_dir\": \"$(json_escape "${BUILDS_DIR}")\","
-  echo "  \"work_dir\": \"$(json_escape "${WORK_DIR}")\","
-  echo "  \"target_dir\": \"$(json_escape "${TARGET_DIR}")\","
   echo "  \"project_name\": \"$(json_escape "${PROJECT_NAME}")\","
-  echo "  \"sketch_path\": \"$(json_escape "${SKETCH_PATH}")\","
-  echo "  \"sketch_name\": \"$(json_escape "${SKETCH_NAME}")\","
   echo "  \"version\": \"$(json_escape "${VERSION_NEXT}")\","
   echo "  \"timestamp_param\": \"$(json_escape "${TS_ISO}")\","
-  echo "  \"manifest_name\": \"$(json_escape "${MANIFEST_NAME}")\","
+  echo "  \"project_root\": \"$(json_escape "${PROJECT_ROOT}")\","
+  echo "  \"target_dir\": \"$(json_escape "${TARGET_DIR}")\","
   echo "  \"fqbn\": \"$(json_escape "${FQBN}")\","
   echo "  \"fqbn_base\": \"$(json_escape "${FQBN_BASE}")\","
   echo "  \"fqbn_extra\": \"$(json_escape "${FQBN_EXTRA_OPTS}")\","
-  echo "  \"libs_requested\": \"$(json_escape "${LIBS_LIST}")\","
-  echo "  \"libs_used\": $(json_array "${USED_LIBS[@]}"),"
-  echo "  \"venv\": \"$(json_escape "${VENV_DIR}")\","
-  echo "  \"compile_command\": \"$(json_escape "${COMPILE_CMD_STR}")\","
-  echo "  \"compile_rc\": ${BUILD_RC},"
-  echo "  \"merge_method\": \"$(json_escape "${MERGE_METHOD}")\","
   echo "  \"esptool_command\": \"$(json_escape "${ESPTOOL_CMD}")\","
-  echo "  \"build_start_utc\": \"$(json_escape "${BUILD_START_ISO}")\","
-  echo "  \"build_end_utc\": \"$(json_escape "${BUILD_END_ISO}")\","
-  echo "  \"elapsed_seconds\": ${ELAPSED},"
-  echo "  \"elapsed_pretty\": \"${MINS}m ${SECS}s\","
+  echo "  \"build_time_sec\": ${BUILD_TIME_SEC},"
   echo "  \"paths\": {"
   echo "    \"output_dir\": \"$(json_escape "${OUTPUT_DIR}")\","
   echo "    \"binary_dir\": \"$(json_escape "${BINARY_DIR}")\","
   echo "    \"compile_log\": \"$(json_escape "${TARGET_DIR}/compile.log")\","
-  echo "    \"merged_bin\": \"$(json_escape "${MERGED_BIN}")\","
   echo "    \"merged_bin_filename\": \"$(json_escape "${MERGED_BIN_FILENAME}")\","
   echo "    \"firmware_bin\": \"$(json_escape "${BINARY_DIR}/firmware.bin")\","
   echo "    \"manifest_json\": \"$(json_escape "${BINARY_DIR}/manifest.json")\""

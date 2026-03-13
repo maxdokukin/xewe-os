@@ -4,96 +4,53 @@ set -euo pipefail
 # All paths/options are supplied by build.sh.
 #
 # Required flags:
-# -t, --type c3|c6|s3
-# --project-root <abs path>
-# --builds-dir <abs path>
-# --work-dir <abs path> (Arduino --build-path)
-# --target-dir <abs path> (final build folder)
-# --project-name <name>
+# --chip c3|c6|s3
 # --version <X.Y.ZZZ>
 # --timestamp <ISO-8601 UTC>
-# --libs <path[:path...]> (each becomes --libraries)
 # --fqbn-extra <comma-separated FQBN opts>
-#
-# Optional flags:
 # --config_json <JSON string> (additional params written into meta.json)
 #
 # Output layout (under --target-dir):
 # output/ binary/{firmware.bin, <ver>-<chip>-<project>.bin, manifest.json, meta.json}
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# ---------- Parse args ----------
+
+# load config
+CONFIG_FILE="/Users/max/Codebase/github/xewe-os/build/build_config"
+source "${CONFIG_FILE}"
+
+# Load config values
+PROJECT_ROOT="$(get_cfg project_root)"
+BUILDS_DIR="$(get_cfg builds_dir)"
+WORK_DIR="$(get_cfg builds_cache_dir)"
+PROJECT_NAME="$(get_cfg project_name)"
+LIBS_DIR="$(get_cfg libraries_dir)"
+VENV_DIR="$(get_cfg libraries_dir)"
+
 ESP_CHIP=""
-PROJECT_ROOT=""
-BUILDS_DIR=""
-WORK_DIR=""
-TARGET_DIR=""
-PROJECT_NAME=""
-VERSION_NEXT=""
+VERSION=""
 TS_ISO=""
-LIBS_LIST=""
 FQBN_EXTRA_OPTS=""
 CONFIG_JSON_RAW=""
-VENV_DIR="${SCRIPT_DIR}/../.venv"
+
 usage_fail() { echo "❌ $1"; exit 1; }
 while [[ $# -gt 0 ]]; do
 case "$1" in
--t|--type) ESP_CHIP="${2:-}"; shift 2 ;;
---project-root) PROJECT_ROOT="${2:-}"; shift 2 ;;
---builds-dir) BUILDS_DIR="${2:-}"; shift 2 ;;
---work-dir) WORK_DIR="${2:-}"; shift 2 ;;
---target-dir) TARGET_DIR="${2:-}"; shift 2 ;;
---project-name) PROJECT_NAME="${2:-}"; shift 2 ;;
+--chip) ESP_CHIP="${2:-}"; shift 2 ;;
 --version) VERSION_NEXT="${2:-}"; shift 2 ;;
 --timestamp) TS_ISO="${2:-}"; shift 2 ;;
---libs) LIBS_LIST="${2:-}"; shift 2 ;;
 --fqbn-extra) FQBN_EXTRA_OPTS="${2:-}"; shift 2 ;;
 --config_json) CONFIG_JSON_RAW="${2:-}"; shift 2 ;;
--h|--help) sed -n '1,140p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
 *) usage_fail "Unknown arg: $1" ;;
 esac
 done
-[[ -z "${ESP_CHIP}" ]] && usage_fail "Missing --type"
-[[ -z "${PROJECT_ROOT}" ]] && usage_fail "Missing --project-root"
-[[ -z "${BUILDS_DIR}" ]] && usage_fail "Missing --builds-dir"
-[[ -z "${WORK_DIR}" ]] && usage_fail "Missing --work-dir"
-[[ -z "${TARGET_DIR}" ]] && usage_fail "Missing --target-dir"
-[[ -z "${PROJECT_NAME}" ]] && usage_fail "Missing --project-name"
+[[ -z "${ESP_CHIP}" ]] && usage_fail "Missing --chip"
 [[ -z "${VERSION_NEXT}" ]] && usage_fail "Missing --version"
 [[ -z "${TS_ISO}" ]] && usage_fail "Missing --timestamp"
+
 # ---------- Build timing ----------
 BUILD_START_EPOCH="$(date -u +%s)"
-# ---------- Tooling checks ----------
-if ! command -v arduino-cli >/dev/null 2>&1; then
-usage_fail "'arduino-cli' not found in PATH"
-fi
-if ! arduino-cli core list | grep -q 'esp32:esp32'; then
-usage_fail "Espressif core not installed. Run: arduino-cli core install esp32:esp32"
-fi
-# ---------- NEW: validate/normalize --config_json ----------
-pick_python_for_json() {
-if [[ -n "${VENV_DIR}" && -x "${VENV_DIR}/bin/python3" ]]; then
-echo "${VENV_DIR}/bin/python3"; return 0
-fi
-if [[ -n "${VENV_DIR}" && -x "${VENV_DIR}/bin/python" ]]; then
-echo "${VENV_DIR}/bin/python"; return 0
-fi
-if command -v python3 >/dev/null 2>&1; then
-echo "python3"; return 0
-fi
-if command -v python >/dev/null 2>&1; then
-echo "python"; return 0
-fi
-return 1
-}
-CONFIG_JSON_NORM=""
-CONFIG_JSON_EMBED="null"
-if [[ -n "${CONFIG_JSON_RAW}" ]]; then
-PY_FOR_JSON=""
-if ! PY_FOR_JSON="$(pick_python_for_json)"; then
-usage_fail "--config_json provided but no python found to validate it (python3/python)."
-fi
-set +e
-CONFIG_JSON_NORM="$("${PY_FOR_JSON}" -c 'import json,sys
+
+# ---------- validate/normalize --config_json ----------
+CONFIG_JSON_NORM="$(get_cfg python_bin)" -c 'import json,sys
 s=sys.argv[1]
 try:
 obj=json.loads(s)
@@ -101,14 +58,12 @@ except Exception as e:
 print(str(e), file=sys.stderr)
 sys.exit(2)
 print(json.dumps(obj, separators=(",",":"), sort_keys=True))
-' "${CONFIG_JSON_RAW}")"
+"${CONFIG_JSON_RAW}")"
 RC=$?
 set -e
 if [[ $RC -ne 0 ]]; then
-usage_fail "Invalid --config_json (must be valid JSON): ${CONFIG_JSON_RAW}"
-fi
-CONFIG_JSON_EMBED="${CONFIG_JSON_NORM}"
-fi
+usage_fail "Invalid --config_json (must be valid JSON): ${CONFIG_JSON_RAW}"'
+
 # ---------- Chip mapping ----------
 chip_to_fqbn_board() {
 case "$1" in
@@ -117,6 +72,7 @@ c6) echo "esp32c6" ;;
 s3) echo "esp32s3" ;;
 *) echo "esp32c3" ;;
 esac
+
 }
 chip_to_family_str() {
 case "$1" in
@@ -127,7 +83,9 @@ esac
 }
 FQBN_BOARD="$(chip_to_fqbn_board "${ESP_CHIP}")"
 CHIP_FAMILY="$(chip_to_family_str "${ESP_CHIP}")"
+
 FQBN_BASE="esp32:esp32:${FQBN_BOARD}"
+
 FQBN_OPTS_DEFAULT="\
 CDCOnBoot=cdc,\
 CPUFreq=160,\
@@ -139,8 +97,10 @@ JTAGAdapter=default,\
 PartitionScheme=no_ota,\
 UploadSpeed=921600\
 "
+
 FQBN_OPTS="${FQBN_OPTS_DEFAULT}${FQBN_EXTRA_OPTS:+,${FQBN_EXTRA_OPTS}}"
 FQBN="${FQBN_BASE}:${FQBN_OPTS}"
+
 # ---------- Detect sketch ----------
 detect_sketch() {
 local candidate
@@ -153,60 +113,45 @@ candidate="$(find "${PROJECT_ROOT}/src" -maxdepth 1 -name '*.ino' 2>/dev/null | 
 [[ -n "${candidate}" ]] && { echo "${candidate}"; return; }
 echo ""
 }
-SKETCH_PATH="$(detect_sketch)"
-[[ -n "${SKETCH_PATH}" ]] || usage_fail "Could not locate .ino in project root or src/"
-SKETCH_NAME="$(basename "${SKETCH_PATH}" .ino)"
+
+SKETCH_PATH="$(get_cfg project_ino_file)"
+SKETCH_NAME=$"PROJECT_NAME".ino
+
 # ---------- Prep directories ----------
+TARGET_DIR="$(TS_ISO)-$(VERSION)-$(ESP_CHIP)-$(PROJECT_NAME)"
 OUTPUT_DIR="${TARGET_DIR}/output"
 BINARY_DIR="${TARGET_DIR}/binary"
-mkdir -p "${WORK_DIR}" "${TARGET_DIR}" "${OUTPUT_DIR}" "${BINARY_DIR}"
+
+mkdir -p "${OUTPUT_DIR}" "${BINARY_DIR}"
 echo "🔧 Arduino FQBN: ${FQBN}"
 echo "📄 Sketch: ${SKETCH_PATH}"
-echo "🧰 Work path: ${WORK_DIR}"
+echo "📚 Using libs: ${LIBS_DIR}"
 echo "📁 Target dir: ${TARGET_DIR}"
-# ---------- Build arguments ----------
-COMPILE_ARGS=( compile --fqbn "${FQBN}" --build-path "${WORK_DIR}" --warnings default )
-# Libraries (split colon-separated)
-declare -a LIB_FLAGS=()
-declare -a USED_LIBS=()
+echo "🧰 Work path: ${WORK_DIR}"
+
+
+# ---------- Snapshot sources & libs ----------
+if [[ -d "${PROJECT_ROOT}/src" ]]; then
+cp -a "${PROJECT_ROOT}/src" "${TARGET_DIR}/src"
+else
+mkdir -p "${TARGET_DIR}/src"
+cp -a "${SKETCH_PATH}" "${TARGET_DIR}/src/"
+fi
 if [[ -n "${LIBS_LIST}" ]]; then
-IFS=':' read -r -a _libarr <<< "${LIBS_LIST}"
-for lp in "${_libarr[@]}"; do
-if [[ -d "${lp}" ]]; then
-LIB_FLAGS+=( --libraries "${lp}" )
-USED_LIBS+=( "${lp}" )
-echo "📚 Using libs: ${lp}"
-else
-echo "⚠️ Skipping non-existent libs dir: ${lp}"
-fi
+mkdir -p "${TARGET_DIR}/lib"
+IFS=':' read -r -a _libarr2 <<< "${LIBS_LIST}"
+for lp in "${_libarr2[@]}"; do
+[[ -d "${lp}" ]] && cp -a "${lp}" "${TARGET_DIR}/lib/$(basename "${lp}")"
 done
 fi
-# Capture compile command (for meta.json)
-declare -a _COMPILE_CMD_ARR=( arduino-cli "${COMPILE_ARGS[@]}" )
-if ((${#LIB_FLAGS[@]})); then
-_COMPILE_CMD_ARR+=( "${LIB_FLAGS[@]}" )
-fi
-_COMPILE_CMD_ARR+=( "${SKETCH_PATH}" )
-shell_join() {
-local out=""
-local a
-for a in "$@"; do
-out+="$(printf '%q ' "$a")"
-done
-echo -n "${out% }"
-}
-COMPILE_CMD_STR="$(shell_join "${_COMPILE_CMD_ARR[@]}")"
-# ---------- Compile ----------
-set +e
-if ((${#LIB_FLAGS[@]})); then
-arduino-cli "${COMPILE_ARGS[@]}" "${LIB_FLAGS[@]}" "${SKETCH_PATH}" | tee "${TARGET_DIR}/compile.log"
-else
-arduino-cli "${COMPILE_ARGS[@]}" "${SKETCH_PATH}" | tee "${TARGET_DIR}/compile.log"
-fi
-BUILD_RC="${PIPESTATUS[0]}"
-set -e
+
+COMPILE_ARGS=( compile --fqbn "${FQBN}" --build-path "${WORK_DIR}" --warnings default --libraries "${LIBS_DIR}" --sketch-path "${SKETCH_PATH}")
+
+arduino-cli "${COMPILE_ARGS[@]}"
+
 [[ "${BUILD_RC}" -eq 0 ]] || { echo "❌ Compile failed (see ${TARGET_DIR}/compile.log)"; exit "${BUILD_RC}"; }
 # ---------- Find or create merged binary ----------
+
 ESPTOOL_CMD=""
 MERGE_METHOD="found"
 MERGED_BIN="$(find "${WORK_DIR}" -maxdepth 1 -name "${SKETCH_NAME}.ino.merged.bin" -print -quit || true)"
@@ -250,20 +195,7 @@ echo "✅ Created merged image."
 else
 echo "✅ Found merged image: ${MERGED_BIN}"
 fi
-# ---------- Snapshot sources & libs ----------
-if [[ -d "${PROJECT_ROOT}/src" ]]; then
-cp -a "${PROJECT_ROOT}/src" "${TARGET_DIR}/src"
-else
-mkdir -p "${TARGET_DIR}/src"
-cp -a "${SKETCH_PATH}" "${TARGET_DIR}/src/"
-fi
-if [[ -n "${LIBS_LIST}" ]]; then
-mkdir -p "${TARGET_DIR}/lib"
-IFS=':' read -r -a _libarr2 <<< "${LIBS_LIST}"
-for lp in "${_libarr2[@]}"; do
-[[ -d "${lp}" ]] && cp -a "${lp}" "${TARGET_DIR}/lib/$(basename "${lp}")"
-done
-fi
+
 # ---------- Collect outputs ----------
 find "${WORK_DIR}" -maxdepth 1 -type f \( -name "*.bin" -o -name "*.elf" -o -name "*.map" \) -exec cp -a {} "${OUTPUT_DIR}/" \;
 # Place final merged image (Versioned + generic alias)

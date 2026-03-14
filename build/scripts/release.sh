@@ -44,8 +44,9 @@ echo "🚀 Starting matrix build from ${MATRIX_FILE} (Version: ${CURRENT_VERSION
 # 1. Read the header row into an array
 IFS=',' read -r -a headers < "$MATRIX_FILE"
 
-# Find the index of the CHIP column (case-insensitive) and clean headers
+# Find the indices of CHIP and _RELEASE_NOTES columns (case-insensitive) and clean headers
 chip_idx=-1
+notes_idx=-1
 map_header=""
 for i in "${!headers[@]}"; do
   # Strip carriage returns safely
@@ -56,6 +57,9 @@ for i in "${!headers[@]}"; do
   if [[ "${headers[$i]}" =~ ^[Cc][Hh][Ii][Pp]$ ]]; then
     chip_idx=$i
   fi
+  if [[ "${headers[$i]}" =~ ^_[Rr][Ee][Ll][Ee][Aa][Ss][Ee]_[Nn][Oo][Tt][Ee][Ss]$ ]]; then
+    notes_idx=$i
+  fi
 done
 
 if [[ $chip_idx -eq -1 ]]; then
@@ -64,6 +68,7 @@ if [[ $chip_idx -eq -1 ]]; then
 fi
 
 echo "🗺️  Initialized firmware map at ${MAP_FILE}"
+[[ $notes_idx -ne -1 ]] && echo "📝 Detected _RELEASE_NOTES column at index $notes_idx"
 
 row_num=1
 
@@ -81,6 +86,13 @@ tail -n +2 "$MATRIX_FILE" | while IFS=',' read -r -a row_data || [[ -n "${row_da
   chip_raw="${row_data[$chip_idx]:-}"
   chip_val="${chip_raw//$'\r'/}"
 
+  # Safely extract _RELEASE_NOTES value if the column exists
+  release_notes_val=""
+  if [[ $notes_idx -ne -1 ]]; then
+    notes_raw="${row_data[$notes_idx]:-}"
+    release_notes_val="${notes_raw//$'\r'/}"
+  fi
+
   # 3. Build the JSON string, the nested directory path, and the map row simultaneously
   json_payload="{"
   first=1
@@ -95,6 +107,11 @@ tail -n +2 "$MATRIX_FILE" | while IFS=',' read -r -a row_data || [[ -n "${row_da
 
     # Append to our map row
     map_row+="${val},"
+
+    # Skip release notes in path generation and JSON payload
+    if [[ $i -eq $notes_idx ]]; then
+      continue
+    fi
 
     # Build the folder path structure (col_1/col_2/...)
     # Strip quotes, backslashes, and replace spaces with underscores for safe folder names
@@ -132,9 +149,11 @@ tail -n +2 "$MATRIX_FILE" | while IFS=',' read -r -a row_data || [[ -n "${row_da
   echo "📦 Row $row_num | CHIP: $chip_val"
   echo "📂 Path: ${dest_dir}"
   echo "⚙️  Config: $json_payload"
+  [[ -n "$release_notes_val" ]] && echo "📝 Notes: $release_notes_val"
   echo "======================================================="
 
-  ./build.sh -c "$chip_val" --config_json "$json_payload" --build_notes ""
+  # Pass the dynamically extracted release notes to the build.sh script
+  ./build.sh -c "$chip_val" --config_json "$json_payload" --build_notes "$release_notes_val"
 
   mkdir -p "$dest_dir"
 

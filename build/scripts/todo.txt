@@ -1,6 +1,6 @@
 - [x] review compile
 - [x] review build
-- review upload
-- review listen
+- [x] review upload
+- [x] review listen
 - review release
 - review setup_env_linux.sh

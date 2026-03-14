@@ -3,7 +3,6 @@
 - [x] review upload
 - [x] review listen
 - review release
-    - UPDATE PATHS IN THE META.JSON
+    - [x] UPDATE PATHS IN THE META.JSON
     - ADD VERSION INPUT
-    - ADD CHECK IF RELEASE EXISTS NUKE IT.
 - review setup_env_linux.sh

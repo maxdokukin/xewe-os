@@ -34,12 +34,51 @@ get_version() {
   fi
 }
 
+# Native bash helper to compare semantic versions (v1 >= v2)
+check_version_gte() {
+  local IFS=.
+  local v1=($1) v2=($2)
+  for i in 0 1 2; do
+    local n1=${v1[i]:-0}
+    local n2=${v2[i]:-0}
+    if (( n1 > n2 )); then return 0; fi # v1 > v2
+    if (( n1 < n2 )); then return 1; fi # v1 < v2
+  done
+  return 0 # v1 == v2
+}
+
+# --- VERSION PROMPT ---
 CURRENT_VERSION="$(get_version)"
+echo "🏷️  Current version = ${CURRENT_VERSION}"
+
+while true; do
+  read -rp "Enter the release version (must be >= current): " INPUT_VERSION
+  if [[ -z "$INPUT_VERSION" ]]; then
+    echo "❌ Version cannot be empty."
+  elif ! check_version_gte "$INPUT_VERSION" "$CURRENT_VERSION"; then
+    echo "❌ Error: $INPUT_VERSION is less than $CURRENT_VERSION."
+  else
+    CURRENT_VERSION="$INPUT_VERSION"
+
+    # Split the version string and save it to the state file
+    IFS='.' read -r v_maj v_min v_pat <<< "$CURRENT_VERSION"
+    cat > "$STATE_FILE" <<EOF
+MAJOR=${v_maj:-0}
+MINOR=${v_min:-0}
+PATCH=${v_pat:-0}
+EOF
+    echo "💾 Saved new version ($CURRENT_VERSION) to $STATE_FILE"
+
+    break
+  fi
+done
+# ----------------------
+
 VERSION_DIR="${STATIC_DIR}/${CURRENT_VERSION}"
 MAP_FILE="${VERSION_DIR}/firmware_map.csv"
 
 mkdir -p "$VERSION_DIR"
-echo "🚀 Starting matrix build from ${MATRIX_FILE} (Version: ${CURRENT_VERSION})"
+echo "🚀 Starting matrix build from ${MATRIX_FILE} (Target Version: ${CURRENT_VERSION})"
 
 # 1. Read the header row into an array
 IFS=',' read -r -a headers < "$MATRIX_FILE"
@@ -163,7 +202,7 @@ tail -n +2 "$MATRIX_FILE" | while IFS=',' read -r -a row_data || [[ -n "${row_da
      exit 1
   fi
 
-# --- BEGIN META.JSON PATH UPDATE ---
+  # --- BEGIN META.JSON PATH UPDATE ---
   META_FILE="${dest_dir}/meta.json"
   if [[ -f "$META_FILE" ]]; then
     # Calculate the new relative directory (e.g. "xewe-os/static/firmware/releases/...")

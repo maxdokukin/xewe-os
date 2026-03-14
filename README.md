@@ -56,14 +56,20 @@ Upload a precompiled binary file directly from your browser:
 To build and upload the code manually using the provided scripts:
 
 ```bash
-cd build/scripts
+# clone
+git clone https://githib.com/maxdokukin/xewe-os
+cd xewe-os/build/scripts
+
+# set up build environment
 ./setup_build_enviroment_mac.sh
 OR ./setup_build_enviroment_linux.sh
 
-# Syntax: ./build.sh -t <target_chip> -p <port>
+# print the port esp is connected to
+ls /dev/cu.*
+
+# build: ./build.sh -c <target_chip> -p <port>
 ./build.sh -c c3                                # build
 ./build.sh -c c3 -p /dev/cu.usbmodem11143201    # build and upload
-
 ```
 
 ---

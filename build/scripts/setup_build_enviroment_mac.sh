@@ -263,7 +263,7 @@ EOF
 init_release_matrix() {
   if [[ ! -f "${RELEASE_MATRIX_FILE}" ]]; then
     cat > "${RELEASE_MATRIX_FILE}" <<EOF
-timestamp,major,minor,patch,build_id,version,artifact,notes
+CHIP,LED_PIN_CLOCK,LED_PIN_DATA,_BUILD_NOTES
 EOF
     echo "✅ Created release matrix: ${RELEASE_MATRIX_FILE}" >&2
   else

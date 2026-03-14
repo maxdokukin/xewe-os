@@ -44,7 +44,7 @@ echo "🚀 Starting matrix build from ${MATRIX_FILE} (Version: ${CURRENT_VERSION
 # 1. Read the header row into an array
 IFS=',' read -r -a headers < "$MATRIX_FILE"
 
-# Find the indices of CHIP and _RELEASE_NOTES columns (case-insensitive) and clean headers
+# Find the indices of CHIP and _BUILD_NOTES columns (case-insensitive) and clean headers
 chip_idx=-1
 notes_idx=-1
 map_header=""
@@ -57,7 +57,7 @@ for i in "${!headers[@]}"; do
   if [[ "${headers[$i]}" =~ ^[Cc][Hh][Ii][Pp]$ ]]; then
     chip_idx=$i
   fi
-  if [[ "${headers[$i]}" =~ ^_[Rr][Ee][Ll][Ee][Aa][Ss][Ee]_[Nn][Oo][Tt][Ee][Ss]$ ]]; then
+  if [[ "${headers[$i]}" =~ ^_[Bb][Uu][Ii][Ll][Dd]_[Nn][Oo][Tt][Ee][Ss]$ ]]; then
     notes_idx=$i
   fi
 done
@@ -68,7 +68,7 @@ if [[ $chip_idx -eq -1 ]]; then
 fi
 
 echo "🗺️  Initialized firmware map at ${MAP_FILE}"
-[[ $notes_idx -ne -1 ]] && echo "📝 Detected _RELEASE_NOTES column at index $notes_idx"
+[[ $notes_idx -ne -1 ]] && echo "📝 Detected _BUILD_NOTES column at index $notes_idx"
 
 row_num=1
 
@@ -86,11 +86,11 @@ tail -n +2 "$MATRIX_FILE" | while IFS=',' read -r -a row_data || [[ -n "${row_da
   chip_raw="${row_data[$chip_idx]:-}"
   chip_val="${chip_raw//$'\r'/}"
 
-  # Safely extract _RELEASE_NOTES value if the column exists
-  release_notes_val=""
+  # Safely extract _BUILD_NOTES value if the column exists
+  build_notes_val=""
   if [[ $notes_idx -ne -1 ]]; then
     notes_raw="${row_data[$notes_idx]:-}"
-    release_notes_val="${notes_raw//$'\r'/}"
+    build_notes_val="${notes_raw//$'\r'/}"
   fi
 
   # 3. Build the JSON string, the nested directory path, and the map row simultaneously
@@ -108,7 +108,7 @@ tail -n +2 "$MATRIX_FILE" | while IFS=',' read -r -a row_data || [[ -n "${row_da
     # Append to our map row
     map_row+="${val},"
 
-    # Skip release notes in path generation and JSON payload
+    # Skip build notes in path generation and JSON payload
     if [[ $i -eq $notes_idx ]]; then
       continue
     fi
@@ -149,11 +149,11 @@ tail -n +2 "$MATRIX_FILE" | while IFS=',' read -r -a row_data || [[ -n "${row_da
   echo "📦 Row $row_num | CHIP: $chip_val"
   echo "📂 Path: ${dest_dir}"
   echo "⚙️  Config: $json_payload"
-  [[ -n "$release_notes_val" ]] && echo "📝 Notes: $release_notes_val"
+  [[ -n "$build_notes_val" ]] && echo "📝 Notes: $build_notes_val"
   echo "======================================================="
 
-  # Pass the dynamically extracted release notes to the build.sh script
-  ./build.sh -c "$chip_val" --config_json "$json_payload" --build_notes "$release_notes_val"
+  # Pass the dynamically extracted build notes to the build.sh script
+  ./build.sh -c "$chip_val" --config_json "$json_payload" --build_notes "$build_notes_val"
 
   mkdir -p "$dest_dir"
 
@@ -162,6 +162,8 @@ tail -n +2 "$MATRIX_FILE" | while IFS=',' read -r -a row_data || [[ -n "${row_da
      echo "❌ Error: Move failed or latest/binary/ dir was empty."
      exit 1
   fi
+
+  [[ -n "$build_notes_val" ]] && cp "${LATEST_DIR}/build_notes.txt" "$dest_dir/" 2>/dev/null || true
 
 done
 

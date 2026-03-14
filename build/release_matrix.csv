@@ -1,4 +1,3 @@
 CHIP,LED_PIN_CLOCK,LED_PIN_DATA,_BUILD_NOTES
-c3,0,0,"Led Dock V1"
-c3,0,4,"Led Dock V1"
+c3,0,0,Led Dock V1
 c3,0,3,,

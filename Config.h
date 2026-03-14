@@ -9,9 +9,9 @@
  *********************************************************************************/
 // Config.h
 
-#define SAMPLE_CONFIG_DEFINITION_1 1
-#define SAMPLE_CONFIG_DEFINITION_1 2
+#define SAMPLE_CONFIG_DEFINITION_1 0
+#define SAMPLE_CONFIG_DEFINITION_2 3
 
 #define PROJECT_NAME "xewe-os"
-#define BUILD_VERSION "1.3.228"
-#define BUILD_TIMESTAMP "2026-03-14T01:27:24Z"
+#define BUILD_VERSION "1.0.0"
+#define BUILD_TIMESTAMP "2026-03-14T02:12:04Z"

@@ -1,5 +1,4 @@
 CHIP,SAMPLE_CONFIG_DEFINITION_1,SAMPLE_CONFIG_DEFINITION_2,_BUILD_NOTES
-c3,0,0,Setup 1
-c3,0,3,Setup 2
-c6,0,3,,
+c3,0,0,This is ESP C3 build
+c6,0,3,This is ESP C6 build
 s3,0,3,,

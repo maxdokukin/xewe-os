@@ -48,17 +48,21 @@ IFS=',' read -r -a headers < "$MATRIX_FILE"
 chip_idx=-1
 notes_idx=-1
 map_header=""
+
 for i in "${!headers[@]}"; do
   # Strip carriage returns safely
   raw_header="${headers[$i]:-}"
-  headers[$i]="${raw_header//$'\r'/}"
-  map_header+="${headers[$i]},"
+  clean_header="${raw_header//$'\r'/}"
+  headers[$i]="$clean_header"
 
-  if [[ "${headers[$i]}" =~ ^[Cc][Hh][Ii][Pp]$ ]]; then
+  if [[ "$clean_header" =~ ^[Cc][Hh][Ii][Pp]$ ]]; then
     chip_idx=$i
-  fi
-  if [[ "${headers[$i]}" =~ ^_[Bb][Uu][Ii][Ll][Dd]_[Nn][Oo][Tt][Ee][Ss]$ ]]; then
+    map_header+="${clean_header},"
+  elif [[ "$clean_header" =~ ^_[Bb][Uu][Ii][Ll][Dd]_[Nn][Oo][Tt][Ee][Ss]$ ]]; then
     notes_idx=$i
+    # Intentionally do NOT append to map_header so it is excluded from the CSV
+  else
+    map_header+="${clean_header},"
   fi
 done
 
@@ -69,6 +73,9 @@ fi
 
 echo "🗺️  Initialized firmware map at ${MAP_FILE}"
 [[ $notes_idx -ne -1 ]] && echo "📝 Detected _BUILD_NOTES column at index $notes_idx"
+
+# Write only the headers (minus _BUILD_NOTES) to the map file, stripping the trailing comma
+echo "${map_header%,}" > "$MAP_FILE"
 
 row_num=1
 
@@ -93,20 +100,16 @@ tail -n +2 "$MATRIX_FILE" | while IFS=',' read -r -a row_data || [[ -n "${row_da
     build_notes_val="${notes_raw//$'\r'/}"
   fi
 
-  # 3. Build the JSON string, the nested directory path, and the map row simultaneously
+  # 3. Build the JSON string and the nested directory path simultaneously
   json_payload="{"
   first=1
   nested_path=""
-  map_row=""
 
   for i in "${!headers[@]}"; do
     key="${headers[$i]}"
     # Protect against empty trailing columns or unbound indexes
     val="${row_data[$i]:-}"
     val="${val//$'\r'/}"
-
-    # Append to our map row
-    map_row+="${val},"
 
     # Skip build notes in path generation and JSON payload
     if [[ $i -eq $notes_idx ]]; then
@@ -139,9 +142,6 @@ tail -n +2 "$MATRIX_FILE" | while IFS=',' read -r -a row_data || [[ -n "${row_da
   done
   json_payload+="}"
 
-  # Strip leading slash from nested_path for cleaner relative mapping
-  relative_release_path="${nested_path#/}"
-
   # Assemble the final target directory
   dest_dir="${VERSION_DIR}${nested_path}"
 
@@ -163,8 +163,9 @@ tail -n +2 "$MATRIX_FILE" | while IFS=',' read -r -a row_data || [[ -n "${row_da
      exit 1
   fi
 
+  # Copy the build notes file into the release destination if there were build notes provided
   [[ -n "$build_notes_val" ]] && cp "${LATEST_DIR}/build_notes.txt" "$dest_dir/" 2>/dev/null || true
 
 done
 
-echo -e "\n✅ All matrix rows processed! Map saved to ${MAP_FILE}"
+echo -e "\n✅ All matrix rows processed! Header map saved to ${MAP_FILE}"

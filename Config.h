@@ -9,11 +9,8 @@
  *********************************************************************************/
 // Config.h
 
-#define SAMPLE_CONFIG_DEFINITION "2"
-
-#define LED_PIN_DATA                0
-#define LED_PIN_CLOCK               0
-#define LED_STRIP_NUM_LEDS_MAX      600
+#define SAMPLE_CONFIG_DEFINITION_1 1
+#define SAMPLE_CONFIG_DEFINITION_1 2
 
 #define PROJECT_NAME "xewe-os"
 #define BUILD_VERSION "1.3.228"

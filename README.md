@@ -57,10 +57,12 @@ To build and upload the code manually using the provided scripts:
 
 ```bash
 cd build/scripts
-./setup_build_enviroment.sh
+./setup_build_enviroment_mac.sh
+OR ./setup_build_enviroment_linux.sh
 
 # Syntax: ./build.sh -t <target_chip> -p <port>
-./build.sh -t c3 -p /dev/cu.usbmodem11143201
+./build.sh -c c3                                # build
+./build.sh -c c3 -p /dev/cu.usbmodem11143201    # build and upload
 
 ```
 
@@ -118,6 +120,18 @@ src/
 ```
 For more see [PROJECT_STRUCTURE.md](doc/PROJECT_STRUCTURE.md)
 To add your own module, see [ADDING_A_MODULE.md](doc/ADDING_A_MODULE.md)
+
+### Library
+modify [required_libraries.txt](build/libraries/required_libraries.txt)
+and rerun [setup_build_enviroment_mac.sh](build/scripts/setup_build_enviroment_mac.sh)  
+Sample required_libraries.txt file:
+```
+https://github.com/FastLED/FastLED.git --branch 3.10.3
+https://github.com/maxdokukin/xewe-led-library-espalexa
+https://github.com/maxdokukin/xewe-led-library-homespan
+https://github.com/maxdokukin/xewe-led-library-websockets
+https://github.com/bblanchon/ArduinoJson
+```
 
 ### Debugging
 

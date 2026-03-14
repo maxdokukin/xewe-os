@@ -11,10 +11,10 @@
 
 #define SAMPLE_CONFIG_DEFINITION "2"
 
-#define LED_PIN_DATA                3
+#define LED_PIN_DATA                0
 #define LED_PIN_CLOCK               0
 #define LED_STRIP_NUM_LEDS_MAX      600
 
 #define PROJECT_NAME "xewe-os"
-#define BUILD_VERSION "1.3.0"
-#define BUILD_TIMESTAMP "2026-03-14T01:16:32Z"
+#define BUILD_VERSION "1.3.228"
+#define BUILD_TIMESTAMP "2026-03-14T01:27:24Z"

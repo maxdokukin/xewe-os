@@ -78,6 +78,26 @@ VERSION_DIR="${STATIC_DIR}/${CURRENT_VERSION}"
 MAP_FILE="${VERSION_DIR}/firmware_map.csv"
 
 mkdir -p "$VERSION_DIR"
+
+# --- RELEASE NOTES PROMPT ---
+TMP_RELEASE_NOTES=$(mktemp)
+
+# Pre-populate the header for the editor
+echo "Release Notes for Version $CURRENT_VERSION" > "$TMP_RELEASE_NOTES"
+echo "===================================" >> "$TMP_RELEASE_NOTES"
+echo "" >> "$TMP_RELEASE_NOTES"
+
+# Open the temp file in vi (or system default editor)
+${EDITOR:-vi} "$TMP_RELEASE_NOTES"
+
+tail -n +3 "$TMP_RELEASE_NOTES" > "${VERSION_DIR}/release_notes.txt"
+
+# Clean up the temporary file
+rm -f "$TMP_RELEASE_NOTES"
+
+echo "📝 Global release notes saved to ${VERSION_DIR}/release_notes.txt"
+# ----------------------------
+
 echo "🚀 Starting matrix build from ${MATRIX_FILE} (Target Version: ${CURRENT_VERSION})"
 
 # 1. Read the header row into an array

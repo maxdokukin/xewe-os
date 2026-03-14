@@ -1,8 +1,0 @@
-- [x] review compile
-- [x] review build
-- [x] review upload
-- [x] review listen
-- review release
-    - [x] UPDATE PATHS IN THE META.JSON
-    - ADD VERSION INPUT
-- review setup_env_linux.sh

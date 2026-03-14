@@ -1,5 +1,7 @@
 .venv/
 builds/
-libraries/
+!libraries/
+libraries/*
+!libraries/required_libraries.txt
 build_config
 version_state

@@ -9,9 +9,8 @@
  *********************************************************************************/
 // Config.h
 
-#define SAMPLE_CONFIG_DEFINITION_1 0
-#define SAMPLE_CONFIG_DEFINITION_2 3
-
+// Automatically updated by build.sh
 #define PROJECT_NAME "xewe-os"
 #define BUILD_VERSION "1.0.0"
-#define BUILD_TIMESTAMP "2026-03-14T02:19:54Z"
+#define BUILD_TIMESTAMP "2026-03-15T19:46:13Z"
+// /Automatically updated by build.sh

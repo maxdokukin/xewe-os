@@ -1,0 +1,20 @@
+{
+  "type": "c3",
+  "chip_family": "ESP32-C3",
+  "project_name": "xewe-os",
+  "version": "1.0.0",
+  "timestamp_param": "2026-03-15T19:44:07Z",
+  "config": {},
+  "fqbn": "esp32:esp32:esp32c3:CDCOnBoot=cdc,CPUFreq=160,DebugLevel=none,EraseFlash=all,FlashMode=qio,FlashSize=4M,JTAGAdapter=default,PartitionScheme=no_ota,UploadSpeed=921600",
+  "fqbn_extra": "",
+  "compile_time_sec": 63,
+  "artifacts": {
+    "binary_filename": "1.0.0-c3-xewe-os.bin",
+    "path_rel_binary": "xewe-os/static/firmware/releases/1.0.0/c3/1.0.0-c3-xewe-os.bin",
+    "path_rel_manifest_json": "xewe-os/static/firmware/releases/1.0.0/c3/manifest.json",
+    "path_rel_meta_json": "xewe-os/static/firmware/releases/1.0.0/c3/meta.json",
+    "path_abs_binary": "/Users/max/Codebase/github/xewe-os/static/firmware/releases/1.0.0/c3/1.0.0-c3-xewe-os.bin",
+    "path_abs_manifest_json": "/Users/max/Codebase/github/xewe-os/static/firmware/releases/1.0.0/c3/manifest.json",
+    "path_abs_meta_json": "/Users/max/Codebase/github/xewe-os/static/firmware/releases/1.0.0/c3/meta.json"
+  }
+}

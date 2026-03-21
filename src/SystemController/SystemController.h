@@ -12,9 +12,9 @@
 #include "../Modules/Module/Module.h"
 
 #include "../Modules/Software/SerialPort/SerialPort.h"
-#include "../Modules/Software/Nvs/Nvs.h"
 #include "../Modules/Software/System/System.h"
 #include "../Modules/Software/CommandParser/CommandParser.h"
+#include "../Modules/Hardware/Nvs/Nvs.h"
 #include "../Modules/Hardware/Pins/Pins.h"
 #include "../Modules/Hardware/Buttons/Buttons.h"
 #include "../Modules/Software/Wifi/Wifi.h"

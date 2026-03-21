@@ -28,7 +28,7 @@ System::System(SystemController& controller)
         "Restart the ESP",
         string("$") + lower(module_name) + " restart",
         0,
-        [this](string_view) { ESP.restart(); }
+        [this](string_view) { restart(1000); }
     });
 
     commands_storage.push_back({
@@ -36,7 +36,7 @@ System::System(SystemController& controller)
         "Restart the ESP",
         string("$") + lower(module_name) + " reboot",
         0,
-        [this](string_view) { ESP.restart(); }
+        [this](string_view) { restart(1000); }
     });
 
     commands_storage.push_back({
@@ -59,6 +59,42 @@ System::System(SystemController& controller)
         char macs[18]; snprintf(macs, sizeof(macs), "%02X:%02X:%02X:%02X:%02X:%02X", mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
         s += "MAC "; s += macs;
         this->controller.serial_port.print(s.c_str(), kCRLF);
+      }
+    });
+
+    commands_storage.push_back({
+      "set_device_name",
+      "Set device name",
+      string("$") + lower(module_name) + " set_device_name \"Kitchen Lights\"",
+      1,
+      [this](string_view args_sv){
+        String args(args_sv.data(), args_sv.length());
+        args.trim();
+
+        if (args.isEmpty()) {
+          this->controller.serial_port.print(
+            ("Usage: " + lower(module_name) + " set_device_name \"<name>\"").c_str(),
+            kCRLF
+          );
+          return;
+        }
+
+        if (args.length() >= 2 && args[0] == '"' && args[args.length() - 1] == '"') {
+          args = args.substring(1, args.length() - 1);
+          args.trim();
+        }
+
+        if (args.isEmpty()) {
+          this->controller.serial_port.print("Device name cannot be empty", kCRLF);
+          return;
+        }
+
+        std::string new_name = args.c_str();
+        this->controller.nvs.write_str(nvs_key, "dname", new_name);
+        this->controller.serial_port.print(
+          ("Device name set to: " + new_name).c_str(),
+          kCRLF
+        );
       }
     });
 
@@ -108,6 +144,16 @@ void System::begin_routines_required (const ModuleConfig& cfg) {
         "Version " + BUILD_VERSION + "\n" +
         "Build Timestamp " + BUILD_TIMESTAMP
     );
+}
+
+void System::begin_routines_init (const ModuleConfig& cfg) {
+    string name = "";
+    bool confirmed = false;
+    while (!confirmed) {
+        name = controller.serial_port.get_string("Name your device (ex: Kitchen Lights):");
+        confirmed = controller.serial_port.get_yn("Confirm \"" + name + "\"?");
+    }
+    controller.nvs.write_str(nvs_key, "dname", name);
 }
 
 void System::reset (const bool verbose, const bool do_restart, const bool keep_enabled) {

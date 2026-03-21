@@ -18,7 +18,7 @@ void Module::begin (const ModuleConfig& cfg) {
     bool first_boot = !controller.nvs.read_bool(nvs_key, "not_first_boot");
     enabled = first_boot || controller.nvs.read_bool(nvs_key, "is_enabled");
 
-    if (can_be_disabled) {
+    if (can_be_disabled || requires_init_setup) {
          controller.serial_port.print_header(capitalize(module_name) + " Setup");
     }
 

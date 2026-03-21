@@ -598,27 +598,6 @@ EOF
   echo "✅ Config header ready: ${config_file}" >&2
 }
 
-generate_gitignore() {
-  local gitignore_file="${BUILD_ROOT}/.gitignore"
-  local required_lines=(
-    ".venv/"
-    "builds/"
-    "libraries/"
-    "build_config"
-    "version_state"
-  )
-
-  touch "${gitignore_file}"
-
-  for line in "${required_lines[@]}"; do
-    if ! grep -Fxq "${line}" "${gitignore_file}"; then
-      echo "${line}" >> "${gitignore_file}"
-    fi
-  done
-
-  echo "✅ .gitignore ready: ${gitignore_file}" >&2
-}
-
 write_build_config() {
   local py_bin="$1"
   local arduino_cli_path
@@ -729,7 +708,6 @@ main() {
   init_release_matrix
   ensure_project_ino
   ensure_project_config_h
-  generate_gitignore
   write_build_config "${PY_BIN}"
 
   echo >&2

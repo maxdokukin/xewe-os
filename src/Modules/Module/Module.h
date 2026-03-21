@@ -7,7 +7,7 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
-// src/Modules/Module/Module/Module.h
+// src/Modules/Module/Module.h
 #pragma once
 
 #include <functional>

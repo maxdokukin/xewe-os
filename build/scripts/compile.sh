@@ -25,7 +25,7 @@ source "${CONFIG_FILE}"
 
 PROJECT_ROOT="$(get_cfg project_root)"
 BUILDS_DIR="$(get_cfg builds_dir)"
-WORK_DIR="$(get_cfg builds_cache_dir)"
+WORK_DIR_BASE="$(get_cfg builds_cache_dir)"
 PROJECT_NAME="$(get_cfg project_name)"
 LIBS_DIR="$(get_cfg libraries_dir)"
 PYTHON_BIN="$(get_cfg venv_python_bin)"
@@ -54,6 +54,10 @@ case "${ESP_CHIP}" in
   *) usage_fail "Invalid --chip: ${ESP_CHIP} (expected c3, c6, or s3)" ;;
 esac
 
+WORK_DIR_PARENT="$(dirname "${WORK_DIR_BASE}")"
+WORK_DIR="${WORK_DIR_PARENT}/cache/${ESP_CHIP}"
+mkdir -p "${WORK_DIR}"
+
 CONFIG_JSON_VALIDATED='""'
 if [[ -n "${CONFIG_JSON_RAW//[[:space:]]/}" ]]; then
   CONFIG_JSON_VALIDATED=$("${PYTHON_BIN}" -c 'import json,sys; print(json.dumps(json.loads(sys.argv[1]), separators=(",",":"), sort_keys=True))' "${CONFIG_JSON_RAW}" 2>/dev/null) || usage_fail "Invalid --config_json (must be valid JSON): ${CONFIG_JSON_RAW}"
@@ -70,7 +74,12 @@ mkdir -p "${OUTPUT_DIR}" "${BINARY_DIR}"
 
 echo -e "🔧 Arduino FQBN: ${FQBN}\n📄 Sketch: ${SKETCH_PATH}\n📚 Using libs: ${LIBS_DIR}\n📁 Target dir: ${TARGET_DIR}\n🧰 Work path: ${WORK_DIR}"
 
-COMPILE_ARGS=(compile --fqbn "${FQBN}" --build-path "${WORK_DIR}" --warnings default --libraries "${LIBS_DIR}" "${SKETCH_PATH}")
+COMPILE_ARGS=(compile --fqbn "${FQBN}" --build-path "${WORK_DIR}" --warnings default)
+for libdir in "${LIBS_DIR}"/*; do
+  [[ -d "${libdir}" ]] || continue
+  COMPILE_ARGS+=(--library "${libdir}")
+done
+COMPILE_ARGS+=("${SKETCH_PATH}")
 
 #--------------------------#
 #--- /GET THE VARIABLES ---#

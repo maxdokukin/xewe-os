@@ -22,7 +22,7 @@ struct SerialPortConfig : public ModuleConfig {
 
 class SerialPort : public Module {
 public:
-    explicit                    SerialPort                  (SystemController& controller);
+    explicit                    SerialPort                  (ModuleController& controller);
 
     void                        begin_routines_required     (const ModuleConfig&    cfg)                    override;
     void                        loop                        ()                                              override;

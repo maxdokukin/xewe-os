@@ -23,7 +23,7 @@ struct SystemConfig : public ModuleConfig {};
 
 class System : public Module {
 public:
-    explicit                    System                      (SystemController& controller);
+    explicit                    System                      (ModuleController& controller);
 
     void                        begin_routines_required     (const ModuleConfig& cfg)       override;
     void                        begin_routines_init         (const ModuleConfig& cfg)       override;

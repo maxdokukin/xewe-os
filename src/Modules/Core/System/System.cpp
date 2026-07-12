@@ -11,10 +11,10 @@
 
 
 #include "System.h"
-#include "../../../SystemController/SystemController.h"
+#include "../../Module/ModuleController.h"
 
 
-System::System(SystemController& controller)
+System::System(ModuleController& controller)
       : Module(controller,
                /* module_name         */ "System",
                /* module_description  */ "Stores integral commands and routines",

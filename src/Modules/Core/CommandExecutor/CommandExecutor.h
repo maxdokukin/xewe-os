@@ -7,7 +7,7 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
-// src/Modules/Software/CommandParser/CommandParser.h
+// src/Modules/Software/CommandExecutor/CommandExecutor.h
 #pragma once
 
 #include "../../Module/Module.h"
@@ -15,11 +15,11 @@
 #include <algorithm>
 #include <vector>
 
-struct CommandParserConfig : public ModuleConfig {};
+struct CommandExecutorConfig : public ModuleConfig {};
 
-class CommandParser: public Module {
+class CommandExecutor: public Module {
 public:
-    explicit                    CommandParser               (SystemController& controller);
+    explicit                    CommandExecutor               (ModuleController& controller);
 
     void                        begin_routines_required     (const ModuleConfig& cfg)       override;
 

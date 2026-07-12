@@ -26,7 +26,7 @@ struct NvsConfig : public ModuleConfig {};
 
 class Nvs : public Module {
 public:
-    explicit                    Nvs                         (SystemController& controller);
+    explicit                    Nvs                         (ModuleController& controller);
 
     // optional implementation
     void                        reset                       (const bool verbose=false,

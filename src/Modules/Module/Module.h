@@ -1,28 +1,19 @@
-/*********************************************************************************
- *  SPDX-License-Identifier: LicenseRef-PolyForm-NC-1.0.0-NoAI
- *
- *  Licensed under PolyForm Noncommercial 1.0.0 + No AI Use Addendum v1.0.
- *  See: LICENSE and LICENSE-NO-AI.md in the project root for full terms.
- *
- *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
- *  https://github.com/maxdokukin/xewe-os
- *********************************************************************************/
 // src/Modules/Module/Module.h
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <span>
+#include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "../../../Config.h"
-#include "../../Debug.h"
 #include "../../XeWeStringUtils.h"
 
-using namespace std;
-using namespace xewe::str;
-
-class SystemController;
+class ModuleController;
 
 class ModuleConfig {
 public:
@@ -34,35 +25,29 @@ public:
     ModuleConfig& operator=                                 (ModuleConfig&&) noexcept       = default;
 };
 
-using command_function_t = function<void(string args)>;
+using command_function_t = std::function<void(std::span<const std::string> args)>;
 
 struct Command {
-    string                      name;
-    string                      description;
-    string                      sample_usage;
+    std::string                 name;
+    std::string                 description;
+    std::string                 sample_usage;
     size_t                      arg_count;
     command_function_t          function;
 };
 
-struct CommandsGroup {
-    string                      name;
-    string                      group;
-    span<const Command>         commands;
-};
-
 class Module {
 public:
-    Module(SystemController&    controller,
-           string               module_name,
-           string               module_description,
-           string               nvs_key,
+    Module(ModuleController&    controller,
+           std::string          id,
+           std::string          name,
+           std::string          description,
            bool                 requires_init_setup,
            bool                 can_be_disabled,
            bool                 has_cli_commands)
       : controller              (controller)
-      , module_name             (move(module_name))
-      , module_description      (move(module_description))
-      , nvs_key                 (move(nvs_key))
+      , id                      (std::move(id))
+      , name                    (std::move(name))
+      , description             (std::move(description))
       , requires_init_setup     (requires_init_setup)
       , can_be_disabled         (can_be_disabled)
       , has_cli_commands        (has_cli_commands)
@@ -94,22 +79,27 @@ public:
                                                              const bool do_restart=true,
                                                              const bool keep_enabled=true);
 
-    virtual string              status                      (const bool verbose=false)      const;
+    virtual std::string         status                      (const bool verbose=false)      const;
     bool                        is_enabled                  (const bool verbose=false)      const;
     bool                        is_disabled                 (const bool verbose=false)      const;
     bool                        init_setup_complete         (const bool verbose=false)      const;
 
     void                        add_requirement             (Module& other);
 
-    CommandsGroup               get_commands_group          ();
-    string_view                 get_module_name             ()                              const { return module_name; }
-    const bool                  get_has_cli_cmds            ()                              const { return has_cli_commands; }
+    std::string_view            get_id                      () const { return id; }
+    std::string_view            get_name                    () const { return name; }
+
+    bool                        has_cli_cmds                () const { return has_cli_commands; }
+
+    std::span<const Command>    get_commands                () const {
+        return std::span<const Command>(commands_storage.data(), commands_storage.size());
+    }
 
 protected:
-    SystemController&           controller;
-    string                      module_name;
-    string                      module_description;
-    string                      nvs_key;
+    ModuleController&           controller;
+    std::string                 id;
+    std::string                 name;
+    std::string                 description;
 
     bool                        can_be_disabled;
     bool                        requires_init_setup;
@@ -117,17 +107,17 @@ protected:
 
     bool                        enabled;
 
-    vector<Command>             commands_storage;
-    CommandsGroup               commands_group;
+    std::vector<Command>        commands_storage;
+
     void                        register_generic_commands   ();
 
-    void                        run_with_dots               (const function<void()>& work,
+    void                        run_with_dots               (const std::function<void()>& work,
                                                              uint32_t duration_ms=1000,
                                                              uint32_t dot_interval_ms=200);
 
     bool                        requirements_enabled        (const bool verbose=false)      const;
 
 private:
-    vector<Module*>             required_modules;
-    vector<Module*>             dependent_modules;
+    std::vector<Module*>        required_modules;
+    std::vector<Module*>        dependent_modules;
 };

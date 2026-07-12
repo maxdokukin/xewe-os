@@ -8,12 +8,12 @@
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
 
-// src/Modules/Software/CommandParser/CommandParser.cpp
+// src/Modules/Software/CommandExecutor/CommandExecutor.cpp
 
-#include "CommandParser.h"
-#include "../../../SystemController/SystemController.h"
+#include "CommandExecutor.h"
+#include "../../Module/ModuleController.h"
 
-CommandParser::CommandParser(SystemController& controller)
+CommandExecutor::CommandExecutor(ModuleController& controller)
       : Module(controller,
                /* module_name         */ "Command_Parser",
                /* module_description  */ "Allows to parse text from the serial port in the action function calls with parameters",
@@ -23,18 +23,18 @@ CommandParser::CommandParser(SystemController& controller)
                /* has_cli_cmds        */ false)
 {}
 
-void CommandParser::begin_routines_required(const ModuleConfig& cfg) {
-    DBG_PRINTLN(CommandParser, "begin_routines_required(): Initializing CommandParser and fetching command groups.");
+void CommandExecutor::begin_routines_required(const ModuleConfig& cfg) {
+    DBG_PRINTLN(CommandExecutor, "begin_routines_required(): Initializing CommandExecutor and fetching command groups.");
     command_groups.clear();
 
     auto& modules = controller.get_modules(); // IMPORTANT: reference, not copy
 
     if (modules.empty()) {
-        DBG_PRINTLN(CommandParser, "begin_routines_required(): Warning - Module list is empty.");
+        DBG_PRINTLN(CommandExecutor, "begin_routines_required(): Warning - Module list is empty.");
         return;
     }
 
-    DBG_PRINTF(CommandParser, "begin_routines_required(): Found %zu modules. Extracting command groups...\n", modules.size());
+    DBG_PRINTF(CommandExecutor, "begin_routines_required(): Found %zu modules. Extracting command groups...\n", modules.size());
 
     for (Module* module : modules) {
         if (!module)
@@ -42,15 +42,15 @@ void CommandParser::begin_routines_required(const ModuleConfig& cfg) {
 
         auto grp = module->get_commands_group();
         if (!grp.commands.empty()) {
-            DBG_PRINTF(CommandParser, "begin_routines_required(): Added command group '%s' with %zu commands.\n", grp.name.c_str(), grp.commands.size());
+            DBG_PRINTF(CommandExecutor, "begin_routines_required(): Added command group '%s' with %zu commands.\n", grp.name.c_str(), grp.commands.size());
             command_groups.push_back(grp);
         }
     }
-    DBG_PRINTLN(CommandParser, "begin_routines_required(): Initialization complete.");
+    DBG_PRINTLN(CommandExecutor, "begin_routines_required(): Initialization complete.");
 }
 
-void CommandParser::print_help(const string& group_name) const {
-    DBG_PRINTF(CommandParser, "print_help(): Requesting help for group '%s'.\n", group_name.c_str());
+void CommandExecutor::print_help(const string& group_name) const {
+    DBG_PRINTF(CommandExecutor, "print_help(): Requesting help for group '%s'.\n", group_name.c_str());
     string target = group_name;
     transform(target.begin(), target.end(), target.begin(), ::tolower);
 
@@ -61,7 +61,7 @@ void CommandParser::print_help(const string& group_name) const {
         transform(g_code.begin(), g_code.end(), g_code.begin(), ::tolower);
 
         if (target == g_code || target == g_name) {
-            DBG_PRINTF(CommandParser, "print_help(): Found match for group '%s'. Generating table.\n", grp.name.c_str());
+            DBG_PRINTF(CommandExecutor, "print_help(): Found match for group '%s'. Generating table.\n", grp.name.c_str());
             vector<vector<string_view>> table_data;
             table_data.push_back({"Name", "Description", "Sample Usage"});
 
@@ -87,14 +87,14 @@ void CommandParser::print_help(const string& group_name) const {
         }
     }
 
-    DBG_PRINTF(CommandParser, "print_help(): Error - Command group '%s' not found.\n", group_name.c_str());
+    DBG_PRINTF(CommandExecutor, "print_help(): Error - Command group '%s' not found.\n", group_name.c_str());
     Serial.print("Error: Command group '");
     Serial.print(group_name.c_str());
     Serial.println("' not found.");
 }
 
-void CommandParser::print_all_commands() const {
-    DBG_PRINTLN(CommandParser, "print_all_commands(): Printing help tables for all available command groups.");
+void CommandExecutor::print_all_commands() const {
+    DBG_PRINTLN(CommandExecutor, "print_all_commands(): Printing help tables for all available command groups.");
     // We iterate manually to add spacing between tables
     for (size_t i = 0; i < command_groups.size(); ++i) {
         if (!command_groups[i].name.empty()) {
@@ -104,10 +104,10 @@ void CommandParser::print_all_commands() const {
     }
 }
 
-void CommandParser::parse(string_view input_line) const {
+void CommandExecutor::parse(string_view input_line) const {
     // Copy into mutable string
     string local(input_line.begin(), input_line.end());
-    DBG_PRINTF(CommandParser, "parse(): Received input line: '%s'\n", local.c_str());
+    DBG_PRINTF(CommandExecutor, "parse(): Received input line: '%s'\n", local.c_str());
 
     auto is_space = [](char c){ return isspace(static_cast<unsigned char>(c)); };
 
@@ -115,14 +115,14 @@ void CommandParser::parse(string_view input_line) const {
     size_t b = local.find_first_not_of(" \t\r\n"),
            e = local.find_last_not_of(" \t\r\n");
     if (b == string::npos) {
-        DBG_PRINTLN(CommandParser, "parse(): Input is entirely whitespace or empty. Aborting.");
+        DBG_PRINTLN(CommandExecutor, "parse(): Input is entirely whitespace or empty. Aborting.");
         return;
     }
     local = local.substr(b, e - b + 1);
 
     // Must start with $
     if (local.empty() || local[0] != '$') {
-        DBG_PRINTF(CommandParser, "parse(): Error - Input '%s' does not start with '$'.\n", local.c_str());
+        DBG_PRINTF(CommandExecutor, "parse(): Error - Input '%s' does not start with '$'.\n", local.c_str());
         Serial.println("Error: commands must start with '$'; type $help");
         return;
     }
@@ -137,13 +137,13 @@ void CommandParser::parse(string_view input_line) const {
     // Split off group name
     size_t sp = local.find(' ');
     string group = (sp == string::npos) ? local : local.substr(0, sp);
-    DBG_PRINTF(CommandParser, "parse(): Extracted group identifier: '%s'\n", group.c_str());
+    DBG_PRINTF(CommandExecutor, "parse(): Extracted group identifier: '%s'\n", group.c_str());
 
     // Handle $help specially
     string gl = group;
     transform(gl.begin(), gl.end(), gl.begin(), ::tolower);
     if (gl == "help") {
-        DBG_PRINTLN(CommandParser, "parse(): Global help requested. Routing to print_all_commands().");
+        DBG_PRINTLN(CommandExecutor, "parse(): Global help requested. Routing to print_all_commands().");
         print_all_commands();
         return;
     }
@@ -158,7 +158,7 @@ void CommandParser::parse(string_view input_line) const {
     else                   rest = rest.substr(b, e - b + 1);
 
     if (!rest.empty()) {
-        DBG_PRINTF(CommandParser, "parse(): Raw argument string to tokenize: '%s'\n", rest.c_str());
+        DBG_PRINTF(CommandExecutor, "parse(): Raw argument string to tokenize: '%s'\n", rest.c_str());
     }
 
     // Tokenize (supports quoted and escaped characters)
@@ -192,7 +192,7 @@ void CommandParser::parse(string_view input_line) const {
             }
 
             if (!closed) {
-                DBG_PRINTLN(CommandParser, "parse(): Error - Unterminated quote found in command arguments.");
+                DBG_PRINTLN(CommandExecutor, "parse(): Error - Unterminated quote found in command arguments.");
                 Serial.println("Error: Unterminated quote in command.");
                 return;
             }
@@ -210,7 +210,7 @@ void CommandParser::parse(string_view input_line) const {
         toks.push_back({tok, quoted});
     }
 
-    DBG_PRINTF(CommandParser, "parse(): Tokenization complete. Total tokens parsed: %zu\n", toks.size());
+    DBG_PRINTF(CommandExecutor, "parse(): Tokenization complete. Total tokens parsed: %zu\n", toks.size());
 
     // Separate cmd name and arguments
     string cmd;
@@ -218,7 +218,7 @@ void CommandParser::parse(string_view input_line) const {
     if (!toks.empty()) {
         cmd  = toks[0].value;
         args.assign(toks.begin()+1, toks.end());
-        DBG_PRINTF(CommandParser, "parse(): Extracted subcommand: '%s', with %zu parameter(s).\n", cmd.c_str(), args.size());
+        DBG_PRINTF(CommandExecutor, "parse(): Extracted subcommand: '%s', with %zu parameter(s).\n", cmd.c_str(), args.size());
     }
 
     // Lookup group
@@ -227,11 +227,11 @@ void CommandParser::parse(string_view input_line) const {
         string name = grp.name;
         transform(name.begin(), name.end(), name.begin(), ::tolower);
         if (gl == name) {
-            DBG_PRINTF(CommandParser, "parse(): Found matching command group: '%s'\n", grp.name.c_str());
+            DBG_PRINTF(CommandExecutor, "parse(): Found matching command group: '%s'\n", grp.name.c_str());
 
             // If no subcommand provided, show help for this group
             if (cmd.empty()) {
-                DBG_PRINTF(CommandParser, "parse(): No subcommand provided. Showing help for group '%s'.\n", grp.name.c_str());
+                DBG_PRINTF(CommandExecutor, "parse(): No subcommand provided. Showing help for group '%s'.\n", grp.name.c_str());
                 print_help(grp.name);
                 return;
             }
@@ -243,10 +243,10 @@ void CommandParser::parse(string_view input_line) const {
                 string cn = c.name;
                 transform(cn.begin(), cn.end(), cn.begin(), ::tolower);
                 if (cl == cn) {
-                    DBG_PRINTF(CommandParser, "parse(): Matched command '%s'. Validating argument counts...\n", c.name.c_str());
+                    DBG_PRINTF(CommandExecutor, "parse(): Matched command '%s'. Validating argument counts...\n", c.name.c_str());
 
                     if (c.arg_count != args.size()) {
-                        DBG_PRINTF(CommandParser, "parse(): Error - '%s' expects %u arg(s), but %u were provided.\n", c.name.c_str(), unsigned(c.arg_count), unsigned(args.size()));
+                        DBG_PRINTF(CommandExecutor, "parse(): Error - '%s' expects %u arg(s), but %u were provided.\n", c.name.c_str(), unsigned(c.arg_count), unsigned(args.size()));
                         Serial.printf(
                           "Error: '%s' expects %u args, but got %u\n",
                            c.name.c_str(),
@@ -270,20 +270,20 @@ void CommandParser::parse(string_view input_line) const {
                         if (ai + 1 < args.size()) rebuilt += ' ';
                     }
 
-                    DBG_PRINTF(CommandParser, "parse(): Executing command '%s' with rebuilt parameter string: [%s]\n", c.name.c_str(), rebuilt.c_str());
+                    DBG_PRINTF(CommandExecutor, "parse(): Executing command '%s' with rebuilt parameter string: [%s]\n", c.name.c_str(), rebuilt.c_str());
 
                     // pass a string, not a string_view
                     c.function(rebuilt);
                     return;
                 }
             }
-            DBG_PRINTF(CommandParser, "parse(): Error - Unknown command '%s' inside group '%s'.\n", cmd.c_str(), group.c_str());
+            DBG_PRINTF(CommandExecutor, "parse(): Error - Unknown command '%s' inside group '%s'.\n", cmd.c_str(), group.c_str());
             Serial.printf("Error: Unknown command '%s'; type $%s to see available commands\n",
                           cmd.c_str(), group.c_str());
             return;
         }
     }
 
-    DBG_PRINTF(CommandParser, "parse(): Error - Unknown command group '%s'.\n", group.c_str());
+    DBG_PRINTF(CommandExecutor, "parse(): Error - Unknown command group '%s'.\n", group.c_str());
     Serial.printf("Error: Unknown command group '%s'; type $help\n", group.c_str());
 }

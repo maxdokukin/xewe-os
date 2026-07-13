@@ -6,12 +6,14 @@ ModuleController::ModuleController()
   , system(*this)
   , command_executor(*this)
   , wifi(*this)
+  , web_interface(*this)
 {
     register_module(serial_port);
     register_module(nvs);
     register_module(system);
     register_module(command_executor);
     register_module(wifi);
+    register_module(web_interface);
 }
 
 void ModuleController::begin() {
@@ -23,6 +25,9 @@ void ModuleController::begin() {
     command_executor.begin          (CommandExecutorConfig  {});
 
     wifi.begin                      (WifiConfig  {});
+
+    web_interface.add_requirement   (wifi);
+    web_interface.begin             (WebInterfaceConfig  {});
 
     if (init_setup_flag) {
         serial_port.print_header("Initial Setup Complete");

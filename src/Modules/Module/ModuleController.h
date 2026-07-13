@@ -8,7 +8,7 @@
 #include "../Core/CommandExecutor/CommandExecutor.h"
 
 #include "../Software/Wifi/Wifi.h"
-// #include "../Software/WebInterface/WebInterface.h"
+#include "../Software/WebInterface/WebInterface.h"
 
 #include <map>
 #include <memory>
@@ -38,6 +38,7 @@ public:
     CommandExecutor                         command_executor;
 
     Wifi                                    wifi;
+    WebInterface                            web_interface;
 
 private:
     std::map<std::string, Module*>          modules             {};

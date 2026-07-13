@@ -23,117 +23,192 @@ System::System(ModuleController& controller)
                /* can_be_disabled     */ false,
                /* has_cli_cmds        */ true) {
 
-    commands_storage.push_back({
+    commands_storage.push_back(Command{
         "restart",
         "Restart the ESP",
         std::string("$") + xewe::str::lower(name) + " restart",
         0,
-        [this](std::string_view) { restart(1000); }
+        [this](std::span<const std::string>) {
+            restart(1000);
+        }
     });
 
-    commands_storage.push_back({
+    commands_storage.push_back(Command{
         "reboot",
         "Restart the ESP",
         std::string("$") + xewe::str::lower(name) + " reboot",
         0,
-        [this](std::string_view) { restart(1000); }
-    });
-
-    commands_storage.push_back({
-      "info","Chip and build info",
-      std::string("$")+xewe::str::lower(name)+" info",
-      0,
-      [this](std::string_view){
-        esp_chip_info_t ci; esp_chip_info(&ci);
-        uint8_t mac[6]; esp_read_mac(mac, ESP_MAC_WIFI_STA);
-        std::size_t   flash_sz = ESP.getFlashChipSize();
-        uint32_t flash_hz = ESP.getFlashChipSpeed();
-
-        std::string s;
-        s += "Model "; s += std::to_string((int)ci.model);
-        s += "  Cores "; s += std::to_string((int)ci.cores);
-        s += "  Rev "; s += std::to_string((int)ci.revision); s += "\n";
-        s += "IDF "; s += esp_get_idf_version(); s += "\n";
-        s += "Flash "; s += std::to_string((unsigned)flash_sz);
-        s += " bytes @ "; s += std::to_string((unsigned)flash_hz); s += " Hz\n";
-        char macs[18]; snprintf(macs, sizeof(macs), "%02X:%02X:%02X:%02X:%02X:%02X", mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
-        s += "MAC "; s += macs;
-        this->controller.serial_port.print(s.c_str(), xewe::str::kCRLF);
-      }
-    });
-
-    commands_storage.push_back({
-      "set_device_name",
-      "Set device name",
-      std::string("$") + xewe::str::lower(name) + " set_device_name \"Kitchen Lights\"",
-      1,
-      [this](std::string_view args_sv){
-        String args(args_sv.data(), args_sv.length());
-        args.trim();
-
-        if (args.isEmpty()) {
-          this->controller.serial_port.print(
-            ("Usage: " + xewe::str::lower(name) + " set_device_name \"<name>\"").c_str(),
-            xewe::str::kCRLF
-          );
-          return;
+        [this](std::span<const std::string>) {
+            restart(1000);
         }
-
-        if (args.length() >= 2 && args[0] == '"' && args[args.length() - 1] == '"') {
-          args = args.substring(1, args.length() - 1);
-          args.trim();
-        }
-
-        if (args.isEmpty()) {
-          this->controller.serial_port.print("Device name cannot be empty", xewe::str::kCRLF);
-          return;
-        }
-
-        std::string new_name = args.c_str();
-        this->controller.nvs.write_str(id, "dname", new_name);
-        this->controller.serial_port.print(
-          ("Device name set to: " + new_name).c_str(),
-          xewe::str::kCRLF
-        );
-      }
     });
 
-    commands_storage.push_back({
-      "mac","Print MAC addresses",
-      std::string("$")+xewe::str::lower(name)+" mac",0,
-      [this](std::string_view){
-        struct Item{ const char* name; esp_mac_type_t t; } items[]={
-          {"wifi_sta", ESP_MAC_WIFI_STA},
-          {"wifi_ap",  ESP_MAC_WIFI_SOFTAP},
-          {"bt",       ESP_MAC_BT},
-          {"eth",      ESP_MAC_ETH},
-        };
-        for(auto& it: items){
-          uint8_t m[6]; if(esp_read_mac(m, it.t)==ESP_OK){
-            char line[40]; snprintf(line, sizeof(line), "%s %02X:%02X:%02X:%02X:%02X:%02X", it.name,m[0],m[1],m[2],m[3],m[4],m[5]);
-            this->controller.serial_port.print(line, xewe::str::kCRLF);
-          }
+    commands_storage.push_back(Command{
+        "info",
+        "Chip and build info",
+        std::string("$") + xewe::str::lower(name) + " info",
+        0,
+        [this](std::span<const std::string>) {
+            esp_chip_info_t ci;
+            esp_chip_info(&ci);
+
+            uint8_t mac[6];
+            esp_read_mac(mac, ESP_MAC_WIFI_STA);
+
+            std::size_t flash_sz = ESP.getFlashChipSize();
+            uint32_t flash_hz = ESP.getFlashChipSpeed();
+
+            std::string s;
+            s += "Model ";
+            s += std::to_string(static_cast<int>(ci.model));
+            s += "  Cores ";
+            s += std::to_string(static_cast<int>(ci.cores));
+            s += "  Rev ";
+            s += std::to_string(static_cast<int>(ci.revision));
+            s += "\n";
+
+            s += "IDF ";
+            s += esp_get_idf_version();
+            s += "\n";
+
+            s += "Flash ";
+            s += std::to_string(static_cast<unsigned>(flash_sz));
+            s += " bytes @ ";
+            s += std::to_string(static_cast<unsigned>(flash_hz));
+            s += " Hz\n";
+
+            char macs[18];
+            snprintf(
+                macs,
+                sizeof(macs),
+                "%02X:%02X:%02X:%02X:%02X:%02X",
+                mac[0],
+                mac[1],
+                mac[2],
+                mac[3],
+                mac[4],
+                mac[5]
+            );
+
+            s += "MAC ";
+            s += macs;
+
+            this->controller.serial_port.print(s.c_str(), xewe::str::kCRLF);
         }
-      }
     });
 
-    commands_storage.push_back({
-      "uid","Device UID from eFuse base MAC (and SHA256-64)",
-      std::string("$")+xewe::str::lower(name)+" uid",0,
-      [this](std::string_view){
-        uint8_t mac[6]; esp_efuse_mac_get_default(mac);
-        uint8_t dig[32]; mbedtls_sha256(mac, sizeof(mac), dig, 0 /* is224 */);
-        this->controller.serial_port.print(("base_mac "+xewe::str::to_hex(mac, sizeof(mac))).c_str(), xewe::str::kCRLF);
-        this->controller.serial_port.print(("uid64 "+xewe::str::to_hex(dig, 8)).c_str(), xewe::str::kCRLF);
-      }
+    commands_storage.push_back(Command{
+        "set_device_name",
+        "Set device name",
+        std::string("$") + xewe::str::lower(name) + " set_device_name \"Kitchen Lights\"",
+        1,
+        [this](std::span<const std::string> args) {
+            if (args.empty() || args[0].empty()) {
+                this->controller.serial_port.print(
+                    ("Usage: $" + xewe::str::lower(name) + " set_device_name \"<name>\"").c_str(),
+                    xewe::str::kCRLF
+                );
+                return;
+            }
+
+            std::string new_name = args[0];
+
+            if (new_name.empty()) {
+                this->controller.serial_port.print(
+                    "Device name cannot be empty",
+                    xewe::str::kCRLF
+                );
+                return;
+            }
+
+            this->controller.nvs.write_str(id, "dname", new_name);
+
+            this->controller.serial_port.print(
+                ("Device name set to: " + new_name).c_str(),
+                xewe::str::kCRLF
+            );
+        }
     });
 
-    commands_storage.push_back({
-      "stack","Current task stack watermark (words)",
-      std::string("$")+xewe::str::lower(name)+" stack",0,
-      [this](std::string_view){
-        this->controller.serial_port.print(std::to_string((unsigned)uxTaskGetStackHighWaterMark(nullptr)).c_str(), xewe::str::kCRLF);
-      }
+    commands_storage.push_back(Command{
+        "mac",
+        "Print MAC addresses",
+        std::string("$") + xewe::str::lower(name) + " mac",
+        0,
+        [this](std::span<const std::string>) {
+            struct Item {
+                const char* name;
+                esp_mac_type_t type;
+            };
+
+            Item items[] = {
+                {"wifi_sta", ESP_MAC_WIFI_STA},
+                {"wifi_ap",  ESP_MAC_WIFI_SOFTAP},
+                {"bt",       ESP_MAC_BT},
+                {"eth",      ESP_MAC_ETH},
+            };
+
+            for (const auto& item : items) {
+                uint8_t mac[6];
+
+                if (esp_read_mac(mac, item.type) == ESP_OK) {
+                    char line[40];
+                    snprintf(
+                        line,
+                        sizeof(line),
+                        "%s %02X:%02X:%02X:%02X:%02X:%02X",
+                        item.name,
+                        mac[0],
+                        mac[1],
+                        mac[2],
+                        mac[3],
+                        mac[4],
+                        mac[5]
+                    );
+
+                    this->controller.serial_port.print(line, xewe::str::kCRLF);
+                }
+            }
+        }
+    });
+
+    commands_storage.push_back(Command{
+        "uid",
+        "Device UID from eFuse base MAC (and SHA256-64)",
+        std::string("$") + xewe::str::lower(name) + " uid",
+        0,
+        [this](std::span<const std::string>) {
+            uint8_t mac[6];
+            esp_efuse_mac_get_default(mac);
+
+            uint8_t dig[32];
+            mbedtls_sha256(mac, sizeof(mac), dig, 0 /* is224 */);
+
+            this->controller.serial_port.print(
+                ("base_mac " + xewe::str::to_hex(mac, sizeof(mac))).c_str(),
+                xewe::str::kCRLF
+            );
+
+            this->controller.serial_port.print(
+                ("uid64 " + xewe::str::to_hex(dig, 8)).c_str(),
+                xewe::str::kCRLF
+            );
+        }
+    });
+
+    commands_storage.push_back(Command{
+        "stack",
+        "Current task stack watermark (words)",
+        std::string("$") + xewe::str::lower(name) + " stack",
+        0,
+        [this](std::span<const std::string>) {
+            this->controller.serial_port.print(
+                std::to_string(
+                    static_cast<unsigned>(uxTaskGetStackHighWaterMark(nullptr))
+                ).c_str(),
+                xewe::str::kCRLF
+            );
+        }
     });
 }
 

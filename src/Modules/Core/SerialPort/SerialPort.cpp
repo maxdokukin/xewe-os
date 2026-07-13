@@ -89,7 +89,7 @@ void SerialPort::print(std::string_view message,
                 if (!end.empty())
                     Serial.write(reinterpret_cast<const uint8_t*>(end.data()), end.size());
             } else {
-                Serial.write(reinterpret_cast<const uint8_t*>(kCRLF), 2);
+                Serial.write(reinterpret_cast<const uint8_t*>(xewe::str::kCRLF), 2);
             }
         }
     }

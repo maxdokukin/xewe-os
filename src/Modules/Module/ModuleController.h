@@ -23,7 +23,7 @@ public:
 
     bool register_module(Module& module);
 
-    Module* get_module(std::string_view module_id);
+    Module* get_module(std::string_view id);
 
     void send_command(
         Module* sender,

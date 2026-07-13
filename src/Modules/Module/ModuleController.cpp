@@ -49,9 +49,9 @@ void ModuleController::load_registered_modules() {
 }
 
 void ModuleController::index_module_commands(Module& module) {
-    const std::string module_id(module.get_id());
+    const std::string id(module.get_id());
 
-    auto& module_commands = command_index[module_id];
+    auto& module_commands = command_index[id];
 
     for (const Command& command : module.get_commands()) {
         if (command.name.empty()) {
@@ -66,8 +66,8 @@ void ModuleController::index_module_commands(Module& module) {
     }
 }
 
-Module* ModuleController::get_module(std::string_view module_id) {
-    auto it = modules.find(std::string(module_id));
+Module* ModuleController::get_module(std::string_view id) {
+    auto it = modules.find(std::string(id));
 
     if (it == modules.end()) {
         return nullptr;

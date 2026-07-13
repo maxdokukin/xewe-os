@@ -39,10 +39,10 @@ void CommandExecutor::loop() {
     parse(controller.serial_port.read_line());
 }
 
-void CommandExecutor::print_help(std::string_view module_id) const {
-    const std::string id = trim_copy(module_id);
+void CommandExecutor::print_help(std::string_view id) const {
+    const std::string id = trim_copy(id);
 
-    if (module_id.empty()) {
+    if (id.empty()) {
         print_all_commands();
         return;
     }
@@ -52,7 +52,7 @@ void CommandExecutor::print_help(std::string_view module_id) const {
     if (module == nullptr) {
         controller.serial_port.printf(
             "Error: Unknown module '%s'\r\n",
-            module_id.c_str()
+            id.c_str()
         );
         return;
     }
@@ -62,7 +62,7 @@ void CommandExecutor::print_help(std::string_view module_id) const {
     if (commands.empty()) {
         controller.serial_port.printf(
             "Module '%s' has no CLI commands\r\n",
-            module_id.c_str()
+            id.c_str()
         );
         return;
     }
@@ -97,10 +97,10 @@ void CommandExecutor::print_help(std::string_view module_id) const {
 void CommandExecutor::print_all_commands() const {
     controller.serial_port.print(
         "Usage:\r\n"
-        "  $<module_id> <command> [args...]\r\n"
-        "  $<module_id>\r\n"
-        "  $<module_id> help\r\n"
-        "  $help <module_id>\r\n\r\n"
+        "  $<id> <command> [args...]\r\n"
+        "  $<id>\r\n"
+        "  $<id> help\r\n"
+        "  $help <id>\r\n\r\n"
         "Global command listing is not available without a ModuleController module iterator.\r\n",
         xewe::str::kCRLF
     );
@@ -144,7 +144,7 @@ void CommandExecutor::parse(std::string_view input_line) const {
         }
 
         if (tokens.size() != 2) {
-            controller.serial_port.print("Usage: $help <module_id>", kCRLF);
+            controller.serial_port.print("Usage: $help <id>", kCRLF);
             return;
         }
 

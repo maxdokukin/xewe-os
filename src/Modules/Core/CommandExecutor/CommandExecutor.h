@@ -25,7 +25,7 @@ public:
     void                        begin_routines_required     (const ModuleConfig& cfg)       override;
     void                        loop                        ()                              override;
 
-    void                        print_help                  (std::string_view module_id)    const;
+    void                        print_help                  (std::string_view id)    const;
     void                        print_all_commands          ()                              const;
     void                        parse                       (std::string_view input_line)   const;
 

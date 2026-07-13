@@ -193,7 +193,7 @@ std::string Nvs::read_str(std::string_view ns, std::string_view key, std::string
         return std::string(default_value);
     }
     std::string k = full_key(ns, key);
-    std::string tmp = preferences.getString(k.c_str(), default_value.data());
+    String tmp = preferences.getString(k.c_str(), default_value.data());
     std::string result(tmp.c_str());
     DBG_PRINTF(Nvs, "read_str(): Read key '%s', got value '%s'.\n", k.c_str(), result.c_str());
     preferences.end();

@@ -294,7 +294,6 @@ void Nvs::reset_ns(std::string_view ns) {
 
     std::vector<std::string> keys_to_remove;
 
-#if ESP_IDF_VERSION_MAJOR >= 5
     nvs_iterator_t it = nullptr;
     esp_err_t iter_err = nvs_entry_find("nvs", id.c_str(), NVS_TYPE_ANY, &it);
 
@@ -318,26 +317,6 @@ void Nvs::reset_ns(std::string_view ns) {
     if (it != nullptr) {
         nvs_release_iterator(it);
     }
-#else
-    nvs_iterator_t it = nvs_entry_find("nvs", id.c_str(), NVS_TYPE_ANY);
-
-    while (it != nullptr) {
-        nvs_entry_info_t info{};
-        nvs_entry_info(it, &info);
-
-        const std::string current_key(info.key);
-
-        if (current_key.rfind(prefix, 0) == 0) {
-            keys_to_remove.push_back(current_key);
-
-            DBG_PRINTF(Nvs,
-                       "reset_ns(): matched key '%s'.\n",
-                       current_key.c_str());
-        }
-
-        it = nvs_entry_next(it);
-    }
-#endif
 
     if (keys_to_remove.empty()) {
         DBG_PRINTF(Nvs,

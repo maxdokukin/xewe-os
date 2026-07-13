@@ -28,8 +28,8 @@ Nvs::Nvs(ModuleController& controller)
 
 void Nvs::reset (const bool verbose, const bool do_restart, const bool keep_enabled) {
     DBG_PRINTLN(Nvs, "reset(): Clearing all stored preferences.");
-    if (!preferences.begin(nvs_key.c_str(), false)) {
-        DBG_PRINTF(Nvs, "reset(): ERROR opening namespace '%s'.\n", nvs_key.c_str());
+    if (!preferences.begin(id.c_str(), false)) {
+        DBG_PRINTF(Nvs, "reset(): ERROR opening namespace '%s'.\n", id.c_str());
         return;
     }
     if (preferences.clear()) {
@@ -44,8 +44,8 @@ void Nvs::reset (const bool verbose, const bool do_restart, const bool keep_enab
 void Nvs::write_str(string_view ns, string_view key, string_view value) {
     DBG_PRINTF(Nvs, "write_str(): Attempting to write ns='%s', key='%s', value='%s'.\n", ns.data(), key.data(), value.data());
     string k = full_key(ns, key);
-    if (!preferences.begin(nvs_key.c_str(), false)) {
-        DBG_PRINTF(Nvs, "write_str(): ERROR opening namespace '%s'.\n", nvs_key.c_str());
+    if (!preferences.begin(id.c_str(), false)) {
+        DBG_PRINTF(Nvs, "write_str(): ERROR opening namespace '%s'.\n", id.c_str());
         return;
     }
     DBG_PRINTF(Nvs, "write_str(): Writing to key '%s' value '%s'.\n", k.c_str(), value.data());
@@ -61,8 +61,8 @@ void Nvs::write_str(string_view ns, string_view key, string_view value) {
 void Nvs::write_uint8(string_view ns, string_view key, uint8_t value) {
     DBG_PRINTF(Nvs, "write_uint8(): Attempting to write ns='%s', key='%s', value=%u.\n", ns.data(), key.data(), value);
     string k = full_key(ns, key);
-    if (!preferences.begin(nvs_key.c_str(), false)) {
-        DBG_PRINTF(Nvs, "write_uint8(): ERROR opening namespace '%s'.\n", nvs_key.c_str());
+    if (!preferences.begin(id.c_str(), false)) {
+        DBG_PRINTF(Nvs, "write_uint8(): ERROR opening namespace '%s'.\n", id.c_str());
         return;
     }
     DBG_PRINTF(Nvs, "write_uint8(): Writing to key '%s' value %u.\n", k.c_str(), value);
@@ -77,8 +77,8 @@ void Nvs::write_uint8(string_view ns, string_view key, uint8_t value) {
 void Nvs::write_uint16(string_view ns, string_view key, uint16_t value) {
     DBG_PRINTF(Nvs, "write_uint16(): Attempting to write ns='%s', key='%s', value=%u.\n", ns.data(), key.data(), value);
     string k = full_key(ns, key);
-    if (!preferences.begin(nvs_key.c_str(), false)) {
-        DBG_PRINTF(Nvs, "write_uint16(): ERROR opening namespace '%s'.\n", nvs_key.c_str());
+    if (!preferences.begin(id.c_str(), false)) {
+        DBG_PRINTF(Nvs, "write_uint16(): ERROR opening namespace '%s'.\n", id.c_str());
         return;
     }
     DBG_PRINTF(Nvs, "write_uint16(): Writing to key '%s' value %u.\n", k.c_str(), value);
@@ -93,8 +93,8 @@ void Nvs::write_uint16(string_view ns, string_view key, uint16_t value) {
 void Nvs::write_bool(string_view ns, string_view key, bool value) {
     DBG_PRINTF(Nvs, "write_bool(): Attempting to write ns='%s', key='%s', value=%s.\n", ns.data(), key.data(), value ? "true" : "false");
     string k = full_key(ns, key);
-    if (!preferences.begin(nvs_key.c_str(), false)) {
-        DBG_PRINTF(Nvs, "write_bool(): ERROR opening namespace '%s'.\n", nvs_key.c_str());
+    if (!preferences.begin(id.c_str(), false)) {
+        DBG_PRINTF(Nvs, "write_bool(): ERROR opening namespace '%s'.\n", id.c_str());
         return;
     }
     DBG_PRINTF(Nvs, "write_bool(): Writing to key '%s' value %s.\n", k.c_str(), value ? "true" : "false");
@@ -109,8 +109,8 @@ void Nvs::write_bool(string_view ns, string_view key, bool value) {
 void Nvs::remove(string_view ns, string_view key) {
     DBG_PRINTF(Nvs, "remove(): Attempting to remove ns='%s', key='%s'.\n", ns.data(), key.data());
     string k = full_key(ns, key);
-    if (!preferences.begin(nvs_key.c_str(), false)) {
-        DBG_PRINTF(Nvs, "remove(): ERROR opening namespace '%s'.\n", nvs_key.c_str());
+    if (!preferences.begin(id.c_str(), false)) {
+        DBG_PRINTF(Nvs, "remove(): ERROR opening namespace '%s'.\n", id.c_str());
         return;
     }
     DBG_PRINTF(Nvs, "remove(): Removing key '%s'.\n", k.c_str());
@@ -131,7 +131,7 @@ void Nvs::reset_ns(string_view ns) {
 
     // 2. Use native ESP-IDF iterator (v5 API Style)
     nvs_iterator_t it = nullptr;
-    esp_err_t res = nvs_entry_find("nvs", nvs_key.c_str(), NVS_TYPE_ANY, &it);
+    esp_err_t res = nvs_entry_find("nvs", id.c_str(), NVS_TYPE_ANY, &it);
 
     if (res != ESP_OK) {
         DBG_PRINTLN(Nvs, "reset_ns(): No entries found in NVS or error starting iteration.");
@@ -165,8 +165,8 @@ void Nvs::reset_ns(string_view ns) {
     }
 
     // 4. Batch remove using Preferences
-    if (!preferences.begin(nvs_key.c_str(), false)) {
-        DBG_PRINTF(Nvs, "reset_ns(): ERROR opening namespace '%s' for deletion.\n", nvs_key.c_str());
+    if (!preferences.begin(id.c_str(), false)) {
+        DBG_PRINTF(Nvs, "reset_ns(): ERROR opening namespace '%s' for deletion.\n", id.c_str());
         return;
     }
 
@@ -186,8 +186,8 @@ void Nvs::reset_ns(string_view ns) {
 string Nvs::read_str(string_view ns, string_view key, string_view default_value) {
     DBG_PRINTF(Nvs, "read_str(): Attempting to read ns='%s', key='%s'.\n", ns.data(), key.data());
     // FIX: Changed 'true' to 'false' to allow namespace creation on first read
-    if (!preferences.begin(nvs_key.c_str(), false)) {
-        DBG_PRINTF(Nvs, "read_str(): ERROR opening namespace '%s'. Returning default value '%s'.\n", nvs_key.c_str(), default_value.data());
+    if (!preferences.begin(id.c_str(), false)) {
+        DBG_PRINTF(Nvs, "read_str(): ERROR opening namespace '%s'. Returning default value '%s'.\n", id.c_str(), default_value.data());
         return string(default_value);
     }
     string k = full_key(ns, key);
@@ -201,8 +201,8 @@ string Nvs::read_str(string_view ns, string_view key, string_view default_value)
 uint8_t Nvs::read_uint8(string_view ns, string_view key, uint8_t default_value) {
     DBG_PRINTF(Nvs, "read_uint8(): Attempting to read ns='%s', key='%s'.\n", ns.data(), key.data());
     // FIX: Changed 'true' to 'false' to allow namespace creation on first read
-    if (!preferences.begin(nvs_key.c_str(), false)) {
-        DBG_PRINTF(Nvs, "read_uint8(): ERROR opening namespace '%s'. Returning default value %u.\n", nvs_key.c_str(), default_value);
+    if (!preferences.begin(id.c_str(), false)) {
+        DBG_PRINTF(Nvs, "read_uint8(): ERROR opening namespace '%s'. Returning default value %u.\n", id.c_str(), default_value);
         return default_value;
     }
     string k = full_key(ns, key);
@@ -215,8 +215,8 @@ uint8_t Nvs::read_uint8(string_view ns, string_view key, uint8_t default_value) 
 uint16_t Nvs::read_uint16(string_view ns, string_view key, uint16_t default_value) {
     DBG_PRINTF(Nvs, "read_uint16(): Attempting to read ns='%s', key='%s'.\n", ns.data(), key.data());
     // FIX: Changed 'true' to 'false' to allow namespace creation on first read
-    if (!preferences.begin(nvs_key.c_str(), false)) {
-        DBG_PRINTF(Nvs, "read_uint16(): ERROR opening namespace '%s'. Returning default value %u.\n", nvs_key.c_str(), default_value);
+    if (!preferences.begin(id.c_str(), false)) {
+        DBG_PRINTF(Nvs, "read_uint16(): ERROR opening namespace '%s'. Returning default value %u.\n", id.c_str(), default_value);
         return default_value;
     }
     string k = full_key(ns, key);
@@ -229,8 +229,8 @@ uint16_t Nvs::read_uint16(string_view ns, string_view key, uint16_t default_valu
 bool Nvs::read_bool(string_view ns, string_view key, bool default_value) {
     DBG_PRINTF(Nvs, "read_bool(): Attempting to read ns='%s', key='%s'.\n", ns.data(), key.data());
     // FIX: Changed 'true' to 'false' to allow namespace creation on first read
-    if (!preferences.begin(nvs_key.c_str(), false)) {
-        DBG_PRINTF(Nvs, "read_bool(): ERROR opening namespace '%s'. Returning default value %s.\n", nvs_key.c_str(), default_value ? "true" : "false");
+    if (!preferences.begin(id.c_str(), false)) {
+        DBG_PRINTF(Nvs, "read_bool(): ERROR opening namespace '%s'. Returning default value %s.\n", id.c_str(), default_value ? "true" : "false");
         return default_value;
     }
     string k = full_key(ns, key);

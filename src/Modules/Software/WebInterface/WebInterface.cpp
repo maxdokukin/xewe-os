@@ -11,14 +11,16 @@
 // src/Modules/Software/WebInterface/WebInterface.cpp
 
 #include "WebInterface.h"
-#include "../../../SystemController/SystemController.h"
+#include "../../Module/ModuleController.h"
 
+#include "../../Module/ModuleRegistry.h"
+static ModuleRegistrar<WebInterface> registrar_web_interface("web");
 
-WebInterface::WebInterface(SystemController& controller)
+WebInterface::WebInterface(ModuleController& controller)
       : Module(controller,
-               /* module_name         */ "Web_Interface",
-               /* module_description  */ "Allows to interact with other devices on the local network",
-               /* nvs_key             */ "wb",
+               /* id                  */ "web",
+               /* name                */ "Web_Interface",
+               /* description         */ "Allows to interact with other devices on the local network",
                /* requires_init_setup */ false,
                /* can_be_disabled     */ true,
                /* has_cli_cmds        */ true)

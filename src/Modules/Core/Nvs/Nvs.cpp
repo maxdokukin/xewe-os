@@ -17,9 +17,9 @@
 
 Nvs::Nvs(ModuleController& controller)
       : Module(controller,
-               /* module_name         */ "Nvs",
-               /* module_description  */ "Stores user settings even when the power is off",
-               /* nvs_key             */ "nvs",
+               /* id                  */ "nvs",
+               /* name                */ "Nvs",
+               /* description         */ "Stores user settings even when the power is off",
                /* requires_init_setup */ false,
                /* can_be_disabled     */ false,
                /* has_cli_cmds        */ false)

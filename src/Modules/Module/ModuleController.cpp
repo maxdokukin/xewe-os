@@ -15,10 +15,10 @@ ModuleController::ModuleController()
 }
 
 void ModuleController::begin() {
-    const bool init_setup_flag = !nvs.read_bool("root", "init_setup_flag");
 
     serial_port.begin               (SerialPortConfig       {});
     nvs.begin                       (NvsConfig              {});
+    const bool init_setup_flag = !nvs.read<bool>("root", "init_setup_flag");
     system.begin                    (SystemConfig           {});
     command_executor.begin          (CommandExecutorConfig  {});
 
@@ -26,7 +26,7 @@ void ModuleController::begin() {
 
     if (init_setup_flag) {
         serial_port.print_header("Initial Setup Complete");
-        nvs.write_bool("root", "init_setup_flag", true);
+        nvs.write<bool>("root", "init_setup_flag", true);
         system.restart();
     }
 

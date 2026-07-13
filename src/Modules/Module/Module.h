@@ -1,6 +1,7 @@
 // src/Modules/Module/Module.h
 #pragma once
 
+#include <Arduino.h>
 #include <cstddef>
 #include <cstdint>
 #include <functional>

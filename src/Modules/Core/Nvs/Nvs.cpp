@@ -8,14 +8,27 @@
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
 
-
-
-// src/Interfaces/Nvs/Nvs.cpp
+// src/Modules/Nvs/Nvs.cpp
 
 #include "Nvs.h"
 #include "../../Module/ModuleController.h"
 
 #include <vector>
+
+#if __has_include(<esp_idf_version.h>)
+#include <esp_idf_version.h>
+#endif
+
+#ifndef ESP_IDF_VERSION_MAJOR
+#define ESP_IDF_VERSION_MAJOR 5
+#endif
+
+
+namespace {
+    constexpr std::string_view kInitSetupNs  = "root";
+    constexpr std::string_view kInitSetupKey = "init_setup_complete";
+}
+
 
 Nvs::Nvs(ModuleController& controller)
       : Module(controller,
@@ -28,229 +41,361 @@ Nvs::Nvs(ModuleController& controller)
 {}
 
 
-void Nvs::reset (const bool verbose, const bool do_restart, const bool keep_enabled) {
-    DBG_PRINTLN(Nvs, "reset(): Clearing all stored preferences.");
-    if (!preferences.begin(id.c_str(), false)) {
-        DBG_PRINTF(Nvs, "reset(): ERROR opening namespace '%s'.\n", id.c_str());
+bool Nvs::ensure_ready() {
+    if (m_nvs_ready) {
+        return true;
+    }
+
+    esp_err_t err = nvs_flash_init();
+
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        DBG_PRINTF(Nvs,
+                   "ensure_ready(): nvs_flash_init() returned %s (%d). Erasing default NVS partition.\n",
+                   esp_err_to_name(err),
+                   static_cast<int>(err));
+
+        (void)nvs_flash_deinit();
+
+        const esp_err_t erase_err = nvs_flash_erase();
+
+        if (erase_err != ESP_OK) {
+            DBG_PRINTF(Nvs,
+                       "ensure_ready(): nvs_flash_erase() failed: %s (%d).\n",
+                       esp_err_to_name(erase_err),
+                       static_cast<int>(erase_err));
+            return false;
+        }
+
+        err = nvs_flash_init();
+    }
+
+    if (err == ESP_OK || err == ESP_ERR_INVALID_STATE) {
+        m_nvs_ready = true;
+        DBG_PRINTLN(Nvs, "ensure_ready(): NVS ready.");
+        return true;
+    }
+
+    DBG_PRINTF(Nvs,
+               "ensure_ready(): nvs_flash_init() failed: %s (%d).\n",
+               esp_err_to_name(err),
+               static_cast<int>(err));
+
+    return false;
+}
+
+
+esp_err_t Nvs::open_handle(nvs_open_mode_t mode, nvs_handle_t& handle) {
+    handle = 0;
+
+    if (!ensure_ready()) {
+        return ESP_FAIL;
+    }
+
+    const esp_err_t err = nvs_open(id.c_str(), mode, &handle);
+
+    if (err != ESP_OK && !(mode == NVS_READONLY && err == ESP_ERR_NVS_NOT_FOUND)) {
+        DBG_PRINTF(Nvs,
+                   "open_handle(): nvs_open(namespace='%s', mode=%d) failed: %s (%d).\n",
+                   id.c_str(),
+                   static_cast<int>(mode),
+                   esp_err_to_name(err),
+                   static_cast<int>(err));
+    }
+
+    return err;
+}
+
+
+bool Nvs::commit_and_close(nvs_handle_t handle,
+                           esp_err_t op_err,
+                           const char* op_name,
+                           const std::string& storage_key) {
+    if (op_err != ESP_OK) {
+        DBG_PRINTF(Nvs,
+                   "%s: operation failed for key '%s': %s (%d).\n",
+                   op_name,
+                   storage_key.c_str(),
+                   esp_err_to_name(op_err),
+                   static_cast<int>(op_err));
+
+        nvs_close(handle);
+        return false;
+    }
+
+    const esp_err_t commit_err = nvs_commit(handle);
+
+    if (commit_err != ESP_OK) {
+        DBG_PRINTF(Nvs,
+                   "%s: commit failed for key '%s': %s (%d).\n",
+                   op_name,
+                   storage_key.c_str(),
+                   esp_err_to_name(commit_err),
+                   static_cast<int>(commit_err));
+
+        nvs_close(handle);
+        return false;
+    }
+
+    DBG_PRINTF(Nvs,
+               "%s: persisted key '%s'.\n",
+               op_name,
+               storage_key.c_str());
+
+    nvs_close(handle);
+    return true;
+}
+
+
+std::string Nvs::full_key(std::string_view ns, std::string_view key) const {
+    std::string combined;
+
+    if (!ns.empty()) {
+        combined.append(ns.data(), ns.size());
+        combined.push_back(':');
+    }
+
+    combined.append(key.data(), key.size());
+
+    for (char& c : combined) {
+        if (c == '\0') {
+            c = '_';
+        }
+    }
+
+    if (combined.size() > MAX_KEY_LEN) {
+        DBG_PRINTF(Nvs,
+                   "full_key(): WARNING: key '%s' is too long (%u chars), truncating to %u.\n",
+                   combined.c_str(),
+                   static_cast<unsigned>(combined.size()),
+                   static_cast<unsigned>(MAX_KEY_LEN));
+
+        combined.resize(MAX_KEY_LEN);
+
+        DBG_PRINTF(Nvs,
+                   "full_key(): truncated key is '%s'.\n",
+                   combined.c_str());
+    }
+
+    return combined;
+}
+
+
+std::string Nvs::namespace_prefix(std::string_view ns) const {
+    if (ns.empty()) {
+        return {};
+    }
+
+    std::string prefix;
+    prefix.append(ns.data(), ns.size());
+    prefix.push_back(':');
+
+    for (char& c : prefix) {
+        if (c == '\0') {
+            c = '_';
+        }
+    }
+
+    if (prefix.size() > MAX_KEY_LEN) {
+        prefix.resize(MAX_KEY_LEN);
+    }
+
+    return prefix;
+}
+
+
+void Nvs::reset(const bool verbose, const bool do_restart, const bool keep_enabled) {
+    DBG_PRINTF(Nvs,
+               "reset(): clearing all keys in NVS namespace '%s'.\n",
+               id.c_str());
+
+    nvs_handle_t handle;
+    const esp_err_t open_err = open_handle(NVS_READWRITE, handle);
+
+    if (open_err != ESP_OK) {
+        DBG_PRINTF(Nvs,
+                   "reset(): failed to open namespace '%s': %s (%d).\n",
+                   id.c_str(),
+                   esp_err_to_name(open_err),
+                   static_cast<int>(open_err));
         return;
     }
-    if (preferences.clear()) {
-        DBG_PRINTLN(Nvs, "reset(): Successfully cleared preferences.");
-    } else {
-        DBG_PRINTLN(Nvs, "reset(): FAILED to clear preferences.");
+
+    const esp_err_t erase_err = nvs_erase_all(handle);
+
+    if (!commit_and_close(handle, erase_err, "reset()", std::string(id.c_str()))) {
+        DBG_PRINTLN(Nvs, "reset(): failed.");
+        return;
     }
-    preferences.end();
+
+    DBG_PRINTLN(Nvs, "reset(): namespace cleared.");
+
     Module::reset(verbose, do_restart, keep_enabled);
 }
 
-void Nvs::write_str(std::string_view ns, std::string_view key, std::string_view value) {
-    DBG_PRINTF(Nvs, "write_str(): Attempting to write ns='%s', key='%s', value='%s'.\n", ns.data(), key.data(), value.data());
-    std::string k = full_key(ns, key);
-    if (!preferences.begin(id.c_str(), false)) {
-        DBG_PRINTF(Nvs, "write_str(): ERROR opening namespace '%s'.\n", id.c_str());
-        return;
-    }
-    DBG_PRINTF(Nvs, "write_str(): Writing to key '%s' value '%s'.\n", k.c_str(), value.data());
-    std::size_t bytes_written = preferences.putString(k.c_str(), value.data());
-    if (bytes_written > 0) {
-        DBG_PRINTF(Nvs, "write_str(): Successfully wrote %zu bytes for key '%s'.\n", bytes_written, k.c_str());
-    } else {
-        DBG_PRINTF(Nvs, "write_str(): FAILED to write to key '%s'.\n", k.c_str());
-    }
-    preferences.end();
-}
-
-void Nvs::write_uint8(std::string_view ns, std::string_view key, uint8_t value) {
-    DBG_PRINTF(Nvs, "write_uint8(): Attempting to write ns='%s', key='%s', value=%u.\n", ns.data(), key.data(), value);
-    std::string k = full_key(ns, key);
-    if (!preferences.begin(id.c_str(), false)) {
-        DBG_PRINTF(Nvs, "write_uint8(): ERROR opening namespace '%s'.\n", id.c_str());
-        return;
-    }
-    DBG_PRINTF(Nvs, "write_uint8(): Writing to key '%s' value %u.\n", k.c_str(), value);
-    if (preferences.putUChar(k.c_str(), value)) {
-        DBG_PRINTF(Nvs, "write_uint8(): Successfully wrote value for key '%s'.\n", k.c_str());
-    } else {
-        DBG_PRINTF(Nvs, "write_uint8(): FAILED to write to key '%s'.\n", k.c_str());
-    }
-    preferences.end();
-}
-
-void Nvs::write_uint16(std::string_view ns, std::string_view key, uint16_t value) {
-    DBG_PRINTF(Nvs, "write_uint16(): Attempting to write ns='%s', key='%s', value=%u.\n", ns.data(), key.data(), value);
-    std::string k = full_key(ns, key);
-    if (!preferences.begin(id.c_str(), false)) {
-        DBG_PRINTF(Nvs, "write_uint16(): ERROR opening namespace '%s'.\n", id.c_str());
-        return;
-    }
-    DBG_PRINTF(Nvs, "write_uint16(): Writing to key '%s' value %u.\n", k.c_str(), value);
-    if (preferences.putUShort(k.c_str(), value)) {
-        DBG_PRINTF(Nvs, "write_uint16(): Successfully wrote value for key '%s'.\n", k.c_str());
-    } else {
-        DBG_PRINTF(Nvs, "write_uint16(): FAILED to write to key '%s'.\n", k.c_str());
-    }
-    preferences.end();
-}
-
-void Nvs::write_bool(std::string_view ns, std::string_view key, bool value) {
-    DBG_PRINTF(Nvs, "write_bool(): Attempting to write ns='%s', key='%s', value=%s.\n", ns.data(), key.data(), value ? "true" : "false");
-    std::string k = full_key(ns, key);
-    if (!preferences.begin(id.c_str(), false)) {
-        DBG_PRINTF(Nvs, "write_bool(): ERROR opening namespace '%s'.\n", id.c_str());
-        return;
-    }
-    DBG_PRINTF(Nvs, "write_bool(): Writing to key '%s' value %s.\n", k.c_str(), value ? "true" : "false");
-    if (preferences.putBool(k.c_str(), value)) {
-        DBG_PRINTF(Nvs, "write_bool(): Successfully wrote value for key '%s'.\n", k.c_str());
-    } else {
-        DBG_PRINTF(Nvs, "write_bool(): FAILED to write to key '%s'.\n", k.c_str());
-    }
-    preferences.end();
-}
 
 void Nvs::remove(std::string_view ns, std::string_view key) {
-    DBG_PRINTF(Nvs, "remove(): Attempting to remove ns='%s', key='%s'.\n", ns.data(), key.data());
-    std::string k = full_key(ns, key);
-    if (!preferences.begin(id.c_str(), false)) {
-        DBG_PRINTF(Nvs, "remove(): ERROR opening namespace '%s'.\n", id.c_str());
+    if (key.empty()) {
+        DBG_PRINTLN(Nvs, "remove(): ERROR: empty key.");
         return;
     }
-    DBG_PRINTF(Nvs, "remove(): Removing key '%s'.\n", k.c_str());
-    if (preferences.remove(k.c_str())) {
-        DBG_PRINTF(Nvs, "remove(): Successfully removed key '%s'.\n", k.c_str());
-    } else {
-        DBG_PRINTF(Nvs, "remove(): FAILED to remove key '%s'. Key might not exist.\n", k.c_str());
+
+    const std::string storage_key = full_key(ns, key);
+
+    DBG_PRINTF(Nvs,
+               "remove(): ns='%.*s', key='%.*s', storage_key='%s'.\n",
+               static_cast<int>(ns.size()), ns.data(),
+               static_cast<int>(key.size()), key.data(),
+               storage_key.c_str());
+
+    nvs_handle_t handle;
+    const esp_err_t open_err = open_handle(NVS_READWRITE, handle);
+
+    if (open_err != ESP_OK) {
+        DBG_PRINTF(Nvs,
+                   "remove(): open failed for key '%s': %s (%d).\n",
+                   storage_key.c_str(),
+                   esp_err_to_name(open_err),
+                   static_cast<int>(open_err));
+        return;
     }
-    preferences.end();
+
+    const esp_err_t erase_err = nvs_erase_key(handle, storage_key.c_str());
+
+    if (erase_err == ESP_ERR_NVS_NOT_FOUND) {
+        DBG_PRINTF(Nvs,
+                   "remove(): key '%s' does not exist.\n",
+                   storage_key.c_str());
+
+        nvs_close(handle);
+        return;
+    }
+
+    (void)commit_and_close(handle, erase_err, "remove()", storage_key);
 }
+
 
 void Nvs::reset_ns(std::string_view ns) {
-    DBG_PRINTF(Nvs, "reset_ns(): Attempting to clear all keys for namespace prefix '%s'.\n", ns.data());
+    const std::string prefix = namespace_prefix(ns);
 
-    // 1. Construct the prefix we are looking for (e.g., "wifi:")
-    std::string prefix = std::string(ns) + ":";
+    if (prefix.empty()) {
+        DBG_PRINTLN(Nvs, "reset_ns(): ERROR: empty namespace.");
+        return;
+    }
+
+    DBG_PRINTF(Nvs,
+               "reset_ns(): removing keys with logical namespace '%.*s', prefix '%s'.\n",
+               static_cast<int>(ns.size()), ns.data(),
+               prefix.c_str());
+
+    if (!ensure_ready()) {
+        DBG_PRINTLN(Nvs, "reset_ns(): NVS is not ready.");
+        return;
+    }
+
     std::vector<std::string> keys_to_remove;
 
-    // 2. Use native ESP-IDF iterator (v5 API Style)
+#if ESP_IDF_VERSION_MAJOR >= 5
     nvs_iterator_t it = nullptr;
-    esp_err_t res = nvs_entry_find("nvs", id.c_str(), NVS_TYPE_ANY, &it);
+    esp_err_t iter_err = nvs_entry_find("nvs", id.c_str(), NVS_TYPE_ANY, &it);
 
-    if (res != ESP_OK) {
-        DBG_PRINTLN(Nvs, "reset_ns(): No entries found in NVS or error starting iteration.");
-        // If it was allocated despite error (rare but possible in some APIs), release it.
-        if (it != nullptr) nvs_release_iterator(it);
-        return;
-    }
+    while (iter_err == ESP_OK && it != nullptr) {
+        nvs_entry_info_t info{};
+        (void)nvs_entry_info(it, &info);
 
-    // 3. Collect keys that match the prefix
-    while (res == ESP_OK) {
-        nvs_entry_info_t info;
-        nvs_entry_info(it, &info); // Get info from current iterator
+        const std::string current_key(info.key);
 
-        std::string current_key = info.key;
-
-        // Check if the key starts with "ns:"
-        if (current_key.find(prefix) == 0) {
+        if (current_key.rfind(prefix, 0) == 0) {
             keys_to_remove.push_back(current_key);
-            DBG_PRINTF(Nvs, "reset_ns(): Found match -> '%s'\n", current_key.c_str());
+
+            DBG_PRINTF(Nvs,
+                       "reset_ns(): matched key '%s'.\n",
+                       current_key.c_str());
         }
 
-        // Move to next entry (Pass address of iterator)
-        res = nvs_entry_next(&it);
+        iter_err = nvs_entry_next(&it);
     }
-    // Release the iterator resources
-    nvs_release_iterator(it);
+
+    if (it != nullptr) {
+        nvs_release_iterator(it);
+    }
+#else
+    nvs_iterator_t it = nvs_entry_find("nvs", id.c_str(), NVS_TYPE_ANY);
+
+    while (it != nullptr) {
+        nvs_entry_info_t info{};
+        nvs_entry_info(it, &info);
+
+        const std::string current_key(info.key);
+
+        if (current_key.rfind(prefix, 0) == 0) {
+            keys_to_remove.push_back(current_key);
+
+            DBG_PRINTF(Nvs,
+                       "reset_ns(): matched key '%s'.\n",
+                       current_key.c_str());
+        }
+
+        it = nvs_entry_next(it);
+    }
+#endif
 
     if (keys_to_remove.empty()) {
-        DBG_PRINTF(Nvs, "reset_ns(): No keys found for namespace '%s'.\n", ns.data());
+        DBG_PRINTF(Nvs,
+                   "reset_ns(): no keys found for namespace '%.*s'.\n",
+                   static_cast<int>(ns.size()), ns.data());
         return;
     }
 
-    // 4. Batch remove using Preferences
-    if (!preferences.begin(id.c_str(), false)) {
-        DBG_PRINTF(Nvs, "reset_ns(): ERROR opening namespace '%s' for deletion.\n", id.c_str());
+    nvs_handle_t handle;
+    const esp_err_t open_err = open_handle(NVS_READWRITE, handle);
+
+    if (open_err != ESP_OK) {
+        DBG_PRINTF(Nvs,
+                   "reset_ns(): open failed: %s (%d).\n",
+                   esp_err_to_name(open_err),
+                   static_cast<int>(open_err));
         return;
     }
 
-    std::size_t count = 0;
-    for (const auto& k : keys_to_remove) {
-        if (preferences.remove(k.c_str())) {
-            count++;
+    std::size_t removed = 0;
+
+    for (const std::string& storage_key : keys_to_remove) {
+        const esp_err_t erase_err = nvs_erase_key(handle, storage_key.c_str());
+
+        if (erase_err == ESP_OK) {
+            ++removed;
         } else {
-            DBG_PRINTF(Nvs, "reset_ns(): Failed to remove key '%s'.\n", k.c_str());
+            DBG_PRINTF(Nvs,
+                       "reset_ns(): failed to erase key '%s': %s (%d).\n",
+                       storage_key.c_str(),
+                       esp_err_to_name(erase_err),
+                       static_cast<int>(erase_err));
         }
     }
 
-    preferences.end();
-    DBG_PRINTF(Nvs, "reset_ns(): Removed %zu keys for namespace '%s'.\n", count, ns.data());
+    const esp_err_t commit_err = nvs_commit(handle);
+    nvs_close(handle);
+
+    if (commit_err != ESP_OK) {
+        DBG_PRINTF(Nvs,
+                   "reset_ns(): commit failed: %s (%d).\n",
+                   esp_err_to_name(commit_err),
+                   static_cast<int>(commit_err));
+        return;
+    }
+
+    DBG_PRINTF(Nvs,
+               "reset_ns(): removed %u keys for namespace '%.*s'.\n",
+               static_cast<unsigned>(removed),
+               static_cast<int>(ns.size()), ns.data());
 }
 
-std::string Nvs::read_str(std::string_view ns, std::string_view key, std::string_view default_value) {
-    DBG_PRINTF(Nvs, "read_str(): Attempting to read ns='%s', key='%s'.\n", ns.data(), key.data());
-    // FIX: Changed 'true' to 'false' to allow namespace creation on first read
-    if (!preferences.begin(id.c_str(), false)) {
-        DBG_PRINTF(Nvs, "read_str(): ERROR opening namespace '%s'. Returning default value '%s'.\n", id.c_str(), default_value.data());
-        return std::string(default_value);
-    }
-    std::string k = full_key(ns, key);
-    String tmp = preferences.getString(k.c_str(), default_value.data());
-    std::string result(tmp.c_str());
-    DBG_PRINTF(Nvs, "read_str(): Read key '%s', got value '%s'.\n", k.c_str(), result.c_str());
-    preferences.end();
-    return result;
+
+bool Nvs::init_setup_complete() {
+    return read<bool>(kInitSetupNs, kInitSetupKey, false);
 }
 
-uint8_t Nvs::read_uint8(std::string_view ns, std::string_view key, uint8_t default_value) {
-    DBG_PRINTF(Nvs, "read_uint8(): Attempting to read ns='%s', key='%s'.\n", ns.data(), key.data());
-    // FIX: Changed 'true' to 'false' to allow namespace creation on first read
-    if (!preferences.begin(id.c_str(), false)) {
-        DBG_PRINTF(Nvs, "read_uint8(): ERROR opening namespace '%s'. Returning default value %u.\n", id.c_str(), default_value);
-        return default_value;
-    }
-    std::string k = full_key(ns, key);
-    uint8_t v = preferences.getUChar(k.c_str(), default_value);
-    DBG_PRINTF(Nvs, "read_uint8(): Read key '%s', got value %u.\n", k.c_str(), v);
-    preferences.end();
-    return v;
-}
 
-uint16_t Nvs::read_uint16(std::string_view ns, std::string_view key, uint16_t default_value) {
-    DBG_PRINTF(Nvs, "read_uint16(): Attempting to read ns='%s', key='%s'.\n", ns.data(), key.data());
-    // FIX: Changed 'true' to 'false' to allow namespace creation on first read
-    if (!preferences.begin(id.c_str(), false)) {
-        DBG_PRINTF(Nvs, "read_uint16(): ERROR opening namespace '%s'. Returning default value %u.\n", id.c_str(), default_value);
-        return default_value;
-    }
-    std::string k = full_key(ns, key);
-    uint16_t v = preferences.getUShort(k.c_str(), default_value);
-    DBG_PRINTF(Nvs, "read_uint16(): Read key '%s', got value %u.\n", k.c_str(), v);
-    preferences.end();
-    return v;
-}
-
-bool Nvs::read_bool(std::string_view ns, std::string_view key, bool default_value) {
-    DBG_PRINTF(Nvs, "read_bool(): Attempting to read ns='%s', key='%s'.\n", ns.data(), key.data());
-    // FIX: Changed 'true' to 'false' to allow namespace creation on first read
-    if (!preferences.begin(id.c_str(), false)) {
-        DBG_PRINTF(Nvs, "read_bool(): ERROR opening namespace '%s'. Returning default value %s.\n", id.c_str(), default_value ? "true" : "false");
-        return default_value;
-    }
-    std::string k = full_key(ns, key);
-    bool v = preferences.getBool(k.c_str(), default_value);
-    DBG_PRINTF(Nvs, "read_bool(): Read key '%s', got value %s.\n", k.c_str(), v ? "true" : "false");
-    preferences.end();
-    return v;
-}
-
-std::string Nvs::full_key(std::string_view ns, std::string_view key) const {
-    DBG_PRINTF(Nvs, "full_key(): Generating key for ns='%s', key='%s'.\n", ns.data(), key.data());
-    std::string combined = std::string(ns) + ":" + std::string(key);
-    if (combined.length() > MAX_KEY_LEN) {
-        DBG_PRINTF(Nvs, "full_key(): WARNING: key '%s' is too long (%u chars), truncating to %u\n",
-                   combined.c_str(), (unsigned)combined.length(), (unsigned)MAX_KEY_LEN);
-        combined.resize(MAX_KEY_LEN);
-        DBG_PRINTF(Nvs, "full_key(): Truncated key is '%s'.\n", combined.c_str());
-    }
-    DBG_PRINTF(Nvs, "full_key(): Resulting key is '%s'.\n", combined.c_str());
-    return combined;
+void Nvs::set_init_setup_complete() {
+    (void)write<bool>(kInitSetupNs, kInitSetupKey, true);
 }

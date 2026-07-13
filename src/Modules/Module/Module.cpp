@@ -6,8 +6,8 @@
 void Module::begin (const ModuleConfig& cfg) {
     // DBG_PRINTF(Module, "'%s'->begin(): Called.\n", name.c_str());
 
-    bool first_boot = !controller.nvs.read_bool(id, "not_first_boot");
-    enabled = first_boot || controller.nvs.read_bool(id, "is_enabled");
+    bool first_boot = !controller.nvs.read<bool>(id, "not_first_boot");
+    enabled = first_boot || controller.nvs.read<bool>(id, "is_enabled");
 
     if (can_be_disabled || requires_init_setup) {
          controller.serial_port.print_header(xewe::str::capitalize(name) + " Setup");
@@ -18,8 +18,8 @@ void Module::begin (const ModuleConfig& cfg) {
     if (!requirements_enabled(true)) {
         Serial.printf("%s requirements not enabled; skipping\n", name.c_str());
         enabled = false;
-        controller.nvs.write_bool(id, "is_enabled", false);
-        controller.nvs.write_bool(id, "not_first_boot", true);
+        controller.nvs.write<bool>(id, "is_enabled", false);
+        controller.nvs.write<bool>(id, "not_first_boot", true);
         return;
     }
 
@@ -29,13 +29,13 @@ void Module::begin (const ModuleConfig& cfg) {
             enabled = controller.serial_port.get_yn();
 
             if (!enabled) {
-                controller.nvs.write_bool(id, "is_enabled", false);
-                controller.nvs.write_bool(id, "not_first_boot", true);
+                controller.nvs.write<bool>(id, "is_enabled", false);
+                controller.nvs.write<bool>(id, "not_first_boot", true);
                 return;
             }
         }
-        controller.nvs.write_bool(id, "is_enabled", true);
-        controller.nvs.write_bool(id, "not_first_boot", true);
+        controller.nvs.write<bool>(id, "is_enabled", true);
+        controller.nvs.write<bool>(id, "not_first_boot", true);
     }
 
     begin_routines_required(cfg);
@@ -43,7 +43,7 @@ void Module::begin (const ModuleConfig& cfg) {
     if (!init_setup_complete()) {
         begin_routines_init(cfg);
         if (enabled) { // could have been disabled during begin_routines_init()
-            controller.nvs.write_bool(id, "init_complete", true);
+            controller.nvs.write<bool>(id, "init_complete", true);
         }
     } else {
         begin_routines_regular(cfg);
@@ -63,14 +63,14 @@ void Module::reset(const bool verbose, const bool do_restart, const bool keep_en
     // DBG_PRINTF(Module, "'%s'->reset(v=%d, r=%d, k=%d): Called.\n", name.c_str(), verbose, do_restart, keep_enabled);
 
     controller.nvs.reset_ns(id);
-    controller.nvs.write_bool(id, "not_first_boot", true);
+    controller.nvs.write<bool>(id, "not_first_boot", true);
     // DBG_PRINTF(Module, "'%s': NVS namespace wiped and re-initialized.\n", name.c_str());
 
     enabled = !can_be_disabled || keep_enabled;
 
     if (keep_enabled) {
         // DBG_PRINTF(Module, "'%s': Persisting 'is_enabled'=true to NVS.\n", name.c_str());
-        controller.nvs.write_bool(id, "is_enabled", true);
+        controller.nvs.write<bool>(id, "is_enabled", true);
     }
 
     if (verbose) Serial.printf("%s module reset\n", name.c_str());
@@ -96,7 +96,7 @@ void Module::enable(const bool verbose, const bool do_restart) {
     }
     enabled = true;
     // DBG_PRINTLN(Module, "enable(): Writing 'is_enabled'=true to NVS.");
-    controller.nvs.write_bool(id, "is_enabled", true);
+    controller.nvs.write<bool>(id, "is_enabled", true);
     if (verbose) Serial.printf("%s module enabled. Restarting...\n\n\n", name.c_str());
     ESP.restart();
     return;
@@ -159,7 +159,7 @@ void Module::disable(const bool verbose, const bool do_restart) {
 
 std::string Module::status(bool verbose) const {
     // DBG_PRINTF(Module, "'%s'->status(verbose=%s): Called.\n", name.c_str(), verbose ? "true" : "false");
-    std::string status_str = (name + " module " + (controller.nvs.read_bool(id, "is_enabled") ? "enabled" : "disabled"));
+    std::string status_str = (name + " module " + (controller.nvs.read<bool>(id, "is_enabled") ? "enabled" : "disabled"));
     // DBG_PRINTF(Module, "status(): Generated status std::string: '%s'.\n", status_str.c_str());
     if (verbose) Serial.printf("%s\n", status_str.c_str());
     return status_str;
@@ -190,7 +190,7 @@ bool Module::is_disabled(bool verbose) const {
 
 bool Module::init_setup_complete (bool verbose) const {
     // DBG_PRINTF(Module, "'%s'->init_setup_complete(verbose=%s): Called.\n", name.c_str(), verbose ? "true" : "false");
-    bool init_complete = controller.nvs.read_bool(id, "init_complete");
+    bool init_complete = controller.nvs.read<bool>(id, "init_complete");
     bool result = !requires_init_setup || init_complete;
     // DBG_PRINTF(Module, "init_setup_complete(): requires_init_setup=%s, nvs 'stp_cmp' flag=%s. Final result=%s\n",
 //         requires_init_setup ? "true" : "false",

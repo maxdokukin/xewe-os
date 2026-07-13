@@ -1,9 +1,5 @@
 #include "ModuleController.h"
 
-#include "ModuleRegistry.h"
-
-#include <utility>
-
 ModuleController::ModuleController()
   : serial_port(*this)
   , nvs(*this)
@@ -14,76 +10,25 @@ ModuleController::ModuleController()
     register_module(nvs);
     register_module(system);
     register_module(command_executor);
-
-    load_registered_modules();
 }
 
 bool ModuleController::register_module(Module& module) {
-    return register_module_with_type(nullptr, module);
-}
-
-bool ModuleController::register_module_with_type(ModuleType type, Module& module) {
     auto [it, inserted] = modules.emplace(
         std::string(module.get_id()),
-        ModuleRecord{
-            type,
-            &module
-        }
+        &module
     );
 
-    if (!inserted) {
-        return false;
-    }
-
-    index_module_commands(module);
-
-    return true;
+    return inserted;
 }
 
-void ModuleController::load_registered_modules() {
-    for (const auto& [id, factory] : ModuleRegistry::get_registry()) {
-        std::unique_ptr<Module> owned_module = factory(*this);
-
-        if (!owned_module) {
-            continue;
-        }
-
-        Module& module = *owned_module;
-
-        if (!register_module(module)) {
-            continue;
-        }
-
-        owned_modules.push_back(std::move(owned_module));
-    }
-}
-
-void ModuleController::index_module_commands(Module& module) {
-    const std::string id(module.get_id());
-
-    auto& module_commands = command_index[id];
-
-    for (const Command& command : module.get_commands()) {
-        if (command.name.empty()) {
-            continue;
-        }
-
-        if (!command.function) {
-            continue;
-        }
-
-        module_commands.emplace(command.name, &command);
-    }
-}
-
-Module* ModuleController::get_module_by_id(std::string_view id) {
+Module* ModuleController::get_module(std::string_view id) {
     auto it = modules.find(std::string(id));
 
     if (it == modules.end()) {
         return nullptr;
     }
 
-    return it->second.module;
+    return it->second;
 }
 
 void ModuleController::send_command(
@@ -97,31 +42,32 @@ void ModuleController::send_command(
     }
 
     for (const std::string& recipient_id : recipients) {
-        auto module_it = command_index.find(recipient_id);
+        Module* recipient = get_module(recipient_id);
 
-        if (module_it == command_index.end()) {
+        if (recipient == nullptr) {
             continue;
         }
 
-        auto& module_commands = module_it->second;
-
-        auto command_it = module_commands.find(std::string(command_name));
-
-        if (command_it == module_commands.end()) {
+        if (!recipient->is_enabled()) {
             continue;
         }
 
-        const Command* command = command_it->second;
+        for (const Command& command : recipient->get_commands()) {
+            if (command.name != command_name) {
+                continue;
+            }
 
-        if (command == nullptr) {
-            continue;
+            if (!command.function) {
+                continue;
+            }
+
+            if (args.size() != command.arg_count) {
+                continue;
+            }
+
+            command.function(args);
+            break;
         }
-
-        if (args.size() != command->arg_count) {
-            continue;
-        }
-
-        command->function(args);
     }
 }
 
@@ -132,12 +78,6 @@ void ModuleController::begin() {
     nvs.begin                       (NvsConfig              {});
     system.begin                    (SystemConfig           {});
     command_executor.begin          (CommandExecutorConfig  {});
-
-    for (auto& module : owned_modules) {
-        if (module) {
-            module->begin(ModuleConfig{});
-        }
-    }
 
     if (init_setup_flag) {
         serial_port.print_header("Initial Setup Complete");
@@ -150,7 +90,7 @@ void ModuleController::begin() {
 
 void ModuleController::loop() {
     for (auto& [id, module] : modules) {
-        if (module && module->is_enabled()) {
+        if (module->is_enabled()) {
             module->loop();
         }
     }

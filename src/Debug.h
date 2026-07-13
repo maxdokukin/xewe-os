@@ -19,7 +19,7 @@
 #define DEBUG_System            0
 #define DEBUG_CommandExecutor   0
 
-// #define DEBUG_Wifi              0
+#define DEBUG_Wifi              0
 // #define DEBUG_WebInterface      0
 
 

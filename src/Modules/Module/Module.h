@@ -14,6 +14,8 @@
 #include "../../../Config.h"
 #include "../../XeWeStringUtils.h"
 
+// #include "ModuleRegistry.h"
+
 class ModuleController;
 
 class ModuleConfig {

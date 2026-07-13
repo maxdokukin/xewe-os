@@ -10,12 +10,13 @@
 // src/Modules/Software/WebInterface/WebInterface.h
 #pragma once
 
-#include "../../Module/Module.h"
-
 #include <WebServer.h>
 #include <string>
 #include <sstream>
 #include <iomanip>
+
+#include "../../Module/Module.h"
+#include "../Wifi/Wifi.h"
 
 struct WebInterfaceConfig : public ModuleConfig {};
 

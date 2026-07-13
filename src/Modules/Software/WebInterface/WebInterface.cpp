@@ -30,9 +30,8 @@ void WebInterface::begin_routines_common (const ModuleConfig& cfg) {
     http_server.on("/", HTTP_GET, std::bind(&WebInterface::serve_main_page, this));
     http_server.on("/cmd", HTTP_GET, std::bind(&WebInterface::handle_command_request, this));
     http_server.begin();
-    controller.serial_port.print("Web Interface now available at:\nhttp://" + controller.wifi.get_local_ip());
+controller.serial_port.print("Web Interface now available at:\nhttp://" + controller.get_module<Wifi>()->get_local_ip());
 }
-
 void WebInterface::loop () {
     if (is_disabled()) return;
     http_server.handleClient();
@@ -84,7 +83,7 @@ void WebInterface::handle_command_request() {
         std::string command_text = http_server.arg("c").c_str();
 
         controller.serial_port.print("Got cmd from web: \n" + command_text);
-        controller.command_parser.parse(command_text);
+        controller.command_executor.parse(command_text);
 
         http_server.send(200, "text/plain", "OK");
     } else {

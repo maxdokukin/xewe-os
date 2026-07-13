@@ -8,14 +8,14 @@
 #include "../Core/CommandExecutor/CommandExecutor.h"
 
 #include <map>
-#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
-#include <vector>
 
 class ModuleController {
 public:
+    using ModuleType = const void*;
+
     ModuleController();
 
     void begin();
@@ -23,9 +23,26 @@ public:
 
     bool register_module(Module& module);
 
-    Module* get_module(std::string_view id);
-    const std::map<std::string, Module*>& get_modules() const { return modules; }
-    
+    template <typename T>
+    bool register_module(T& module) {
+        modules[module_type_key<T>()] = &module;
+        index_module_commands(module);
+        return true;
+    }
+
+    template <typename T>
+    T* get_module() {
+        auto it = modules.find(module_type_key<T>());
+
+        if (it == modules.end()) {
+            return nullptr;
+        }
+
+        return static_cast<T*>(it->second);
+    }
+
+    const std::map<ModuleType, Module*>& get_modules() const { return modules; }
+
     void send_command(
         Module* sender,
         std::span<const std::string> recipients,
@@ -39,12 +56,16 @@ public:
     CommandExecutor             command_executor;
 
 private:
+    template <typename T>
+    static ModuleType module_type_key() {
+        static const char key = 0;
+        return &key;
+    }
+
     void load_registered_modules();
     void index_module_commands(Module& module);
 
-    std::map<std::string, Module*> modules {};
-
-    std::vector<std::unique_ptr<Module>> owned_modules {};
+    std::map<ModuleType, Module*> modules {};
 
     std::map<
         std::string,

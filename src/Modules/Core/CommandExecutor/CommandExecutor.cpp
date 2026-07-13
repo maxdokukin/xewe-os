@@ -51,7 +51,7 @@ void CommandExecutor::print_help(std::string_view module_id) const {
 
     if (module == nullptr) {
         controller.serial_port.printf(
-            "Error: Unknown module '%s'\r\n",
+            "Error: Unknown command group '%s'\r\n",
             id.c_str()
         );
         return;
@@ -61,7 +61,7 @@ void CommandExecutor::print_help(std::string_view module_id) const {
 
     if (commands.empty()) {
         controller.serial_port.printf(
-            "Module '%s' has no CLI commands\r\n",
+            "Error: Command group '%s' has no CLI commands\r\n",
             id.c_str()
         );
         return;
@@ -113,7 +113,10 @@ void CommandExecutor::parse(std::string_view input_line) const {
     }
 
     if (local[0] != '$') {
-        controller.serial_port.print("Error: commands must start with '$'; type $help", xewe::str::kCRLF);
+        controller.serial_port.print(
+            "Error: commands must start with '$'; type $help",
+            xewe::str::kCRLF
+        );
         return;
     }
 
@@ -121,7 +124,10 @@ void CommandExecutor::parse(std::string_view input_line) const {
     local = trim_copy(local);
 
     if (local.empty()) {
-        print_all_commands();
+        controller.serial_port.print(
+            "Error: Missing command group; usage: $<group> <command> [args...]",
+            xewe::str::kCRLF
+        );
         return;
     }
 
@@ -132,7 +138,10 @@ void CommandExecutor::parse(std::string_view input_line) const {
     }
 
     if (tokens.empty()) {
-        print_all_commands();
+        controller.serial_port.print(
+            "Error: Missing command group; usage: $<group> <command> [args...]",
+            xewe::str::kCRLF
+        );
         return;
     }
 
@@ -143,7 +152,10 @@ void CommandExecutor::parse(std::string_view input_line) const {
         }
 
         if (tokens.size() != 2) {
-            controller.serial_port.print("Usage: $help <id>", xewe::str::kCRLF);
+            controller.serial_port.print(
+                "Error: Argument count mismatch for '$help'; usage: $help <group>",
+                xewe::str::kCRLF
+            );
             return;
         }
 
@@ -155,7 +167,17 @@ void CommandExecutor::parse(std::string_view input_line) const {
 
     if (module == nullptr) {
         controller.serial_port.printf(
-            "Error: Unknown module '%s'\r\n",
+            "Error: Unknown command group '%s'\r\n",
+            tokens[0].c_str()
+        );
+        return;
+    }
+
+    const auto commands = module->get_commands();
+
+    if (commands.empty()) {
+        controller.serial_port.printf(
+            "Error: Command group '%s' has no CLI commands\r\n",
             tokens[0].c_str()
         );
         return;
@@ -166,8 +188,62 @@ void CommandExecutor::parse(std::string_view input_line) const {
         return;
     }
 
+    if (tokens[1].empty()) {
+        controller.serial_port.printf(
+            "Error: Missing command in command group '%s'; usage: $%s <command> [args...]\r\n",
+            tokens[0].c_str(),
+            tokens[0].c_str()
+        );
+        return;
+    }
+
     if (lower_copy(tokens[1]) == "help") {
         print_help(tokens[0]);
+        return;
+    }
+
+    const std::string command_name = lower_copy(tokens[1]);
+    const Command* matched_command = nullptr;
+
+    for (const Command& command : commands) {
+        if (command.name.empty() || !command.function) {
+            continue;
+        }
+
+        if (lower_copy(command.name) == command_name) {
+            matched_command = &command;
+            break;
+        }
+    }
+
+    if (matched_command == nullptr) {
+        controller.serial_port.printf(
+            "Error: Unknown command '%s' in command group '%s'\r\n",
+            tokens[1].c_str(),
+            tokens[0].c_str()
+        );
+        return;
+    }
+
+    const std::size_t provided_arg_count = tokens.size() - 2;
+    const std::size_t expected_arg_count = matched_command->arg_count;
+
+    if (provided_arg_count != expected_arg_count) {
+        controller.serial_port.printf(
+            "Error: Argument count mismatch for '$%s %s'; expected %u, got %u\r\n",
+            tokens[0].c_str(),
+            tokens[1].c_str(),
+            static_cast<unsigned>(expected_arg_count),
+            static_cast<unsigned>(provided_arg_count)
+        );
+
+        if (!matched_command->sample_usage.empty()) {
+            controller.serial_port.printf(
+                "Usage: %s\r\n",
+                std::string(matched_command->sample_usage).c_str()
+            );
+        }
+
         return;
     }
 
@@ -175,7 +251,7 @@ void CommandExecutor::parse(std::string_view input_line) const {
     recipients.push_back(tokens[0]);
 
     std::vector<std::string> args;
-    args.reserve(tokens.size() - 2);
+    args.reserve(provided_arg_count);
 
     for (std::size_t i = 2; i < tokens.size(); ++i) {
         args.push_back(tokens[i]);
@@ -184,7 +260,7 @@ void CommandExecutor::parse(std::string_view input_line) const {
     controller.send_command(
         const_cast<CommandExecutor*>(this),
         std::span<const std::string>(recipients.data(), recipients.size()),
-        tokens[1],
+        matched_command->name,
         std::span<const std::string>(args.data(), args.size())
     );
 }
@@ -274,7 +350,10 @@ bool CommandExecutor::tokenize(std::string_view input,
             }
 
             if (!closed) {
-                controller.serial_port.print("Error: Unterminated quote in command.", xewe::str::kCRLF);
+                controller.serial_port.print(
+                    "Error: Unterminated quote in command.",
+                    xewe::str::kCRLF
+                );
                 return false;
             }
         } else {

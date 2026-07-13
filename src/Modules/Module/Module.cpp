@@ -193,57 +193,51 @@ bool Module::init_setup_complete (bool verbose) const {
     bool init_complete = controller.nvs.read_bool(id, "init_complete");
     bool result = !requires_init_setup || init_complete;
     // DBG_PRINTF(Module, "init_setup_complete(): requires_init_setup=%s, nvs 'stp_cmp' flag=%s. Final result=%s\n",
-        requires_init_setup ? "true" : "false",
-        init_complete ? "true" : "false",
-        result ? "true" : "false"
-    );
+//         requires_init_setup ? "true" : "false",
+//         init_complete ? "true" : "false",
+//         result ? "true" : "false"
+//     );
     return result;
 }
 
 void Module::register_generic_commands() {
-    // DBG_PRINTF(Module, "'%s'->register_generic_commands(): Called.\n", name.c_str());
-    // “status” command
-    // DBG_PRINTLN(Module, "register_generic_commands(): Registering 'status' command.");
     commands_storage.push_back(Command{
         "status",
         "Get module status",
         std::string("$") + xewe::str::lower(name) + " status",
         0,
-        [this](std::string) {
+        [this](std::span<const std::string>) {
             status(true);
         }
     });
 
-    // “reset” command
-    // DBG_PRINTLN(Module, "register_generic_commands(): Registering 'reset' command.");
     commands_storage.push_back(Command{
         "reset",
         "Reset the module",
         std::string("$") + xewe::str::lower(name) + " reset",
         0,
-        [this](std::string) {
+        [this](std::span<const std::string>) {
             reset(true, true);
         }
     });
 
-    // “enable” / “disable” commands (if supported)
     if (can_be_disabled) {
-        // DBG_PRINTLN(Module, "register_generic_commands(): Module can be disabled, registering 'enable'/'disable' commands.");
         commands_storage.push_back(Command{
             "enable",
             "Enable this module",
             std::string("$") + xewe::str::lower(name) + " enable",
             0,
-            [this](std::string) {
+            [this](std::span<const std::string>) {
                 enable(true, true);
             }
         });
+
         commands_storage.push_back(Command{
             "disable",
             "Disable this module",
             std::string("$") + xewe::str::lower(name) + " disable",
             0,
-            [this](std::string) {
+            [this](std::span<const std::string>) {
                 disable(true, true);
             }
         });

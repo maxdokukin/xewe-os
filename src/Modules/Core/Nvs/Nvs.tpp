@@ -50,7 +50,11 @@ bool Nvs::write(std::string_view ns,
 
     esp_err_t write_err = ESP_ERR_INVALID_ARG;
 
-    if constexpr (std::is_same_v<U, std::string>) {
+    if constexpr (std::is_same_v<U, std::string>
+#if __has_include(<Arduino.h>)
+        || std::is_same_v<U, String>
+#endif
+    ) {
         write_err = nvs_set_str(sh, storage_key.c_str(), value.c_str());
     } else if constexpr (std::is_same_v<U, std::string_view>) {
         write_err = nvs_set_str(sh, storage_key.c_str(), std::string(value).c_str());
@@ -108,13 +112,17 @@ T Nvs::read(std::string_view ns,
         return default_value;
     }
 
-    if constexpr (std::is_same_v<U, std::string>) {
+    if constexpr (std::is_same_v<U, std::string>
+#if __has_include(<Arduino.h>)
+        || std::is_same_v<U, String>
+#endif
+    ) {
         std::size_t required = 0;
         esp_err_t read_err = nvs_get_str(sh, storage_key.c_str(), nullptr, &required);
 
         if (read_err != ESP_OK || required == 0) {
             DBG_PRINTF(Nvs,
-                       "read<std::string>(): key '%s' missing/invalid: %s (%d). Returning default.\n",
+                       "read(): key '%s' missing or invalid: %s (%d). Returning default.\n",
                        storage_key.c_str(),
                        esp_err_to_name(read_err),
                        static_cast<int>(read_err));
@@ -126,7 +134,7 @@ T Nvs::read(std::string_view ns,
 
         if (read_err != ESP_OK) {
             DBG_PRINTF(Nvs,
-                       "read<std::string>(): read failed for key '%s': %s (%d). Returning default.\n",
+                       "read(): read failed for key '%s': %s (%d). Returning default.\n",
                        storage_key.c_str(),
                        esp_err_to_name(read_err),
                        static_cast<int>(read_err));
@@ -138,11 +146,11 @@ T Nvs::read(std::string_view ns,
         }
 
         DBG_PRINTF(Nvs,
-                   "read<std::string>(): key '%s', value='%s'.\n",
+                   "read(): key '%s', value='%s'.\n",
                    storage_key.c_str(),
                    result.c_str());
 
-        return result;
+        return U(result.c_str());
 
     } else if constexpr (std::is_same_v<U, bool>) {
         uint8_t raw = default_value ? 1u : 0u;

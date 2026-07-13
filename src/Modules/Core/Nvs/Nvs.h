@@ -19,6 +19,8 @@
 #include <string_view>
 #include <type_traits>
 
+#include <Arduino.h>
+
 #include <esp_err.h>
 #include <nvs.h>
 #include <nvs_flash.h>

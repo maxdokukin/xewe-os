@@ -25,26 +25,26 @@ Wifi::Wifi(ModuleController& controller)
                /* can_be_disabled     */ true,
                /* has_cli_cmds        */ true)
 {
-    commands_storage.push_back({
+    commands_storage.push_back(Command{
         "connect",
         "Connect or reconnect to WiFi",
-        std::string("$") + lower(module_name) + " connect",
+        std::string("$") + id + " connect",
         0,
-        [this](std::string_view){ connect(true); }
+        [this](std::span<const std::string>) { connect(true); }
     });
-    commands_storage.push_back({
+    commands_storage.push_back(Command{
         "disconnect",
         "Disconnect from WiFi",
-        std::string("$") + lower(module_name) + " disconnect",
+        std::string("$") + id + " disconnect",
         0,
-        [this](std::string_view){ disconnect(true); }
+        [this](std::span<const std::string>) { disconnect(true); }
     });
-    commands_storage.push_back({
+    commands_storage.push_back(Command{
         "scan",
         "List available WiFi networks",
-        std::string("$") + lower(module_name) + " scan",
+        std::string("$") + id + " scan",
         0,
-        [this](std::string_view){ scan(true); }
+        [this](std::span<const std::string>) { scan(true); }
     });
 }
 

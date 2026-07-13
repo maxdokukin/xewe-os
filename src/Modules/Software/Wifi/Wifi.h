@@ -33,7 +33,7 @@ public:
                                                              const bool do_restart=true,
                                                              const bool keep_enabled=true)    override;
 
-    string                      status                      (const bool verbose=false)      const override;
+    std::string                 status                      (const bool verbose=false)      const override;
 
     // other methods
     bool                        connect                     (bool prompt_for_credentials);

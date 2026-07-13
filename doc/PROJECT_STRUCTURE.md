@@ -9,13 +9,24 @@ xewe-os/                                           # Project root (ESP32 “xewe
 │   │   ├── cache/                                 # Compiler/toolchain cache
 │   │   └── DATETIME-VERSION-ESP32-CHIP-xewe-os/   # One build “snapshot” (logs, binaries, merged images, copied src)
 │   │
-│   └── scripts/                                   
-│       ├── build.sh                               # Orchestrates full build pipeline (compile + upload + push to git + listen port)
-│       ├── compile.sh                             # Performs compilation of the src
-│       ├── listen_serial.sh                       # Monitor serial port
-│       ├── push_to_git.sh                         # Helper to commit/push .bin firmware to binaries branch
-│       ├── release.sh                             # Builds and pushes for multiple targets, bumps .version_state
-│       └── setup_build_enviroment.sh              # Installs/sets env vars/tools needed to build
+│   └── scripts/                                   # Build scripts, organized by platform
+│       ├── mac/                                   # macOS pipeline (bash)
+│       │   ├── setup_build_environment.sh         # One-time env setup (Homebrew: arduino-cli, ESP32 core, venv, libs)
+│       │   ├── build.sh                           # Orchestrates compile + optional upload + serial monitor
+│       │   ├── compile.sh                         # Performs compilation of the src
+│       │   ├── upload.sh                          # Flashes the merged image via esptool
+│       │   ├── listen_serial.sh                   # Monitor serial port
+│       │   └── release.sh                         # Builds/pushes for multiple targets, bumps version_state
+│       ├── linux/                                 # Linux: apt-based setup + thin stubs forwarding to ../mac
+│       │   ├── setup_build_environment.sh         # One-time env setup (apt: arduino-cli, ESP32 core, venv, libs)
+│       │   └── build.sh, compile.sh, upload.sh, listen_serial.sh, release.sh   # Stubs: cd ../mac && exec the shared script
+│       ├── windows/                               # Windows pipeline (PowerShell)
+│       │   ├── setup_build_environment.ps1        # One-time env setup (winget: arduino-cli, Python, Git; ESP32 core, venv, libs)
+│       │   ├── build.ps1                          # Orchestrates compile + optional upload + serial monitor
+│       │   ├── compile.ps1                        # Performs compilation of the src
+│       │   ├── upload.ps1                         # Flashes the merged image via esptool
+│       │   └── listen_serial.ps1                  # Monitor serial port
+│       └── other/                                 # Misc helpers (e.g. resilient ESP32 core installer)
 │
 ├── doc/                                           
 │   ├── ADDING_A_MODULE.md                         # How to create/register a new module in this architecture

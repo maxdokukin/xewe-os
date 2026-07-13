@@ -15,6 +15,8 @@
 #include "Nvs.h"
 #include "../../Module/ModuleController.h"
 
+#include <vector>
+
 Nvs::Nvs(ModuleController& controller)
       : Module(controller,
                /* id                  */ "nvs",
@@ -41,15 +43,15 @@ void Nvs::reset (const bool verbose, const bool do_restart, const bool keep_enab
     Module::reset(verbose, do_restart, keep_enabled);
 }
 
-void Nvs::write_str(string_view ns, string_view key, string_view value) {
+void Nvs::write_str(std::string_view ns, std::string_view key, std::string_view value) {
     DBG_PRINTF(Nvs, "write_str(): Attempting to write ns='%s', key='%s', value='%s'.\n", ns.data(), key.data(), value.data());
-    string k = full_key(ns, key);
+    std::string k = full_key(ns, key);
     if (!preferences.begin(id.c_str(), false)) {
         DBG_PRINTF(Nvs, "write_str(): ERROR opening namespace '%s'.\n", id.c_str());
         return;
     }
     DBG_PRINTF(Nvs, "write_str(): Writing to key '%s' value '%s'.\n", k.c_str(), value.data());
-    size_t bytes_written = preferences.putString(k.c_str(), value.data());
+    std::size_t bytes_written = preferences.putString(k.c_str(), value.data());
     if (bytes_written > 0) {
         DBG_PRINTF(Nvs, "write_str(): Successfully wrote %zu bytes for key '%s'.\n", bytes_written, k.c_str());
     } else {
@@ -58,9 +60,9 @@ void Nvs::write_str(string_view ns, string_view key, string_view value) {
     preferences.end();
 }
 
-void Nvs::write_uint8(string_view ns, string_view key, uint8_t value) {
+void Nvs::write_uint8(std::string_view ns, std::string_view key, uint8_t value) {
     DBG_PRINTF(Nvs, "write_uint8(): Attempting to write ns='%s', key='%s', value=%u.\n", ns.data(), key.data(), value);
-    string k = full_key(ns, key);
+    std::string k = full_key(ns, key);
     if (!preferences.begin(id.c_str(), false)) {
         DBG_PRINTF(Nvs, "write_uint8(): ERROR opening namespace '%s'.\n", id.c_str());
         return;
@@ -74,9 +76,9 @@ void Nvs::write_uint8(string_view ns, string_view key, uint8_t value) {
     preferences.end();
 }
 
-void Nvs::write_uint16(string_view ns, string_view key, uint16_t value) {
+void Nvs::write_uint16(std::string_view ns, std::string_view key, uint16_t value) {
     DBG_PRINTF(Nvs, "write_uint16(): Attempting to write ns='%s', key='%s', value=%u.\n", ns.data(), key.data(), value);
-    string k = full_key(ns, key);
+    std::string k = full_key(ns, key);
     if (!preferences.begin(id.c_str(), false)) {
         DBG_PRINTF(Nvs, "write_uint16(): ERROR opening namespace '%s'.\n", id.c_str());
         return;
@@ -90,9 +92,9 @@ void Nvs::write_uint16(string_view ns, string_view key, uint16_t value) {
     preferences.end();
 }
 
-void Nvs::write_bool(string_view ns, string_view key, bool value) {
+void Nvs::write_bool(std::string_view ns, std::string_view key, bool value) {
     DBG_PRINTF(Nvs, "write_bool(): Attempting to write ns='%s', key='%s', value=%s.\n", ns.data(), key.data(), value ? "true" : "false");
-    string k = full_key(ns, key);
+    std::string k = full_key(ns, key);
     if (!preferences.begin(id.c_str(), false)) {
         DBG_PRINTF(Nvs, "write_bool(): ERROR opening namespace '%s'.\n", id.c_str());
         return;
@@ -106,9 +108,9 @@ void Nvs::write_bool(string_view ns, string_view key, bool value) {
     preferences.end();
 }
 
-void Nvs::remove(string_view ns, string_view key) {
+void Nvs::remove(std::string_view ns, std::string_view key) {
     DBG_PRINTF(Nvs, "remove(): Attempting to remove ns='%s', key='%s'.\n", ns.data(), key.data());
-    string k = full_key(ns, key);
+    std::string k = full_key(ns, key);
     if (!preferences.begin(id.c_str(), false)) {
         DBG_PRINTF(Nvs, "remove(): ERROR opening namespace '%s'.\n", id.c_str());
         return;
@@ -122,12 +124,12 @@ void Nvs::remove(string_view ns, string_view key) {
     preferences.end();
 }
 
-void Nvs::reset_ns(string_view ns) {
+void Nvs::reset_ns(std::string_view ns) {
     DBG_PRINTF(Nvs, "reset_ns(): Attempting to clear all keys for namespace prefix '%s'.\n", ns.data());
 
     // 1. Construct the prefix we are looking for (e.g., "wifi:")
-    string prefix = string(ns) + ":";
-    std::vector<string> keys_to_remove;
+    std::string prefix = std::string(ns) + ":";
+    std::vector<std::string> keys_to_remove;
 
     // 2. Use native ESP-IDF iterator (v5 API Style)
     nvs_iterator_t it = nullptr;
@@ -145,7 +147,7 @@ void Nvs::reset_ns(string_view ns) {
         nvs_entry_info_t info;
         nvs_entry_info(it, &info); // Get info from current iterator
 
-        string current_key = info.key;
+        std::string current_key = info.key;
 
         // Check if the key starts with "ns:"
         if (current_key.find(prefix) == 0) {
@@ -170,7 +172,7 @@ void Nvs::reset_ns(string_view ns) {
         return;
     }
 
-    size_t count = 0;
+    std::size_t count = 0;
     for (const auto& k : keys_to_remove) {
         if (preferences.remove(k.c_str())) {
             count++;
@@ -183,66 +185,66 @@ void Nvs::reset_ns(string_view ns) {
     DBG_PRINTF(Nvs, "reset_ns(): Removed %zu keys for namespace '%s'.\n", count, ns.data());
 }
 
-string Nvs::read_str(string_view ns, string_view key, string_view default_value) {
+std::string Nvs::read_str(std::string_view ns, std::string_view key, std::string_view default_value) {
     DBG_PRINTF(Nvs, "read_str(): Attempting to read ns='%s', key='%s'.\n", ns.data(), key.data());
     // FIX: Changed 'true' to 'false' to allow namespace creation on first read
     if (!preferences.begin(id.c_str(), false)) {
         DBG_PRINTF(Nvs, "read_str(): ERROR opening namespace '%s'. Returning default value '%s'.\n", id.c_str(), default_value.data());
-        return string(default_value);
+        return std::string(default_value);
     }
-    string k = full_key(ns, key);
-    String tmp = preferences.getString(k.c_str(), String(default_value.data()));
-    string result(tmp.c_str());
+    std::string k = full_key(ns, key);
+    std::string tmp = preferences.getString(k.c_str(), default_value.data());
+    std::string result(tmp.c_str());
     DBG_PRINTF(Nvs, "read_str(): Read key '%s', got value '%s'.\n", k.c_str(), result.c_str());
     preferences.end();
     return result;
 }
 
-uint8_t Nvs::read_uint8(string_view ns, string_view key, uint8_t default_value) {
+uint8_t Nvs::read_uint8(std::string_view ns, std::string_view key, uint8_t default_value) {
     DBG_PRINTF(Nvs, "read_uint8(): Attempting to read ns='%s', key='%s'.\n", ns.data(), key.data());
     // FIX: Changed 'true' to 'false' to allow namespace creation on first read
     if (!preferences.begin(id.c_str(), false)) {
         DBG_PRINTF(Nvs, "read_uint8(): ERROR opening namespace '%s'. Returning default value %u.\n", id.c_str(), default_value);
         return default_value;
     }
-    string k = full_key(ns, key);
+    std::string k = full_key(ns, key);
     uint8_t v = preferences.getUChar(k.c_str(), default_value);
     DBG_PRINTF(Nvs, "read_uint8(): Read key '%s', got value %u.\n", k.c_str(), v);
     preferences.end();
     return v;
 }
 
-uint16_t Nvs::read_uint16(string_view ns, string_view key, uint16_t default_value) {
+uint16_t Nvs::read_uint16(std::string_view ns, std::string_view key, uint16_t default_value) {
     DBG_PRINTF(Nvs, "read_uint16(): Attempting to read ns='%s', key='%s'.\n", ns.data(), key.data());
     // FIX: Changed 'true' to 'false' to allow namespace creation on first read
     if (!preferences.begin(id.c_str(), false)) {
         DBG_PRINTF(Nvs, "read_uint16(): ERROR opening namespace '%s'. Returning default value %u.\n", id.c_str(), default_value);
         return default_value;
     }
-    string k = full_key(ns, key);
+    std::string k = full_key(ns, key);
     uint16_t v = preferences.getUShort(k.c_str(), default_value);
     DBG_PRINTF(Nvs, "read_uint16(): Read key '%s', got value %u.\n", k.c_str(), v);
     preferences.end();
     return v;
 }
 
-bool Nvs::read_bool(string_view ns, string_view key, bool default_value) {
+bool Nvs::read_bool(std::string_view ns, std::string_view key, bool default_value) {
     DBG_PRINTF(Nvs, "read_bool(): Attempting to read ns='%s', key='%s'.\n", ns.data(), key.data());
     // FIX: Changed 'true' to 'false' to allow namespace creation on first read
     if (!preferences.begin(id.c_str(), false)) {
         DBG_PRINTF(Nvs, "read_bool(): ERROR opening namespace '%s'. Returning default value %s.\n", id.c_str(), default_value ? "true" : "false");
         return default_value;
     }
-    string k = full_key(ns, key);
+    std::string k = full_key(ns, key);
     bool v = preferences.getBool(k.c_str(), default_value);
     DBG_PRINTF(Nvs, "read_bool(): Read key '%s', got value %s.\n", k.c_str(), v ? "true" : "false");
     preferences.end();
     return v;
 }
 
-string Nvs::full_key(string_view ns, string_view key) const {
+std::string Nvs::full_key(std::string_view ns, std::string_view key) const {
     DBG_PRINTF(Nvs, "full_key(): Generating key for ns='%s', key='%s'.\n", ns.data(), key.data());
-    string combined = string(ns) + ":" + string(key);
+    std::string combined = std::string(ns) + ":" + std::string(key);
     if (combined.length() > MAX_KEY_LEN) {
         DBG_PRINTF(Nvs, "full_key(): WARNING: key '%s' is too long (%u chars), truncating to %u\n",
                    combined.c_str(), (unsigned)combined.length(), (unsigned)MAX_KEY_LEN);

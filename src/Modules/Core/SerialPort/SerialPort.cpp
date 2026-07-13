@@ -70,7 +70,7 @@ void SerialPort::print(std::string_view message,
     auto lines_sv = split_lines_sv(message, '\n');
     const bool use_wrap = (message_width > 0);
 
-    for (size_t i = 0; i < lines_sv.size(); ++i) {
+    for (std::size_t i = 0; i < lines_sv.size(); ++i) {
         std::string base_line(lines_sv[i]);
         rtrim_cr(base_line);
 
@@ -80,7 +80,7 @@ void SerialPort::print(std::string_view message,
                   : wrap_words(base_line, message_width))
             : std::vector<std::string>{base_line};
 
-        for (size_t j = 0; j < chunks.size(); ++j) {
+        for (std::size_t j = 0; j < chunks.size(); ++j) {
             const bool is_last = (i + 1 == lines_sv.size()) && (j + 1 == chunks.size());
             std::string out = compose_box_line(chunks[j], edge_character,
                                                message_width, margin_l, margin_r, text_align);
@@ -117,9 +117,9 @@ void SerialPort::printf_fmt(std::string_view end,
 
     std::string msg;
     if (needed > 0) {
-        std::vector<char> buf(static_cast<size_t>(needed) + 1u);
+        std::vector<char> buf(static_cast<std::size_t>(needed) + 1u);
         vsnprintf(buf.data(), buf.size(), fmt, ap2);
-        msg.assign(buf.data(), static_cast<size_t>(needed));
+        msg.assign(buf.data(), static_cast<std::size_t>(needed));
     }
     va_end(ap2);
 
@@ -138,9 +138,9 @@ void SerialPort::printf(const char* fmt, ...) {
 
     std::string msg;
     if (needed > 0) {
-        std::vector<char> buf(static_cast<size_t>(needed) + 1u);
+        std::vector<char> buf(static_cast<std::size_t>(needed) + 1u);
         vsnprintf(buf.data(), buf.size(), fmt, ap2);
-        msg.assign(buf.data(), static_cast<size_t>(needed));
+        msg.assign(buf.data(), static_cast<std::size_t>(needed));
     }
     va_end(ap2);
 
@@ -158,7 +158,7 @@ void SerialPort::print_separator(const uint16_t total_width,
         // Full-width fill pattern
         line = repeat_pattern(fill, total_width);
     } else {
-        const size_t e = edge_character.size();
+        const std::size_t e = edge_character.size();
         if (total_width <= e) {
             line.assign(edge_character.substr(0, total_width));
         } else if (total_width <= 2 * e) {
@@ -181,9 +181,9 @@ void SerialPort::print_spacer(const uint16_t total_width,
     if (total_width == 0) {
         line.clear();
     } else if (edge_character.empty()) {
-        line.assign(static_cast<size_t>(total_width), ' ');
+        line.assign(static_cast<std::size_t>(total_width), ' ');
     } else {
-        const size_t e = edge_character.size();
+        const std::size_t e = edge_character.size();
         if (total_width <= e) {
             line.assign(edge_character.substr(0, total_width));
         } else if (total_width <= 2 * e) {
@@ -219,34 +219,34 @@ void SerialPort::print_header(std::string_view message,
     }
 }
 
-void SerialPort::print_table(const vector<vector<string_view>>& table,
-                             string_view header_content,
+void SerialPort::print_table(const std::vector<std::vector<std::string_view>>& table,
+                             std::string_view header_content,
                              const uint16_t max_col_width,
-                             string_view edge_character,
-                             string_view cross_edge_character,
-                             string_view sep_fill) {
+                             std::string_view edge_character,
+                             std::string_view cross_edge_character,
+                             std::string_view sep_fill) {
     if (table.empty()) return;
 
     // 1. Calculate Column Widths
     // We must ensure the column is wide enough for the longest *line* in a multi-line cell,
     // not just the total length of the string.
-    size_t num_cols = 0;
-    for (const auto& row : table) num_cols = max(num_cols, row.size());
+    std::size_t num_cols = 0;
+    for (const auto& row : table) num_cols = std::max(num_cols, row.size());
 
-    vector<uint16_t> col_widths(num_cols, 0);
+    std::vector<uint16_t> col_widths(num_cols, 0);
 
     for (const auto& row : table) {
-        for (size_t c = 0; c < row.size(); ++c) {
-            string_view cell = row[c];
-            size_t max_line_len = 0;
+        for (std::size_t c = 0; c < row.size(); ++c) {
+            std::string_view cell = row[c];
+            std::size_t max_line_len = 0;
 
             // Find longest segment between '\n'
-            size_t start = 0;
+            std::size_t start = 0;
             while (start <= cell.length()) {
-                size_t end = cell.find('\n', start);
-                if (end == string_view::npos) end = cell.length();
+                std::size_t end = cell.find('\n', start);
+                if (end == std::string_view::npos) end = cell.length();
 
-                size_t segment_len = end - start;
+                std::size_t segment_len = end - start;
                 if (segment_len > max_line_len) max_line_len = segment_len;
 
                 if (end == cell.length()) break;
@@ -254,7 +254,7 @@ void SerialPort::print_table(const vector<vector<string_view>>& table,
             }
 
             // Width = Longest Line + 1 space left + 1 space right
-            size_t req_width = max_line_len + 2;
+            std::size_t req_width = max_line_len + 2;
             if (req_width > max_col_width) req_width = max_col_width;
 
             if (req_width > col_widths[c]) {
@@ -264,18 +264,18 @@ void SerialPort::print_table(const vector<vector<string_view>>& table,
     }
 
     // 2. Calculate Total Table Width
-    size_t total_table_width = edge_character.size();
+    std::size_t total_table_width = edge_character.size();
     for (auto w : col_widths) {
         total_table_width += w + edge_character.size();
     }
 
     // Helper: Print a complex divider (e.g., +-----+-----+)
     auto print_complex_divider = [&]() {
-        string line;
+        std::string line;
         line.reserve(total_table_width);
         line.append(cross_edge_character);
-        for (size_t c = 0; c < num_cols; ++c) {
-            for (size_t k = 0; k < col_widths[c]; ++k) {
+        for (std::size_t c = 0; c < num_cols; ++c) {
+            for (std::size_t k = 0; k < col_widths[c]; ++k) {
                 if (!sep_fill.empty())
                     line += sep_fill[k % sep_fill.size()];
                 else
@@ -287,21 +287,21 @@ void SerialPort::print_table(const vector<vector<string_view>>& table,
     };
 
     // Helper: Wrap text respecting explicit '\n'
-    auto get_wrapped_lines = [&](string_view text, uint16_t width) -> vector<string> {
-        vector<string> result;
+    auto get_wrapped_lines = [&](std::string_view text, uint16_t width) -> std::vector<std::string> {
+        std::vector<std::string> result;
         if (width <= 2) width = 3; // minimal safety
         uint16_t content_width = width - 2;
 
-        size_t start = 0;
+        std::size_t start = 0;
         // If empty, return one empty line so height calc works
         if (text.empty()) return { "" };
 
         while (start <= text.length()) {
-            size_t end = text.find('\n', start);
-            if (end == string_view::npos) end = text.length();
+            std::size_t end = text.find('\n', start);
+            if (end == std::string_view::npos) end = text.length();
 
             // 1. Extract the explicit line segment
-            string_view segment = text.substr(start, end - start);
+            std::string_view segment = text.substr(start, end - start);
 
             // 2. Wrap this segment specifically
             if (segment.empty()) {
@@ -309,7 +309,7 @@ void SerialPort::print_table(const vector<vector<string_view>>& table,
                 result.push_back("");
             } else {
                 // Use existing wrapper for this segment
-                vector<string> seg_lines = wrap_words(string(segment), content_width);
+                std::vector<std::string> seg_lines = wrap_words(std::string(segment), content_width);
                 if (seg_lines.empty()) result.push_back("");
                 else result.insert(result.end(), seg_lines.begin(), seg_lines.end());
             }
@@ -332,36 +332,36 @@ void SerialPort::print_table(const vector<vector<string_view>>& table,
 
     for (const auto& row : table) {
         // Pre-calculate wrapped blocks
-        vector<vector<string>> row_blocks;
-        size_t max_row_height = 0;
+        std::vector<std::vector<std::string>> row_blocks;
+        std::size_t max_row_height = 0;
 
-        for (size_t c = 0; c < num_cols; ++c) {
-            string_view entry = (c < row.size()) ? row[c] : "";
-            vector<string> wrapped = get_wrapped_lines(entry, col_widths[c]);
+        for (std::size_t c = 0; c < num_cols; ++c) {
+            std::string_view entry = (c < row.size()) ? row[c] : "";
+            std::vector<std::string> wrapped = get_wrapped_lines(entry, col_widths[c]);
 
             // Ensure at least one line exists
             if (wrapped.empty()) wrapped.push_back("");
 
-            max_row_height = max(max_row_height, wrapped.size());
-            row_blocks.push_back(move(wrapped));
+            max_row_height = std::max(max_row_height, wrapped.size());
+            row_blocks.push_back(std::move(wrapped));
         }
 
         // Print physical lines for this row
-        for (size_t h = 0; h < max_row_height; ++h) {
-            string line_out;
+        for (std::size_t h = 0; h < max_row_height; ++h) {
+            std::string line_out;
             line_out.reserve(total_table_width);
             line_out.append(edge_character);
 
-            for (size_t c = 0; c < num_cols; ++c) {
-                string segment = (h < row_blocks[c].size()) ? row_blocks[c][h] : "";
+            for (std::size_t c = 0; c < num_cols; ++c) {
+                std::string segment = (h < row_blocks[c].size()) ? row_blocks[c][h] : "";
 
                 // Left Margin
                 line_out += ' ';
                 line_out += segment;
 
                 // Right Padding
-                size_t current_len = segment.length();
-                size_t target_len  = static_cast<size_t>(col_widths[c]) - 2;
+                std::size_t current_len = segment.length();
+                std::size_t target_len  = static_cast<std::size_t>(col_widths[c]) - 2;
 
                 if (target_len > current_len) {
                     line_out.append(target_len - current_len, ' ');
@@ -379,18 +379,18 @@ void SerialPort::print_table(const vector<vector<string_view>>& table,
 }
 
 // getters
-string SerialPort::get_string(string_view prompt,
+std::string SerialPort::get_string(std::string_view prompt,
                               const uint16_t min_length,
                               const uint16_t max_length,
                               const uint16_t retry_count,
                               const uint32_t timeout_ms,
-                              string_view default_value,
-                              optional<reference_wrapper<bool>> success_sink) {
-    const size_t min_len = static_cast<size_t>(min_length);
-    const size_t max_len = (max_length == 0) ? (INPUT_BUFFER_SIZE - 1)
-                                             : static_cast<size_t>(max_length);
+                              std::string_view default_value,
+                              std::optional<std::reference_wrapper<bool>> success_sink) {
+    const std::size_t min_len = static_cast<std::size_t>(min_length);
+    const std::size_t max_len = (max_length == 0) ? (INPUT_BUFFER_SIZE - 1)
+                                             : static_cast<std::size_t>(max_length);
 
-    auto checker = [&](const string& line, string& out, const char*& err)->bool {
+    auto checker = [&](const std::string& line, std::string& out, const char*& err)->bool {
         if (line.size() < min_len || line.size() > max_len) {
             printf_raw("! Length must be in [%u..%u] chars.\r\n",
                        static_cast<unsigned>(min_len),
@@ -402,61 +402,61 @@ string SerialPort::get_string(string_view prompt,
         return true;
     };
 
-    return get_core<string>(prompt, retry_count, timeout_ms, string(default_value),
+    return get_core<std::string>(prompt, retry_count, timeout_ms, std::string(default_value),
                             success_sink, "> ", /*crlf*/true, checker);
 }
 
-int SerialPort::get_int(string_view prompt,
+int SerialPort::get_int(std::string_view prompt,
                         const int min_value,
                         const int max_value,
                         const uint16_t retry_count,
                         const uint32_t timeout_ms,
                         const int default_value,
-                        optional<reference_wrapper<bool>> success_sink) {
+                        std::optional<std::reference_wrapper<bool>> success_sink) {
     return get_integral<int>(prompt, min_value, max_value, retry_count, timeout_ms, default_value, success_sink);
 }
 
-uint8_t SerialPort::get_uint8(string_view prompt,
+uint8_t SerialPort::get_uint8(std::string_view prompt,
                               const uint8_t min_value,
                               const uint8_t max_value,
                               const uint16_t retry_count,
                               const uint32_t timeout_ms,
                               const uint8_t default_value,
-                              optional<reference_wrapper<bool>> success_sink) {
+                              std::optional<std::reference_wrapper<bool>> success_sink) {
     return get_integral<uint8_t>(prompt, min_value, max_value, retry_count, timeout_ms, default_value, success_sink);
 }
 
-uint16_t SerialPort::get_uint16(string_view prompt,
+uint16_t SerialPort::get_uint16(std::string_view prompt,
                                 const uint16_t min_value,
                                 const uint16_t max_value,
                                 const uint16_t retry_count,
                                 const uint32_t timeout_ms,
                                 const uint16_t default_value,
-                                optional<reference_wrapper<bool>> success_sink) {
+                                std::optional<std::reference_wrapper<bool>> success_sink) {
     return get_integral<uint16_t>(prompt, min_value, max_value, retry_count, timeout_ms, default_value, success_sink);
 }
 
-uint32_t SerialPort::get_uint32(string_view prompt,
+uint32_t SerialPort::get_uint32(std::string_view prompt,
                                 const uint32_t min_value,
                                 const uint32_t max_value,
                                 const uint16_t retry_count,
                                 const uint32_t timeout_ms,
                                 const uint32_t default_value,
-                                optional<reference_wrapper<bool>> success_sink) {
+                                std::optional<std::reference_wrapper<bool>> success_sink) {
     return get_integral<uint32_t>(prompt, min_value, max_value, retry_count, timeout_ms, default_value, success_sink);
 }
 
-float SerialPort::get_float(string_view prompt,
+float SerialPort::get_float(std::string_view prompt,
                             const float min_value,
                             const float max_value,
                             const uint16_t retry_count,
                             const uint32_t timeout_ms,
                             const float default_value,
-                            optional<reference_wrapper<bool>> success_sink) {
+                            std::optional<std::reference_wrapper<bool>> success_sink) {
     float minv = min_value, maxv = max_value;
     if (minv > maxv) std::swap(minv, maxv);
 
-    auto checker = [&](const string& line, float& out, const char*& err)->bool {
+    auto checker = [&](const std::string& line, float& out, const char*& err)->bool {
         const char* s = line.c_str();
         char* end = nullptr;
         double dv = strtod(s, &end);
@@ -482,13 +482,13 @@ float SerialPort::get_float(string_view prompt,
                            success_sink, "> ", /*crlf*/true, checker);
 }
 
-bool SerialPort::get_yn(string_view prompt,
+bool SerialPort::get_yn(std::string_view prompt,
                         const uint16_t retry_count,
                         const uint32_t timeout_ms,
                         const bool default_value,
-                        optional<reference_wrapper<bool>> success_sink) {
-    auto checker = [&](const string& line, bool& out, const char*& err)->bool {
-        string low = to_lower(line);
+                        std::optional<std::reference_wrapper<bool>> success_sink) {
+    auto checker = [&](const std::string& line, bool& out, const char*& err)->bool {
+        std::string low = to_lower(line);
         if (low == "y" || low == "yes" || low == "1" || low == "true")  { out = true;  return true; }
         if (low == "n" || low == "no"  || low == "0" || low == "false") { out = false; return true; }
         err = "! Please answer 'y' or 'n'.";
@@ -499,14 +499,14 @@ bool SerialPort::get_yn(string_view prompt,
                           success_sink, "(y/n) > ", /*crlf*/true, checker);
 }
 
-uint8_t SerialPort::get_menu_choice(string_view prompt,
-                                    const vector<string> options,
+uint8_t SerialPort::get_menu_choice(std::string_view prompt,
+                                    const std::vector<std::string> options,
                                     const uint8_t min_value,
                                     const uint8_t max_value,
                                     const uint16_t retry_count,
                                     const uint32_t timeout_ms,
                                     const uint8_t default_value,
-                                    optional<reference_wrapper<bool>> success_sink) {
+                                    std::optional<std::reference_wrapper<bool>> success_sink) {
     // 1. Display the prompt if provided
     if (!prompt.empty()) {
         println_raw(prompt);
@@ -518,10 +518,10 @@ uint8_t SerialPort::get_menu_choice(string_view prompt,
 
     // Auto-adjust bounds if defaults were left untouched but options were provided
     if (!options.empty()) {
-        if (actual_min == numeric_limits<uint8_t>::min()) {
+        if (actual_min == std::numeric_limits<uint8_t>::min()) {
             actual_min = 1; // Default to 1-based indexing for menus
         }
-        if (actual_max == numeric_limits<uint8_t>::max()) {
+        if (actual_max == std::numeric_limits<uint8_t>::max()) {
             // Prevent overflow if actual_min + options.size() exceeds uint8_t max
             uint16_t calc_max = static_cast<uint16_t>(actual_min) + static_cast<uint16_t>(options.size()) - 1;
             actual_max = (calc_max > 255) ? 255 : static_cast<uint8_t>(calc_max);
@@ -529,23 +529,23 @@ uint8_t SerialPort::get_menu_choice(string_view prompt,
     }
 
     // 3. Display the menu options (if any)
-    for (size_t i = 0; i < options.size(); ++i) {
+    for (std::size_t i = 0; i < options.size(); ++i) {
         printf_raw("  %u) %s\r\n", static_cast<unsigned>(actual_min + i), options[i].c_str());
     }
 
     // 4. Delegate to get_uint8
     // If we only have a prompt and no options, don't double-prompt "Choice >".
     // Just use empty string so the user sees " > " right under their custom prompt.
-    string_view input_prompt = (options.empty() && !prompt.empty()) ? "" : "Choice";
+    std::string_view input_prompt = (options.empty() && !prompt.empty()) ? "" : "Choice";
 
     return get_uint8(input_prompt, actual_min, actual_max, retry_count, timeout_ms, default_value, success_sink);
 }
 
 bool SerialPort::has_line() const { return line_ready; }
 
-string SerialPort::read_line() {
+std::string SerialPort::read_line() {
     if (!line_ready) return {};
-    string out(input_buffer, line_length);
+    std::string out(input_buffer, line_length);
     line_ready       = false;
     line_length      = 0;
     input_buffer_pos = 0;
@@ -565,11 +565,11 @@ void SerialPort::flush_input() {
 //     input_buffer[0]  = '\0';
 }
 
-void SerialPort::print_raw(string_view message) {
+void SerialPort::print_raw(std::string_view message) {
     Serial.write(reinterpret_cast<const uint8_t*>(message.data()), message.size());
 }
 
-void SerialPort::println_raw(string_view message) {
+void SerialPort::println_raw(std::string_view message) {
     Serial.write(reinterpret_cast<const uint8_t*>(message.data()), message.size());
     Serial.write(reinterpret_cast<const uint8_t*>(kCRLF), 2);
 }
@@ -586,7 +586,7 @@ void SerialPort::printf_raw(const char* fmt, ...) {
         }
     }
     if (!has_spec) {
-        size_t n = strlen(fmt);
+        std::size_t n = strlen(fmt);
         if (n) Serial.write(reinterpret_cast<const uint8_t*>(fmt), n);
         return;
     }
@@ -600,14 +600,14 @@ void SerialPort::printf_raw(const char* fmt, ...) {
 
     if (needed <= 0) { va_end(ap2); return; }
 
-    std::vector<char> buf(static_cast<size_t>(needed) + 1u);
+    std::vector<char> buf(static_cast<std::size_t>(needed) + 1u);
     vsnprintf(buf.data(), buf.size(), fmt, ap2);
     va_end(ap2);
 
-    Serial.write(reinterpret_cast<const uint8_t*>(buf.data()), static_cast<size_t>(needed));
+    Serial.write(reinterpret_cast<const uint8_t*>(buf.data()), static_cast<std::size_t>(needed));
 }
 
-bool SerialPort::read_line_with_timeout(string& out,
+bool SerialPort::read_line_with_timeout(std::string& out,
                                         const uint32_t timeout_ms) {
     uint32_t start = millis();
     for (;;) {
@@ -623,23 +623,23 @@ bool SerialPort::read_line_with_timeout(string& out,
     }
 }
 
-void SerialPort::write_line_crlf(string_view s) {
+void SerialPort::write_line_crlf(std::string_view s) {
     Serial.write(reinterpret_cast<const uint8_t*>(s.data()), s.size());
     Serial.write(reinterpret_cast<const uint8_t*>(kCRLF), 2);
 }
 
 template <typename T>
-T SerialPort::get_integral(string_view prompt,
+T SerialPort::get_integral(std::string_view prompt,
                            const T min_value,
                            const T max_value,
                            const uint16_t retry_count,
                            const uint32_t timeout_ms,
                            const T default_value,
-                           optional<reference_wrapper<bool>> success_sink) {
+                           std::optional<std::reference_wrapper<bool>> success_sink) {
     T minv = min_value, maxv = max_value;
     if (minv > maxv) std::swap(minv, maxv);
 
-    auto checker = [&](const string& line, T& out, const char*& err)->bool {
+    auto checker = [&](const std::string& line, T& out, const char*& err)->bool {
         T v{};
         if (!parse_int<T>(line, v)) {
             err = "! Invalid number. Please enter a base-10 integer.";

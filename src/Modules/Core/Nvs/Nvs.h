@@ -15,8 +15,10 @@
 
 #include <Preferences.h>
 //#include <array>
-//#include <string_view>
-//#include <string>
+#include <cstddef>
+#include <cstdint>
+#include <string_view>
+#include <string>
 #include <nvs.h>
 #include <nvs_flash.h>
 
@@ -34,39 +36,39 @@ public:
                                                              const bool keep_enabled=true)    override;
 
     // other methods
-    void                        write_str                   (string_view ns,
-                                                             string_view key,
-                                                             string_view value);
-    void                        write_uint8                 (string_view ns,
-                                                             string_view key,
+    void                        write_str                   (std::string_view ns,
+                                                             std::string_view key,
+                                                             std::string_view value);
+    void                        write_uint8                 (std::string_view ns,
+                                                             std::string_view key,
                                                              uint8_t value);
-    void                        write_uint16                (string_view ns,
-                                                             string_view key,
+    void                        write_uint16                (std::string_view ns,
+                                                             std::string_view key,
                                                              uint16_t value);
-    void                        write_bool                  (string_view ns,
-                                                             string_view key,
+    void                        write_bool                  (std::string_view ns,
+                                                             std::string_view key,
                                                              bool value);
-    void                        remove                      (string_view ns,
-                                                             string_view key);
+    void                        remove                      (std::string_view ns,
+                                                             std::string_view key);
 
-    void                        reset_ns                    (string_view ns);
+    void                        reset_ns                    (std::string_view ns);
     // Generic NVS Read Methods
-    string                      read_str                    (string_view ns,
-                                                             string_view key,
-                                                             string_view default_value = "");
-    uint8_t                     read_uint8                  (string_view ns,
-                                                             string_view key,
+    std::string                 read_str                    (std::string_view ns,
+                                                             std::string_view key,
+                                                             std::string_view default_value = "");
+    uint8_t                     read_uint8                  (std::string_view ns,
+                                                             std::string_view key,
                                                              uint8_t default_value = 0);
-    uint16_t                    read_uint16                 (string_view ns,
-                                                             string_view key,
+    uint16_t                    read_uint16                 (std::string_view ns,
+                                                             std::string_view key,
                                                              uint16_t default_value = 0);
-    bool                        read_bool                   (string_view ns,
-                                                             string_view key,
-                                                               bool default_value = false);
+    bool                        read_bool                   (std::string_view ns,
+                                                             std::string_view key,
+                                                             bool default_value = false);
 
 private:
-    static constexpr size_t     MAX_KEY_LEN                 = 15;
+    static constexpr std::size_t MAX_KEY_LEN                = 15;
     Preferences                 preferences;
-    string                      full_key                    (string_view ns,
-                                                             string_view key) const;
+    std::string                      full_key               (std::string_view ns,
+                                                             std::string_view key) const;
 };

@@ -178,7 +178,7 @@ void CommandExecutor::parse(std::string_view input_line) const {
     std::vector<std::string> args;
     args.reserve(tokens.size() - 2);
 
-    for (size_t i = 2; i < tokens.size(); ++i) {
+    for (std::size_t i = 2; i < tokens.size(); ++i) {
         args.push_back(tokens[i]);
     }
 
@@ -195,8 +195,8 @@ std::string CommandExecutor::trim_copy(std::string_view value) {
         return std::isspace(c) != 0;
     };
 
-    size_t begin = 0;
-    size_t end = value.size();
+    std::size_t begin = 0;
+    std::size_t end = value.size();
 
     while (begin < end && is_space(static_cast<unsigned char>(value[begin]))) {
         ++begin;
@@ -228,7 +228,7 @@ bool CommandExecutor::tokenize(std::string_view input,
                                std::vector<std::string>& out) const {
     out.clear();
 
-    size_t pos = 0;
+    std::size_t pos = 0;
 
     while (pos < input.size()) {
         while (pos < input.size() &&

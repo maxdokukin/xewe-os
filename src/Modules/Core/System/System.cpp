@@ -26,36 +26,36 @@ System::System(ModuleController& controller)
     commands_storage.push_back({
         "restart",
         "Restart the ESP",
-        string("$") + lower(name) + " restart",
+        std::string("$") + lower(name) + " restart",
         0,
-        [this](string_view) { restart(1000); }
+        [this](std::string_view) { restart(1000); }
     });
 
     commands_storage.push_back({
         "reboot",
         "Restart the ESP",
-        string("$") + lower(name) + " reboot",
+        std::string("$") + lower(name) + " reboot",
         0,
-        [this](string_view) { restart(1000); }
+        [this](std::string_view) { restart(1000); }
     });
 
     commands_storage.push_back({
       "info","Chip and build info",
-      string("$")+lower(name)+" info",
+      std::string("$")+lower(name)+" info",
       0,
-      [this](string_view){
+      [this](std::string_view){
         esp_chip_info_t ci; esp_chip_info(&ci);
         uint8_t mac[6]; esp_read_mac(mac, ESP_MAC_WIFI_STA);
-        size_t   flash_sz = ESP.getFlashChipSize();
+        std::size_t   flash_sz = ESP.getFlashChipSize();
         uint32_t flash_hz = ESP.getFlashChipSpeed();
 
-        string s;
-        s += "Model "; s += to_string((int)ci.model);
-        s += "  Cores "; s += to_string((int)ci.cores);
-        s += "  Rev "; s += to_string((int)ci.revision); s += "\n";
+        std::string s;
+        s += "Model "; s += std::to_string((int)ci.model);
+        s += "  Cores "; s += std::to_string((int)ci.cores);
+        s += "  Rev "; s += std::to_string((int)ci.revision); s += "\n";
         s += "IDF "; s += esp_get_idf_version(); s += "\n";
-        s += "Flash "; s += to_string((unsigned)flash_sz);
-        s += " bytes @ "; s += to_string((unsigned)flash_hz); s += " Hz\n";
+        s += "Flash "; s += std::to_string((unsigned)flash_sz);
+        s += " bytes @ "; s += std::to_string((unsigned)flash_hz); s += " Hz\n";
         char macs[18]; snprintf(macs, sizeof(macs), "%02X:%02X:%02X:%02X:%02X:%02X", mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
         s += "MAC "; s += macs;
         this->controller.serial_port.print(s.c_str(), kCRLF);
@@ -65,9 +65,9 @@ System::System(ModuleController& controller)
     commands_storage.push_back({
       "set_device_name",
       "Set device name",
-      string("$") + lower(name) + " set_device_name \"Kitchen Lights\"",
+      std::string("$") + lower(name) + " set_device_name \"Kitchen Lights\"",
       1,
-      [this](string_view args_sv){
+      [this](std::string_view args_sv){
         String args(args_sv.data(), args_sv.length());
         args.trim();
 
@@ -100,8 +100,8 @@ System::System(ModuleController& controller)
 
     commands_storage.push_back({
       "mac","Print MAC addresses",
-      string("$")+lower(name)+" mac",0,
-      [this](string_view){
+      std::string("$")+lower(name)+" mac",0,
+      [this](std::string_view){
         struct Item{ const char* name; esp_mac_type_t t; } items[]={
           {"wifi_sta", ESP_MAC_WIFI_STA},
           {"wifi_ap",  ESP_MAC_WIFI_SOFTAP},
@@ -119,8 +119,8 @@ System::System(ModuleController& controller)
 
     commands_storage.push_back({
       "uid","Device UID from eFuse base MAC (and SHA256-64)",
-      string("$")+lower(name)+" uid",0,
-      [this](string_view){
+      std::string("$")+lower(name)+" uid",0,
+      [this](std::string_view){
         uint8_t mac[6]; esp_efuse_mac_get_default(mac);
         uint8_t dig[32]; mbedtls_sha256(mac, sizeof(mac), dig, 0 /* is224 */);
         this->controller.serial_port.print(("base_mac "+to_hex(mac, sizeof(mac))).c_str(), kCRLF);
@@ -130,16 +130,16 @@ System::System(ModuleController& controller)
 
     commands_storage.push_back({
       "stack","Current task stack watermark (words)",
-      string("$")+lower(name)+" stack",0,
-      [this](string_view){
-        this->controller.serial_port.print(to_string((unsigned)uxTaskGetStackHighWaterMark(nullptr)).c_str(), kCRLF);
+      std::string("$")+lower(name)+" stack",0,
+      [this](std::string_view){
+        this->controller.serial_port.print(std::to_string((unsigned)uxTaskGetStackHighWaterMark(nullptr)).c_str(), kCRLF);
       }
     });
 }
 
 void System::begin_routines_required (const ModuleConfig& cfg) {
     this->controller.serial_port.print_header(
-        string(PROJECT_NAME) + "\\sep" +
+        std::string(PROJECT_NAME) + "\\sep" +
         "https://github.com/maxdokukin/" + PROJECT_NAME + "\\sep" +
         "Version " + BUILD_VERSION + "\n" +
         "Build Timestamp " + BUILD_TIMESTAMP
@@ -147,7 +147,7 @@ void System::begin_routines_required (const ModuleConfig& cfg) {
 }
 
 void System::begin_routines_init (const ModuleConfig& cfg) {
-    string name = "";
+    std::string name = "";
     bool confirmed = false;
     while (!confirmed) {
         name = controller.serial_port.get_string("Name your device (ex: Kitchen Lights):");
@@ -178,22 +178,22 @@ void System::reset (const bool verbose, const bool do_restart, const bool keep_e
     Module::reset(verbose, do_restart, keep_enabled);
 }
 
-string System::status(const bool verbose) const {
+std::string System::status(const bool verbose) const {
     if (verbose) {
-        vector<vector<string_view>> table_data;
+        std::vector<std::vector<std::string_view>> table_data;
         table_data.push_back({"Module Name", "Enabled", "Status"});
-        vector<string> string_storage;
+        std::vector<std::string> string_storage;
         string_storage.reserve(controller.get_modules().size() * 2);
 
         auto& modules = controller.get_modules();
         for (const auto* mod : modules) {
             if (!mod) continue;
-            string_view name = mod->get_name();
+            std::string_view name = mod->get_name();
             string_storage.push_back(mod->is_enabled() ? "Yes" : "No");
-            string_view enabled_view = string_storage.back();
+            std::string_view enabled_view = string_storage.back();
 
             string_storage.push_back(mod->status(false));
-            string_view status_view = string_storage.back();
+            std::string_view status_view = string_storage.back();
 
             table_data.push_back({name, enabled_view, status_view});
         }
@@ -206,7 +206,7 @@ string System::status(const bool verbose) const {
     return "System OK";
 }
 
-string System::get_device_name () { return controller.nvs.read_str(id, "dname"); };
+std::string System::get_device_name () { return controller.nvs.read_str(id, "dname"); };
 
 void System::restart (uint16_t delay_ms) {
     controller.serial_port.print_header("Rebooting");

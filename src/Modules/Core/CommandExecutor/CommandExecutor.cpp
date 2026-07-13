@@ -40,17 +40,19 @@ void CommandExecutor::loop() {
 }
 
 void CommandExecutor::print_help(std::string_view module_id) const {
-    if (module_id.empty()) {
+    const std::string id = trim_copy(module_id);
+
+    if (id.empty()) {
         print_all_commands();
         return;
     }
 
-    Module* module = controller.get_module(module_id);
+    Module* module = controller.get_module(id);
 
     if (module == nullptr) {
         controller.serial_port.printf(
             "Error: Unknown module '%s'\r\n",
-            module_id.c_str()
+            id.c_str()
         );
         return;
     }
@@ -60,7 +62,7 @@ void CommandExecutor::print_help(std::string_view module_id) const {
     if (commands.empty()) {
         controller.serial_port.printf(
             "Module '%s' has no CLI commands\r\n",
-            module_id.c_str()
+            id.c_str()
         );
         return;
     }
@@ -87,7 +89,10 @@ void CommandExecutor::print_help(std::string_view module_id) const {
     }
 
     const std::string header =
-        std::string(module->get_name()) + " Commands [" + std::string(module->get_id()) + "]";
+        std::string(module->get_name()) +
+        " Commands [" +
+        std::string(module->get_id()) +
+        "]";
 
     controller.serial_port.print_table(table_data, header);
 }

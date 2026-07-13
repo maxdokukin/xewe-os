@@ -258,8 +258,6 @@ std::string System::status(const bool verbose) const {
     if (verbose) {
         std::vector<std::vector<std::string_view>> table_data;
         table_data.push_back({"Module Name", "Enabled", "Status"});
-        std::vector<std::string> string_storage;
-        string_storage.reserve(controller.get_modules().size() * 2);
 
         const auto& modules = controller.get_modules();
 
@@ -285,6 +283,7 @@ std::string System::status(const bool verbose) const {
             "System Status"
         );
     }
+
     return "System OK";
 }
 

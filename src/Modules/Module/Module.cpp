@@ -244,7 +244,7 @@ void Module::register_generic_commands() {
     }
 }
 
-void Module::run_with_dots(const function<void()>& work, uint32_t duration_ms, uint32_t dot_interval_ms) {
+void Module::run_with_dots(const std::function<void()>& work, uint32_t duration_ms, uint32_t dot_interval_ms) {
   if (dot_interval_ms == 0) dot_interval_ms = 1;
 
   const uint32_t start = millis();

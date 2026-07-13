@@ -8,7 +8,7 @@
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
 
-// src/Modules/Nvs/Nvs.h
+// src/Modules/Core/Nvs/Nvs.h
 #pragma once
 
 #include "../../Module/Module.h"

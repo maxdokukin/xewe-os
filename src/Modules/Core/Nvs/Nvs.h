@@ -59,22 +59,32 @@ private:
 
     static constexpr std::size_t MAX_KEY_LEN = 15;
 
+    struct ScopedHandle {
+        nvs_handle_t handle = 0;
+        ~ScopedHandle() { close(); }
+        operator nvs_handle_t() const { return handle; }
+        void close() {
+            if (handle != 0) {
+                nvs_close(handle);
+                handle = 0;
+            }
+        }
+    };
+
     bool                        m_nvs_ready = false;
 
     bool                        ensure_ready                ();
 
     esp_err_t                   open_handle                 (nvs_open_mode_t mode,
-                                                             nvs_handle_t& handle);
+                                                             ScopedHandle& scoped);
 
-    bool                        commit_and_close            (nvs_handle_t handle,
+    bool                        commit_and_close            (ScopedHandle& scoped,
                                                              esp_err_t op_err,
                                                              const char* op_name,
                                                              const std::string& storage_key);
 
-    std::string                 full_key                    (std::string_view ns,
-                                                             std::string_view key) const;
-
-    std::string                 namespace_prefix            (std::string_view ns) const;
+    std::string                 format_key                  (std::string_view ns,
+                                                             std::string_view key = {}) const;
 };
 
 #include "Nvs.tpp"

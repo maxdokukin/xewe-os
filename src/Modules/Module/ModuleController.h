@@ -7,7 +7,7 @@
 #include "../Core/System/System.h"
 #include "../Core/CommandExecutor/CommandExecutor.h"
 
-// #include "../Software/Wifi/Wifi.h"
+#include "../Software/Wifi/Wifi.h"
 // #include "../Software/WebInterface/WebInterface.h"
 
 #include <map>
@@ -37,7 +37,7 @@ public:
     System                                  system;
     CommandExecutor                         command_executor;
 
-//     Wifi                                    wifi;
+    Wifi                                    wifi;
 
 private:
     std::map<std::string, Module*>          modules             {};

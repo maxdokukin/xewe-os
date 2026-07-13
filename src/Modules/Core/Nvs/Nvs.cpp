@@ -14,20 +14,9 @@
 #include "../../Module/ModuleController.h"
 
 #include <vector>
-
-#if __has_include(<esp_idf_version.h>)
 #include <esp_idf_version.h>
-#endif
-
-#ifndef ESP_IDF_VERSION_MAJOR
-#define ESP_IDF_VERSION_MAJOR 5
-#endif
 
 
-namespace {
-    constexpr std::string_view kInitSetupNs  = "root";
-    constexpr std::string_view kInitSetupKey = "init_setup_complete";
-}
 
 
 Nvs::Nvs(ModuleController& controller)
@@ -340,14 +329,4 @@ void Nvs::reset_ns(std::string_view ns) {
                "reset_ns(): removed %u keys for namespace '%.*s'.\n",
                static_cast<unsigned>(removed),
                static_cast<int>(ns.size()), ns.data());
-}
-
-
-bool Nvs::init_setup_complete() {
-    return read<bool>(kInitSetupNs, kInitSetupKey, false);
-}
-
-
-void Nvs::set_init_setup_complete() {
-    (void)write<bool>(kInitSetupNs, kInitSetupKey, true);
 }

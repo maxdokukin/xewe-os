@@ -52,9 +52,6 @@ public:
 
     void                        reset_ns                    (std::string_view ns);
 
-    bool                        init_setup_complete         ();
-    void                        set_init_setup_complete     ();
-
 private:
     template <typename>
     struct always_false : std::false_type {};

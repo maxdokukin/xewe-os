@@ -87,8 +87,10 @@ private:
                                                              const char* op_name,
                                                              const std::string& storage_key);
 
-    // Normalizes a namespace or key name to NVS rules: NUL-terminated std::string,
-    // embedded NULs replaced with '_', truncated to MAX_KEY_LEN (with a warning).
+    // Normalizes a namespace or key name to NVS rules: NUL-terminated std::string
+    // with embedded NULs replaced with '_'. Names longer than MAX_KEY_LEN are
+    // REJECTED (returns empty) rather than truncated, since truncation silently
+    // collides distinct names sharing the first MAX_KEY_LEN chars.
     std::string                 sanitize_name               (std::string_view name) const;
 };
 

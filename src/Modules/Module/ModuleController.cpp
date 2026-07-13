@@ -1,7 +1,5 @@
 #include "ModuleController.h"
 
-#include "../../tests/Nvs/NvsTester.h"
-
 ModuleController::ModuleController()
   : serial_port(*this)
   , nvs(*this)

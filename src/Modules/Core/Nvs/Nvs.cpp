@@ -150,13 +150,16 @@ std::string Nvs::sanitize_name(std::string_view name) const {
     }
 
     if (out.size() > MAX_KEY_LEN) {
-        DBG_PRINTF(Nvs,
-                   "sanitize_name(): WARNING: name '%s' is too long (%u chars), truncating to %u.\n",
-                   out.c_str(),
-                   static_cast<unsigned>(out.size()),
-                   static_cast<unsigned>(MAX_KEY_LEN));
-
-        out.resize(MAX_KEY_LEN);
+        // Reject rather than truncate: truncating silently collides distinct
+        // names that share the first MAX_KEY_LEN chars, causing data loss.
+        // Callers treat an empty result as an invalid name and fail the op.
+        controller.serial_port.printf(
+            "Nvs: ERROR name '%s' too long (%u chars > %u max); rejected",
+            out.c_str(),
+            static_cast<unsigned>(out.size()),
+            static_cast<unsigned>(MAX_KEY_LEN)
+        );
+        return {};
     }
 
     return out;

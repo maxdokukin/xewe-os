@@ -12,6 +12,9 @@
 
 #include "../Hardware/Buttons/Buttons.h"
 
+// tests
+#include "../../tests/Nvs/NvsTester.h"
+
 #include <map>
 #include <memory>
 #include <span>

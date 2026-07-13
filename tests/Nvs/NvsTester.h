@@ -149,6 +149,17 @@ inline void NvsTester::run_tests() {
         report("str_read_as_String", got == "hello world");
     }
 
+    // A key longer than 15 chars must be REJECTED, not silently truncated
+    // (truncation would collide keys sharing a 15-char prefix). write() returns
+    // false and the value never lands, so the read comes back as the default.
+    // (Expect a "Nvs: ERROR name ... too long" line printed twice here.)
+    {
+        const char* long_key = "key_hello_dear_robert_adams"; // 27 chars
+        const bool wrote = controller.nvs.write<int32_t>(kNs, long_key, 123);
+        const int32_t got = controller.nvs.read<int32_t>(kNs, long_key, -1);
+        report("overlength_key_rejected", !wrote && got == -1);
+    }
+
     // ---- scalar types -----------------------------------------------------
     round_trip<bool>       ("bool_true",  kNs, "b_true",  true);
     round_trip<bool>       ("bool_false", kNs, "b_false", false);

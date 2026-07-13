@@ -47,7 +47,7 @@ void CommandExecutor::print_help(std::string_view module_id) const {
         return;
     }
 
-    Module* module = controller.get_module(id);
+    Module* module = controller.get_module_by_id(id);
 
     if (module == nullptr) {
         controller.serial_port.printf(
@@ -98,7 +98,9 @@ void CommandExecutor::print_help(std::string_view module_id) const {
 }
 
 void CommandExecutor::print_all_commands() const {
-    for (const auto& [id, module] : controller.get_modules()) {
+    for (const auto& [id, record] : controller.get_modules()) {
+        Module* module = record.module;
+
         if (module && !module->get_commands().empty()) {
             print_help(id);
         }
@@ -163,7 +165,7 @@ void CommandExecutor::parse(std::string_view input_line) const {
         return;
     }
 
-    Module* module = controller.get_module(tokens[0]);
+    Module* module = controller.get_module_by_id(tokens[0]);
 
     if (module == nullptr) {
         controller.serial_port.printf(

@@ -19,7 +19,17 @@ ModuleController::ModuleController()
 }
 
 bool ModuleController::register_module(Module& module) {
-    auto [it, inserted] = modules.emplace(module.get_id(), &module);
+    return register_module_with_type(nullptr, module);
+}
+
+bool ModuleController::register_module_with_type(ModuleType type, Module& module) {
+    auto [it, inserted] = modules.emplace(
+        std::string(module.get_id()),
+        ModuleRecord{
+            type,
+            &module
+        }
+    );
 
     if (!inserted) {
         return false;
@@ -66,14 +76,14 @@ void ModuleController::index_module_commands(Module& module) {
     }
 }
 
-Module* ModuleController::get_module(std::string_view id) {
+Module* ModuleController::get_module_by_id(std::string_view id) {
     auto it = modules.find(std::string(id));
 
     if (it == modules.end()) {
         return nullptr;
     }
 
-    return it->second;
+    return it->second.module;
 }
 
 void ModuleController::send_command(

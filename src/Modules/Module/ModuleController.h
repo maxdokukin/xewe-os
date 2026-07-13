@@ -7,14 +7,36 @@
 #include "../Core/System/System.h"
 #include "../Core/CommandExecutor/CommandExecutor.h"
 
+#include "../Software/Wifi/Wifi.h"
+#include "../Software/WebInterface/WebInterface.h"
+
 #include <map>
+#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 class ModuleController {
 public:
     using ModuleType = const void*;
+
+    struct ModuleRecord {
+        ModuleType type {};
+        Module* module {};
+
+        explicit operator bool() const {
+            return module != nullptr;
+        }
+
+        operator Module*() const {
+            return module;
+        }
+
+        Module* operator->() const {
+            return module;
+        }
+    };
 
     ModuleController();
 
@@ -25,23 +47,28 @@ public:
 
     template <typename T>
     bool register_module(T& module) {
-        modules[module_type_key<T>()] = &module;
-        index_module_commands(module);
-        return true;
+        return register_module_with_type(
+            module_type_key<T>(),
+            static_cast<Module&>(module)
+        );
     }
+
+    Module* get_module_by_id(std::string_view id);
 
     template <typename T>
-    T* get_module() {
-        auto it = modules.find(module_type_key<T>());
+    T* get_module_by_type() {
+        const ModuleType type = module_type_key<T>();
 
-        if (it == modules.end()) {
-            return nullptr;
+        for (const auto& [id, record] : modules) {
+            if (record.type == type) {
+                return static_cast<T*>(record.module);
+            }
         }
 
-        return static_cast<T*>(it->second);
+        return nullptr;
     }
 
-    const std::map<ModuleType, Module*>& get_modules() const { return modules; }
+    const std::map<std::string, ModuleRecord>& get_modules() const { return modules; }
 
     void send_command(
         Module* sender,
@@ -62,10 +89,14 @@ private:
         return &key;
     }
 
+    bool register_module_with_type(ModuleType type, Module& module);
+
     void load_registered_modules();
     void index_module_commands(Module& module);
 
-    std::map<ModuleType, Module*> modules {};
+    std::map<std::string, ModuleRecord> modules {};
+
+    std::vector<std::unique_ptr<Module>> owned_modules {};
 
     std::map<
         std::string,

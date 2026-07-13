@@ -12,8 +12,9 @@
 
 #include "../../Module/Module.h"
 
+#include <limits>
 #include <optional>
-
+#include <cstring>
 
 struct SerialPortConfig : public ModuleConfig {
     unsigned long baud_rate = 115200;
@@ -39,8 +40,8 @@ public:
                                                              const uint16_t         margin_l                = 0,
                                                              const uint16_t         margin_r                = 0
                                                             );
-    void                        printf_fmt                  (string_view            edge_character,
-                                                             string_view            end,
+    void                        printf_fmt                  (string_view            end,
+                                                             string_view            edge_character,
                                                              const char             text_align,
                                                              const char             wrap_mode,
                                                              const uint16_t         message_width,
@@ -146,7 +147,7 @@ private:
     void                        println_raw                 (string_view message);
     void                        printf_raw                  (const char* fmt,
                                                              ...
-                                                             );
+                                                            );
     bool                        read_line_with_timeout      (string& out,
                                                              const uint32_t timeout_ms
                                                             );
@@ -176,7 +177,7 @@ private:
     size_t                      line_length                 = 0;
     bool                        line_ready                  = false;
     static constexpr size_t     INPUT_BUFFER_SIZE           = 255;
-    char                        input_buffer                [INPUT_BUFFER_SIZE];
+    char                        input_buffer                [INPUT_BUFFER_SIZE] = {};
 };
 
 

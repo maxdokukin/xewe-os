@@ -10,13 +10,13 @@
 // src/Modules/SerialPort/SerialPort.cpp
 #include "SerialPort.h"
 #include "../../Module/ModuleController.h"
-#include <cstring>  // strlen
+
 
 SerialPort::SerialPort(ModuleController& controller)
     : Module(controller,
-             /* module_name         */ "Serial_Port",
-             /* module_description  */ "Allows to send and receive text messages over the USB wire",
-             /* nvs_key             */ "ser",
+             /* id                  */ "ser",
+             /* name                */ "Serial_Port",
+             /* description         */ "Allows to send and receive text messages over the USB wire",
              /* requires_init_setup */ false,
              /* can_be_disabled     */ false,
              /* has_cli_cmds        */ false) {
@@ -54,6 +54,7 @@ void SerialPort::reset (const bool verbose, const bool do_restart, const bool ke
     input_buffer_pos = 0;
     line_length      = 0;
     line_ready       = false;
+    input_buffer[0]  = '\0';
     Module::reset(verbose, do_restart, keep_enabled);
 }
 
@@ -95,13 +96,13 @@ void SerialPort::print(std::string_view message,
 }
 
 void SerialPort::printf_fmt(std::string_view end,
-                        std::string_view edge_character,
-                        const char text_align,
-                        const char wrap_mode,
-                        const uint16_t message_width,
-                        const uint16_t margin_l,
-                        const uint16_t margin_r,
-                        const char* fmt, ...) {
+                            std::string_view edge_character,
+                            const char text_align,
+                            const char wrap_mode,
+                            const uint16_t message_width,
+                            const uint16_t margin_l,
+                            const uint16_t margin_r,
+                            const char* fmt, ...) {
     if (!fmt) {
         print("", end, edge_character, text_align, wrap_mode, message_width, margin_l, margin_r);
         return;
@@ -379,12 +380,12 @@ void SerialPort::print_table(const vector<vector<string_view>>& table,
 
 // getters
 string SerialPort::get_string(string_view prompt,
-                                   const uint16_t min_length,
-                                   const uint16_t max_length,
-                                   const uint16_t retry_count,
-                                   const uint32_t timeout_ms,
-                                   string_view default_value,
-                                   optional<reference_wrapper<bool>> success_sink) {
+                              const uint16_t min_length,
+                              const uint16_t max_length,
+                              const uint16_t retry_count,
+                              const uint32_t timeout_ms,
+                              string_view default_value,
+                              optional<reference_wrapper<bool>> success_sink) {
     const size_t min_len = static_cast<size_t>(min_length);
     const size_t max_len = (max_length == 0) ? (INPUT_BUFFER_SIZE - 1)
                                              : static_cast<size_t>(max_length);
@@ -402,7 +403,7 @@ string SerialPort::get_string(string_view prompt,
     };
 
     return get_core<string>(prompt, retry_count, timeout_ms, string(default_value),
-                               success_sink, "> ", /*crlf*/true, checker);
+                            success_sink, "> ", /*crlf*/true, checker);
 }
 
 int SerialPort::get_int(string_view prompt,
@@ -478,7 +479,7 @@ float SerialPort::get_float(string_view prompt,
     };
 
     return get_core<float>(prompt, retry_count, timeout_ms, default_value,
-                              success_sink, "> ", /*crlf*/true, checker);
+                           success_sink, "> ", /*crlf*/true, checker);
 }
 
 bool SerialPort::get_yn(string_view prompt,
@@ -495,7 +496,7 @@ bool SerialPort::get_yn(string_view prompt,
     };
 
     return get_core<bool>(prompt, retry_count, timeout_ms, default_value,
-                             success_sink, "(y/n) > ", /*crlf*/true, checker);
+                          success_sink, "(y/n) > ", /*crlf*/true, checker);
 }
 
 uint8_t SerialPort::get_menu_choice(string_view prompt,
@@ -548,6 +549,7 @@ string SerialPort::read_line() {
     line_ready       = false;
     line_length      = 0;
     input_buffer_pos = 0;
+//     input_buffer[0]  = '\0';
     return out;
 }
 
@@ -560,6 +562,7 @@ void SerialPort::flush_input() {
     input_buffer_pos = 0;
     line_length      = 0;
     line_ready       = false;
+//     input_buffer[0]  = '\0';
 }
 
 void SerialPort::print_raw(string_view message) {

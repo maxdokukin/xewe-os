@@ -22,7 +22,6 @@ class CommandExecutor : public Module {
 public:
     explicit                    CommandExecutor             (ModuleController& controller);
 
-    void                        begin_routines_required     (const ModuleConfig& cfg)       override;
     void                        loop                        ()                              override;
 
     void                        print_help                  (std::string_view id)    const;

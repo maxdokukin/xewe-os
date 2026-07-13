@@ -121,7 +121,7 @@ System::System(ModuleController& controller)
                 return;
             }
 
-            this->controller.nvs.write<std::string>(id, "dname", new_name);
+            this->controller.nvs.write<std::string>(id, "device_name", new_name);
 
             this->controller.serial_port.print(
                 ("Device name set to: " + new_name).c_str(),
@@ -228,7 +228,7 @@ void System::begin_routines_init (const ModuleConfig& cfg) {
         name = controller.serial_port.get_string("Name your device (ex: Kitchen Lights):");
         confirmed = controller.serial_port.get_yn("Confirm \"" + name + "\"?");
     }
-    controller.nvs.write<std::string>(id, "dname", name);
+    controller.nvs.write<std::string>(id, "device_name", name);
 }
 
 void System::reset (const bool verbose, const bool do_restart, const bool keep_enabled) {
@@ -287,7 +287,7 @@ std::string System::status(const bool verbose) const {
     return "System OK";
 }
 
-std::string System::get_device_name () { return controller.nvs.read<std::string>(id, "dname"); };
+std::string System::get_device_name () { return controller.nvs.read<std::string>(id, "device_name"); };
 
 void System::restart (uint16_t delay_ms) {
     controller.serial_port.print_header("Rebooting");

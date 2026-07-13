@@ -8,15 +8,10 @@
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
 
-// src/Modules/Nvs/Nvs.cpp
+// src/Modules/Core/Nvs/Nvs.cpp
 
 #include "Nvs.h"
 #include "../../Module/ModuleController.h"
-
-#include <vector>
-#include <esp_idf_version.h>
-
-
 
 
 Nvs::Nvs(ModuleController& controller)
@@ -73,19 +68,26 @@ bool Nvs::ensure_ready() {
 }
 
 
-esp_err_t Nvs::open_handle(nvs_open_mode_t mode, ScopedHandle& scoped) {
+esp_err_t Nvs::open_handle(std::string_view ns, nvs_open_mode_t mode, ScopedHandle& scoped) {
     scoped.close();
 
     if (!ensure_ready()) {
         return ESP_FAIL;
     }
 
-    const esp_err_t err = nvs_open(id.c_str(), mode, &scoped.handle);
+    const std::string namespace_name = sanitize_name(ns);
+
+    if (namespace_name.empty()) {
+        DBG_PRINTLN(Nvs, "open_handle(): ERROR: empty namespace.");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    const esp_err_t err = nvs_open(namespace_name.c_str(), mode, &scoped.handle);
 
     if (err != ESP_OK && !(mode == NVS_READONLY && err == ESP_ERR_NVS_NOT_FOUND)) {
         DBG_PRINTF(Nvs,
                    "open_handle(): nvs_open(namespace='%s', mode=%d) failed: %s (%d).\n",
-                   id.c_str(),
+                   namespace_name.c_str(),
                    static_cast<int>(mode),
                    esp_err_to_name(err),
                    static_cast<int>(err));
@@ -133,37 +135,31 @@ bool Nvs::commit_and_close(ScopedHandle& scoped,
 }
 
 
-std::string Nvs::format_key(std::string_view ns, std::string_view key) const {
-    if (ns.empty() && key.empty()) {
+std::string Nvs::sanitize_name(std::string_view name) const {
+    if (name.empty()) {
         return {};
     }
 
-    std::string combined;
+    std::string out;
+    out.append(name.data(), name.size());
 
-    if (!ns.empty()) {
-        combined.append(ns.data(), ns.size());
-        combined.push_back(':');
-    }
-
-    combined.append(key.data(), key.size());
-
-    for (char& c : combined) {
+    for (char& c : out) {
         if (c == '\0') {
             c = '_';
         }
     }
 
-    if (combined.size() > MAX_KEY_LEN) {
+    if (out.size() > MAX_KEY_LEN) {
         DBG_PRINTF(Nvs,
-                   "format_key(): WARNING: key '%s' is too long (%u chars), truncating to %u.\n",
-                   combined.c_str(),
-                   static_cast<unsigned>(combined.size()),
+                   "sanitize_name(): WARNING: name '%s' is too long (%u chars), truncating to %u.\n",
+                   out.c_str(),
+                   static_cast<unsigned>(out.size()),
                    static_cast<unsigned>(MAX_KEY_LEN));
 
-        combined.resize(MAX_KEY_LEN);
+        out.resize(MAX_KEY_LEN);
     }
 
-    return combined;
+    return out;
 }
 
 
@@ -173,7 +169,7 @@ void Nvs::reset(const bool verbose, const bool do_restart, const bool keep_enabl
                id.c_str());
 
     ScopedHandle sh;
-    const esp_err_t open_err = open_handle(NVS_READWRITE, sh);
+    const esp_err_t open_err = open_handle(id, NVS_READWRITE, sh);
 
     if (open_err != ESP_OK) {
         DBG_PRINTF(Nvs,
@@ -197,13 +193,33 @@ void Nvs::reset(const bool verbose, const bool do_restart, const bool keep_enabl
 }
 
 
+bool Nvs::factory_reset() {
+    DBG_PRINTLN(Nvs, "factory_reset(): erasing the entire default NVS partition.");
+
+    (void)nvs_flash_deinit();
+    m_nvs_ready = false;
+
+    const esp_err_t erase_err = nvs_flash_erase();
+
+    if (erase_err != ESP_OK) {
+        DBG_PRINTF(Nvs,
+                   "factory_reset(): nvs_flash_erase() failed: %s (%d).\n",
+                   esp_err_to_name(erase_err),
+                   static_cast<int>(erase_err));
+        return false;
+    }
+
+    return ensure_ready();
+}
+
+
 void Nvs::remove(std::string_view ns, std::string_view key) {
     if (key.empty()) {
         DBG_PRINTLN(Nvs, "remove(): ERROR: empty key.");
         return;
     }
 
-    const std::string storage_key = format_key(ns, key);
+    const std::string storage_key = sanitize_name(key);
 
     DBG_PRINTF(Nvs,
                "remove(): ns='%.*s', key='%.*s', storage_key='%s'.\n",
@@ -212,7 +228,7 @@ void Nvs::remove(std::string_view ns, std::string_view key) {
                storage_key.c_str());
 
     ScopedHandle sh;
-    const esp_err_t open_err = open_handle(NVS_READWRITE, sh);
+    const esp_err_t open_err = open_handle(ns, NVS_READWRITE, sh);
 
     if (open_err != ESP_OK) {
         DBG_PRINTF(Nvs,
@@ -237,96 +253,58 @@ void Nvs::remove(std::string_view ns, std::string_view key) {
 
 
 void Nvs::reset_ns(std::string_view ns) {
-    const std::string prefix = format_key(ns);
+    const std::string namespace_name = sanitize_name(ns);
 
-    if (prefix.empty()) {
+    if (namespace_name.empty()) {
         DBG_PRINTLN(Nvs, "reset_ns(): ERROR: empty namespace.");
         return;
     }
 
     DBG_PRINTF(Nvs,
-               "reset_ns(): removing keys with logical namespace '%.*s', prefix '%s'.\n",
-               static_cast<int>(ns.size()), ns.data(),
-               prefix.c_str());
+               "reset_ns(): clearing NVS namespace '%s'.\n",
+               namespace_name.c_str());
 
-    if (!ensure_ready()) {
-        DBG_PRINTLN(Nvs, "reset_ns(): NVS is not ready.");
-        return;
-    }
-
-    std::vector<std::string> keys_to_remove;
-
-    nvs_iterator_t it = nullptr;
-    esp_err_t iter_err = nvs_entry_find("nvs", id.c_str(), NVS_TYPE_ANY, &it);
-
-    while (iter_err == ESP_OK && it != nullptr) {
-        nvs_entry_info_t info{};
-        (void)nvs_entry_info(it, &info);
-
-        const std::string current_key(info.key);
-
-        if (current_key.rfind(prefix, 0) == 0) {
-            keys_to_remove.push_back(current_key);
-
-            DBG_PRINTF(Nvs,
-                       "reset_ns(): matched key '%s'.\n",
-                       current_key.c_str());
-        }
-
-        iter_err = nvs_entry_next(&it);
-    }
-
-    if (it != nullptr) {
-        nvs_release_iterator(it);
-    }
-
-    if (keys_to_remove.empty()) {
-        DBG_PRINTF(Nvs,
-                   "reset_ns(): no keys found for namespace '%.*s'.\n",
-                   static_cast<int>(ns.size()), ns.data());
-        return;
-    }
-
+    // Probe read-only first: a namespace that was never written does not exist,
+    // and we must not create it just to erase it (read-only never creates one).
     ScopedHandle sh;
-    const esp_err_t open_err = open_handle(NVS_READWRITE, sh);
+    const esp_err_t probe_err = open_handle(ns, NVS_READONLY, sh);
+
+    if (probe_err == ESP_ERR_NVS_NOT_FOUND) {
+        DBG_PRINTF(Nvs,
+                   "reset_ns(): namespace '%s' does not exist; nothing to erase.\n",
+                   namespace_name.c_str());
+        return;
+    }
+
+    if (probe_err != ESP_OK) {
+        DBG_PRINTF(Nvs,
+                   "reset_ns(): probe open failed for '%s': %s (%d).\n",
+                   namespace_name.c_str(),
+                   esp_err_to_name(probe_err),
+                   static_cast<int>(probe_err));
+        return;
+    }
+
+    // Reopen read-write (open_handle closes the read-only handle first).
+    const esp_err_t open_err = open_handle(ns, NVS_READWRITE, sh);
 
     if (open_err != ESP_OK) {
         DBG_PRINTF(Nvs,
-                   "reset_ns(): open failed: %s (%d).\n",
+                   "reset_ns(): open failed for '%s': %s (%d).\n",
+                   namespace_name.c_str(),
                    esp_err_to_name(open_err),
                    static_cast<int>(open_err));
         return;
     }
 
-    std::size_t removed = 0;
+    const esp_err_t erase_err = nvs_erase_all(sh);
 
-    for (const std::string& storage_key : keys_to_remove) {
-        const esp_err_t erase_err = nvs_erase_key(sh, storage_key.c_str());
-
-        if (erase_err == ESP_OK) {
-            ++removed;
-        } else {
-            DBG_PRINTF(Nvs,
-                       "reset_ns(): failed to erase key '%s': %s (%d).\n",
-                       storage_key.c_str(),
-                       esp_err_to_name(erase_err),
-                       static_cast<int>(erase_err));
-        }
-    }
-
-    const esp_err_t commit_err = nvs_commit(sh);
-    sh.close();
-
-    if (commit_err != ESP_OK) {
-        DBG_PRINTF(Nvs,
-                   "reset_ns(): commit failed: %s (%d).\n",
-                   esp_err_to_name(commit_err),
-                   static_cast<int>(commit_err));
+    if (!commit_and_close(sh, erase_err, "reset_ns()", namespace_name)) {
+        DBG_PRINTLN(Nvs, "reset_ns(): failed.");
         return;
     }
 
     DBG_PRINTF(Nvs,
-               "reset_ns(): removed %u keys for namespace '%.*s'.\n",
-               static_cast<unsigned>(removed),
-               static_cast<int>(ns.size()), ns.data());
+               "reset_ns(): namespace '%s' cleared.\n",
+               namespace_name.c_str());
 }

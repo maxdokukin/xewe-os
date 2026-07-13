@@ -1,5 +1,7 @@
 #include "ModuleController.h"
 
+#include "../../tests/Nvs/NvsTester.h"
+
 ModuleController::ModuleController()
   : serial_port(*this)
   , nvs(*this)
@@ -17,6 +19,8 @@ ModuleController::ModuleController()
     register_module(web_interface);
     register_module(buttons);
 
+    owned_modules.push_back(std::make_unique<NvsTester>(*this));
+    register_module(*owned_modules.back());
 }
 
 void ModuleController::begin() {

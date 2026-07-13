@@ -37,6 +37,10 @@ public:
                                                              const bool do_restart=true,
                                                              const bool keep_enabled=true) override;
 
+    // Wipe the ENTIRE default NVS partition (every namespace). Use for a true
+    // system-wide factory reset; Nvs::reset() only clears this module's namespace.
+    bool                        factory_reset               ();
+
     template <typename T>
     bool                        write                       (std::string_view ns,
                                                              std::string_view key,
@@ -74,7 +78,8 @@ private:
 
     bool                        ensure_ready                ();
 
-    esp_err_t                   open_handle                 (nvs_open_mode_t mode,
+    esp_err_t                   open_handle                 (std::string_view ns,
+                                                             nvs_open_mode_t mode,
                                                              ScopedHandle& scoped);
 
     bool                        commit_and_close            (ScopedHandle& scoped,
@@ -82,8 +87,9 @@ private:
                                                              const char* op_name,
                                                              const std::string& storage_key);
 
-    std::string                 format_key                  (std::string_view ns,
-                                                             std::string_view key = {}) const;
+    // Normalizes a namespace or key name to NVS rules: NUL-terminated std::string,
+    // embedded NULs replaced with '_', truncated to MAX_KEY_LEN (with a warning).
+    std::string                 sanitize_name               (std::string_view name) const;
 };
 
 #include "Nvs.tpp"

@@ -8,7 +8,7 @@
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
 
-// src/Modules/Nvs/Nvs.tpp
+// src/Modules/Core/Nvs/Nvs.tpp
 #pragma once
 
 
@@ -23,7 +23,7 @@ bool Nvs::write(std::string_view ns,
         return false;
     }
 
-    const std::string storage_key = format_key(ns, key);
+    const std::string storage_key = sanitize_name(key);
 
     if (storage_key.empty()) {
         DBG_PRINTLN(Nvs, "write(): ERROR: generated empty storage key.");
@@ -31,7 +31,7 @@ bool Nvs::write(std::string_view ns,
     }
 
     ScopedHandle sh;
-    const esp_err_t open_err = open_handle(NVS_READWRITE, sh);
+    const esp_err_t open_err = open_handle(ns, NVS_READWRITE, sh);
 
     if (open_err != ESP_OK) {
         DBG_PRINTF(Nvs,
@@ -93,7 +93,7 @@ T Nvs::read(std::string_view ns,
         return default_value;
     }
 
-    const std::string storage_key = format_key(ns, key);
+    const std::string storage_key = sanitize_name(key);
 
     if (storage_key.empty()) {
         DBG_PRINTLN(Nvs, "read(): ERROR: generated empty storage key. Returning default.");
@@ -101,7 +101,7 @@ T Nvs::read(std::string_view ns,
     }
 
     ScopedHandle sh;
-    const esp_err_t open_err = open_handle(NVS_READONLY, sh);
+    const esp_err_t open_err = open_handle(ns, NVS_READONLY, sh);
 
     if (open_err != ESP_OK) {
         DBG_PRINTF(Nvs,

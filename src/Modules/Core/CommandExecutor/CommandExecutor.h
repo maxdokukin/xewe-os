@@ -12,22 +12,27 @@
 
 #include "../../Module/Module.h"
 
-#include <algorithm>
+#include <string>
+#include <string_view>
 #include <vector>
 
 struct CommandExecutorConfig : public ModuleConfig {};
 
-class CommandExecutor: public Module {
+class CommandExecutor : public Module {
 public:
-    explicit                    CommandExecutor               (ModuleController& controller);
+    explicit                    CommandExecutor             (ModuleController& controller);
 
     void                        begin_routines_required     (const ModuleConfig& cfg)       override;
+    void                        loop                        ()                              override;
 
-    // other methods
-    void                        print_help                  (const string& group_name) const;
+    void                        print_help                  (std::string_view module_id)    const;
     void                        print_all_commands          ()                              const;
-    void                        parse                       (string_view input_line)   const;
+    void                        parse                       (std::string_view input_line)   const;
 
 private:
-    vector<CommandsGroup>       command_groups;
+    static std::string          trim_copy                   (std::string_view value);
+    static std::string          lower_copy                  (std::string_view value);
+
+    bool                        tokenize                    (std::string_view input,
+                                                             std::vector<std::string>& out) const;
 };

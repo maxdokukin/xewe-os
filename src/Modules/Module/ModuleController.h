@@ -32,10 +32,10 @@ public:
         std::span<const std::string> args
     );
 
-//     SerialPort                  serial_port;
-//     Nvs                         nvs;
-//     System                      system;
-//     CommandExecutor             command_executor;
+    SerialPort                  serial_port;
+    Nvs                         nvs;
+    System                      system;
+    CommandExecutor             command_executor;
 
 private:
     void load_registered_modules();

@@ -13,277 +13,280 @@
 #include "CommandExecutor.h"
 #include "../../Module/ModuleController.h"
 
+#include <algorithm>
+#include <cctype>
+#include <span>
+#include <string>
+#include <vector>
+
+
 CommandExecutor::CommandExecutor(ModuleController& controller)
       : Module(controller,
-               /* module_name         */ "Command_Parser",
-               /* module_description  */ "Allows to parse text from the serial port in the action function calls with parameters",
-               /* nvs_key             */ "cmd",
+               /* id                  */ "cmd",
+               /* name                */ "Command_Parser",
+               /* description         */ "Allows to parse text from the serial port into module command calls with parameters",
                /* requires_init_setup */ false,
                /* can_be_disabled     */ false,
                /* has_cli_cmds        */ false)
 {}
 
-void CommandExecutor::begin_routines_required(const ModuleConfig& cfg) {
-    DBG_PRINTLN(CommandExecutor, "begin_routines_required(): Initializing CommandExecutor and fetching command groups.");
-    command_groups.clear();
 
-    auto& modules = controller.get_modules(); // IMPORTANT: reference, not copy
-
-    if (modules.empty()) {
-        DBG_PRINTLN(CommandExecutor, "begin_routines_required(): Warning - Module list is empty.");
+void CommandExecutor::loop() {
+    if (!controller.serial_port.has_line()) {
         return;
     }
 
-    DBG_PRINTF(CommandExecutor, "begin_routines_required(): Found %zu modules. Extracting command groups...\n", modules.size());
-
-    for (Module* module : modules) {
-        if (!module)
-            continue;
-
-        auto grp = module->get_commands_group();
-        if (!grp.commands.empty()) {
-            DBG_PRINTF(CommandExecutor, "begin_routines_required(): Added command group '%s' with %zu commands.\n", grp.name.c_str(), grp.commands.size());
-            command_groups.push_back(grp);
-        }
-    }
-    DBG_PRINTLN(CommandExecutor, "begin_routines_required(): Initialization complete.");
+    parse(controller.serial_port.read_line());
 }
 
-void CommandExecutor::print_help(const string& group_name) const {
-    DBG_PRINTF(CommandExecutor, "print_help(): Requesting help for group '%s'.\n", group_name.c_str());
-    string target = group_name;
-    transform(target.begin(), target.end(), target.begin(), ::tolower);
+void CommandExecutor::print_help(std::string_view module_id) const {
+    const std::string id = trim_copy(module_id);
 
-    for (const auto& grp : command_groups) {
-        string g_name = grp.name;
-        string g_code = grp.group;
-        transform(g_name.begin(), g_name.end(), g_name.begin(), ::tolower);
-        transform(g_code.begin(), g_code.end(), g_code.begin(), ::tolower);
-
-        if (target == g_code || target == g_name) {
-            DBG_PRINTF(CommandExecutor, "print_help(): Found match for group '%s'. Generating table.\n", grp.name.c_str());
-            vector<vector<string_view>> table_data;
-            table_data.push_back({"Name", "Description", "Sample Usage"});
-
-            vector<string> arg_counts_store;
-            arg_counts_store.reserve(grp.commands.size());
-
-            for (const auto& cmd : grp.commands) {
-                arg_counts_store.push_back(to_string(cmd.arg_count));
-
-                table_data.push_back({
-                    cmd.name,
-                    cmd.description,
-                    cmd.sample_usage
-                });
-            }
-
-            controller.serial_port.print_table(
-                table_data,
-                grp.name + " Commands"
-            );
-
-            return;
-        }
-    }
-
-    DBG_PRINTF(CommandExecutor, "print_help(): Error - Command group '%s' not found.\n", group_name.c_str());
-    Serial.print("Error: Command group '");
-    Serial.print(group_name.c_str());
-    Serial.println("' not found.");
-}
-
-void CommandExecutor::print_all_commands() const {
-    DBG_PRINTLN(CommandExecutor, "print_all_commands(): Printing help tables for all available command groups.");
-    // We iterate manually to add spacing between tables
-    for (size_t i = 0; i < command_groups.size(); ++i) {
-        if (!command_groups[i].name.empty()) {
-            print_help(command_groups[i].name);
-            Serial.print(""); // Spacer between tables
-        }
-    }
-}
-
-void CommandExecutor::parse(string_view input_line) const {
-    // Copy into mutable string
-    string local(input_line.begin(), input_line.end());
-    DBG_PRINTF(CommandExecutor, "parse(): Received input line: '%s'\n", local.c_str());
-
-    auto is_space = [](char c){ return isspace(static_cast<unsigned char>(c)); };
-
-    // Trim whitespace
-    size_t b = local.find_first_not_of(" \t\r\n"),
-           e = local.find_last_not_of(" \t\r\n");
-    if (b == string::npos) {
-        DBG_PRINTLN(CommandExecutor, "parse(): Input is entirely whitespace or empty. Aborting.");
-        return;
-    }
-    local = local.substr(b, e - b + 1);
-
-    // Must start with $
-    if (local.empty() || local[0] != '$') {
-        DBG_PRINTF(CommandExecutor, "parse(): Error - Input '%s' does not start with '$'.\n", local.c_str());
-        Serial.println("Error: commands must start with '$'; type $help");
-        return;
-    }
-
-    // Drop '$' and trim again
-    local.erase(0,1);
-    b = local.find_first_not_of(" \t\r\n");
-    e = local.find_last_not_of(" \t\r\n");
-    if (b == string::npos) local.clear();
-    else                   local = local.substr(b, e - b + 1);
-
-    // Split off group name
-    size_t sp = local.find(' ');
-    string group = (sp == string::npos) ? local : local.substr(0, sp);
-    DBG_PRINTF(CommandExecutor, "parse(): Extracted group identifier: '%s'\n", group.c_str());
-
-    // Handle $help specially
-    string gl = group;
-    transform(gl.begin(), gl.end(), gl.begin(), ::tolower);
-    if (gl == "help") {
-        DBG_PRINTLN(CommandExecutor, "parse(): Global help requested. Routing to print_all_commands().");
+    if (module_id.empty()) {
         print_all_commands();
         return;
     }
 
-    // Extract rest of line
-    string rest = (sp == string::npos)
-                       ? string()
-                       : local.substr(sp+1);
-    b = rest.find_first_not_of(" \t\r\n");
-    e = rest.find_last_not_of(" \t\r\n");
-    if (b == string::npos) rest.clear();
-    else                   rest = rest.substr(b, e - b + 1);
+    Module* module = controller.get_module(id);
 
-    if (!rest.empty()) {
-        DBG_PRINTF(CommandExecutor, "parse(): Raw argument string to tokenize: '%s'\n", rest.c_str());
+    if (module == nullptr) {
+        controller.serial_port.printf(
+            "Error: Unknown module '%s'\r\n",
+            module_id.c_str()
+        );
+        return;
     }
 
-    // Tokenize (supports quoted and escaped characters)
-    struct Token { string value; bool quoted; };
-    vector<Token> toks;
+    const auto commands = module->get_commands();
+
+    if (commands.empty()) {
+        controller.serial_port.printf(
+            "Module '%s' has no CLI commands\r\n",
+            module_id.c_str()
+        );
+        return;
+    }
+
+    std::vector<std::vector<std::string_view>> table_data;
+    table_data.push_back({"Command", "Args", "Description", "Sample Usage"});
+
+    std::vector<std::string> arg_counts;
+    arg_counts.reserve(commands.size());
+
+    for (const Command& command : commands) {
+        if (command.name.empty() || !command.function) {
+            continue;
+        }
+
+        arg_counts.push_back(std::to_string(command.arg_count));
+
+        table_data.push_back({
+            command.name,
+            arg_counts.back(),
+            command.description,
+            command.sample_usage
+        });
+    }
+
+    const std::string header =
+        std::string(module->get_name()) + " Commands [" + std::string(module->get_id()) + "]";
+
+    controller.serial_port.print_table(table_data, header);
+}
+
+void CommandExecutor::print_all_commands() const {
+    controller.serial_port.print(
+        "Usage:\r\n"
+        "  $<module_id> <command> [args...]\r\n"
+        "  $<module_id>\r\n"
+        "  $<module_id> help\r\n"
+        "  $help <module_id>\r\n\r\n"
+        "Global command listing is not available without a ModuleController module iterator.\r\n",
+        kCRLF
+    );
+}
+
+void CommandExecutor::parse(std::string_view input_line) const {
+    std::string local = trim_copy(input_line);
+
+    if (local.empty()) {
+        return;
+    }
+
+    if (local[0] != '$') {
+        controller.serial_port.print("Error: commands must start with '$'; type $help", kCRLF);
+        return;
+    }
+
+    local.erase(0, 1);
+    local = trim_copy(local);
+
+    if (local.empty()) {
+        print_all_commands();
+        return;
+    }
+
+    std::vector<std::string> tokens;
+
+    if (!tokenize(local, tokens)) {
+        return;
+    }
+
+    if (tokens.empty()) {
+        print_all_commands();
+        return;
+    }
+
+    if (lower_copy(tokens[0]) == "help") {
+        if (tokens.size() == 1) {
+            print_all_commands();
+            return;
+        }
+
+        if (tokens.size() != 2) {
+            controller.serial_port.print("Usage: $help <module_id>", kCRLF);
+            return;
+        }
+
+        print_help(tokens[1]);
+        return;
+    }
+
+    Module* module = controller.get_module(tokens[0]);
+
+    if (module == nullptr) {
+        controller.serial_port.printf(
+            "Error: Unknown module '%s'\r\n",
+            tokens[0].c_str()
+        );
+        return;
+    }
+
+    if (tokens.size() == 1) {
+        print_help(tokens[0]);
+        return;
+    }
+
+    if (lower_copy(tokens[1]) == "help") {
+        print_help(tokens[0]);
+        return;
+    }
+
+    std::vector<std::string> recipients;
+    recipients.push_back(tokens[0]);
+
+    std::vector<std::string> args;
+    args.reserve(tokens.size() - 2);
+
+    for (size_t i = 2; i < tokens.size(); ++i) {
+        args.push_back(tokens[i]);
+    }
+
+    controller.send_command(
+        const_cast<CommandExecutor*>(this),
+        std::span<const std::string>(recipients.data(), recipients.size()),
+        tokens[1],
+        std::span<const std::string>(args.data(), args.size())
+    );
+}
+
+std::string CommandExecutor::trim_copy(std::string_view value) {
+    const auto is_space = [](unsigned char c) {
+        return std::isspace(c) != 0;
+    };
+
+    size_t begin = 0;
+    size_t end = value.size();
+
+    while (begin < end && is_space(static_cast<unsigned char>(value[begin]))) {
+        ++begin;
+    }
+
+    while (end > begin && is_space(static_cast<unsigned char>(value[end - 1]))) {
+        --end;
+    }
+
+    return std::string(value.substr(begin, end - begin));
+}
+
+std::string CommandExecutor::lower_copy(std::string_view value) {
+    std::string out(value.begin(), value.end());
+
+    std::transform(
+        out.begin(),
+        out.end(),
+        out.begin(),
+        [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        }
+    );
+
+    return out;
+}
+
+bool CommandExecutor::tokenize(std::string_view input,
+                               std::vector<std::string>& out) const {
+    out.clear();
+
     size_t pos = 0;
-    while (pos < rest.size()) {
-        while (pos < rest.size() && is_space(rest[pos])) ++pos;
-        if (pos >= rest.size()) break;
 
-        bool quoted = false;
-        string tok;
+    while (pos < input.size()) {
+        while (pos < input.size() &&
+               std::isspace(static_cast<unsigned char>(input[pos])) != 0) {
+            ++pos;
+        }
 
-        if (rest[pos] == '"') {
-            quoted = true;
-            size_t start = pos + 1;
-            bool escape = false;
+        if (pos >= input.size()) {
+            break;
+        }
+
+        std::string token;
+
+        if (input[pos] == '"') {
+            ++pos;
+
             bool closed = false;
-            pos++; // skip initial quote
+            bool escape = false;
 
-            while (pos < rest.size()) {
+            while (pos < input.size()) {
+                const char c = input[pos++];
+
                 if (escape) {
-                    escape = false; // Previous char was '\', so we skip evaluating this one
-                } else if (rest[pos] == '\\') {
-                    escape = true;  // Enter escape mode for the next char
-                } else if (rest[pos] == '"') {
-                    closed = true;  // Unescaped quote -> end of string
+                    token.push_back(c);
+                    escape = false;
+                    continue;
+                }
+
+                if (c == '\\') {
+                    escape = true;
+                    continue;
+                }
+
+                if (c == '"') {
+                    closed = true;
                     break;
                 }
-                pos++;
+
+                token.push_back(c);
+            }
+
+            if (escape) {
+                token.push_back('\\');
             }
 
             if (!closed) {
-                DBG_PRINTLN(CommandExecutor, "parse(): Error - Unterminated quote found in command arguments.");
-                Serial.println("Error: Unterminated quote in command.");
-                return;
+                controller.serial_port.print("Error: Unterminated quote in command.", kCRLF);
+                return false;
             }
-
-            // Extract everything between the quotes, including the literal backslashes
-            tok = rest.substr(start, pos - start);
-            pos++; // skip closing quote
         } else {
-            size_t start = pos;
-            while (pos < rest.size() && !is_space(rest[pos])) {
-                pos++;
+            while (pos < input.size() &&
+                   std::isspace(static_cast<unsigned char>(input[pos])) == 0) {
+                token.push_back(input[pos++]);
             }
-            tok = rest.substr(start, pos - start);
         }
-        toks.push_back({tok, quoted});
+
+        out.push_back(token);
     }
 
-    DBG_PRINTF(CommandExecutor, "parse(): Tokenization complete. Total tokens parsed: %zu\n", toks.size());
-
-    // Separate cmd name and arguments
-    string cmd;
-    vector<Token> args;
-    if (!toks.empty()) {
-        cmd  = toks[0].value;
-        args.assign(toks.begin()+1, toks.end());
-        DBG_PRINTF(CommandExecutor, "parse(): Extracted subcommand: '%s', with %zu parameter(s).\n", cmd.c_str(), args.size());
-    }
-
-    // Lookup group
-    for (size_t gi = 0; gi < command_groups.size(); ++gi) {
-        const auto& grp = command_groups[gi];
-        string name = grp.name;
-        transform(name.begin(), name.end(), name.begin(), ::tolower);
-        if (gl == name) {
-            DBG_PRINTF(CommandExecutor, "parse(): Found matching command group: '%s'\n", grp.name.c_str());
-
-            // If no subcommand provided, show help for this group
-            if (cmd.empty()) {
-                DBG_PRINTF(CommandExecutor, "parse(): No subcommand provided. Showing help for group '%s'.\n", grp.name.c_str());
-                print_help(grp.name);
-                return;
-            }
-
-            // Find matching command
-            string cl = cmd;
-            transform(cl.begin(), cl.end(), cl.begin(), ::tolower);
-            for (const auto& c : grp.commands) {
-                string cn = c.name;
-                transform(cn.begin(), cn.end(), cn.begin(), ::tolower);
-                if (cl == cn) {
-                    DBG_PRINTF(CommandExecutor, "parse(): Matched command '%s'. Validating argument counts...\n", c.name.c_str());
-
-                    if (c.arg_count != args.size()) {
-                        DBG_PRINTF(CommandExecutor, "parse(): Error - '%s' expects %u arg(s), but %u were provided.\n", c.name.c_str(), unsigned(c.arg_count), unsigned(args.size()));
-                        Serial.printf(
-                          "Error: '%s' expects %u args, but got %u\n",
-                           c.name.c_str(),
-                           unsigned(c.arg_count),
-                           unsigned(args.size())
-                        );
-                        return;
-                    }
-
-                    // Rebuild args string
-                    string rebuilt;
-                    for (size_t ai = 0; ai < args.size(); ++ai) {
-                        auto& tk = args[ai];
-                        // Always wrap back in quotes if it was originally quoted.
-                        // This protects nested strings and empty strings like "".
-                        if (tk.quoted) {
-                            rebuilt += '"'; rebuilt += tk.value; rebuilt += '"';
-                        } else {
-                            rebuilt += tk.value;
-                        }
-                        if (ai + 1 < args.size()) rebuilt += ' ';
-                    }
-
-                    DBG_PRINTF(CommandExecutor, "parse(): Executing command '%s' with rebuilt parameter string: [%s]\n", c.name.c_str(), rebuilt.c_str());
-
-                    // pass a string, not a string_view
-                    c.function(rebuilt);
-                    return;
-                }
-            }
-            DBG_PRINTF(CommandExecutor, "parse(): Error - Unknown command '%s' inside group '%s'.\n", cmd.c_str(), group.c_str());
-            Serial.printf("Error: Unknown command '%s'; type $%s to see available commands\n",
-                          cmd.c_str(), group.c_str());
-            return;
-        }
-    }
-
-    DBG_PRINTF(CommandExecutor, "parse(): Error - Unknown command group '%s'.\n", group.c_str());
-    Serial.printf("Error: Unknown command group '%s'; type $help\n", group.c_str());
+    return true;
 }

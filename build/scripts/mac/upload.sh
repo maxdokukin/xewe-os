@@ -12,7 +12,7 @@ set -euo pipefail
 #       --build-dir   Absolute path to the build folder (…/builds/<ts>-<ver>-<chip>-<proj>)
 #       --baud        Baud (default: 921600)
 
-BUILD_CONFIG_FILE="../build_config"
+BUILD_CONFIG_FILE="../../build_config"
 source "${BUILD_CONFIG_FILE}"
 
 BUILD_DIR="$(get_cfg builds_latest_dir)"

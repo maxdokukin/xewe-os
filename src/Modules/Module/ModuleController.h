@@ -10,6 +10,8 @@
 #include "../Software/Wifi/Wifi.h"
 #include "../Software/WebInterface/WebInterface.h"
 
+#include "../Hardware/Buttons/Buttons.h"
+
 #include <map>
 #include <memory>
 #include <span>
@@ -39,6 +41,8 @@ public:
 
     Wifi                                    wifi;
     WebInterface                            web_interface;
+
+    Buttons                                 buttons;
 
 private:
     std::map<std::string, Module*>          modules             {};

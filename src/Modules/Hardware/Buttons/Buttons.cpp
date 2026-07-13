@@ -23,19 +23,19 @@ Buttons::Buttons(ModuleController& controller)
                /* can_be_disabled     */ true,
                /* has_cli_cmds        */ true)
 {
-    commands_storage.push_back({
+    commands_storage.push_back(Command{
         "add",
         "Add a button mapping: <pin> \"<$cmd ...>\" [pullup|pulldown] [on_press|on_release|on_change] [debounce_ms]",
-        std::string("$") + lower(module_name) + " add 9 \"$system reboot\" pullup on_press 50",
+        std::string("$") + id + " add 9 \"$system reboot\" pullup on_press 50",
         5,
-        [this](std::string_view args){ button_add_cli(args); }
+        [this](std::span<const std::string> args){ button_add_cli(args); }
     });
-    commands_storage.push_back({
+    commands_storage.push_back(Command{
         "remove",
         "Remove ALL button mappings bound to a specific pin",
-        std::string("$") + lower(module_name) + " remove 9",
+        std::string("$") + id + " remove 9",
         1,
-        [this](std::string_view args){ button_remove_cli(args); }
+        [this](std::span<const std::string> args){ button_remove_cli(args); }
     });
 }
 
@@ -158,7 +158,7 @@ bool Buttons::parse_config_string(const std::string& config, Button& button) {
     if (is_disabled()) return false;
 
     std::string s = config;
-    sewe::str::trim(s);
+    xewe::str::trim(s);
 
     auto sp = s.find(' ');
     if (sp == std::string::npos) return false;
@@ -300,7 +300,7 @@ std::string Buttons::pin_prefix(const std::string& cfg) {
 }
 
 /* --- CLI handlers (called by ctor-registered lambdas) --- */
-void Buttons::button_add_cli(std::string_view args_sv) {
+void Buttons::button_add_cli(std::span<const std::string> args) {
     if (is_disabled()) return;
 
     if (!is_enabled()) {
@@ -308,30 +308,35 @@ void Buttons::button_add_cli(std::string_view args_sv) {
         return;
     }
 
-    std::string args(args_sv);
-    std::string pin_str = pin_prefix(args);
+    // args = [pin, command, type, event, debounce] (arg_count enforced by the
+    // command dispatcher). The command token is already de-quoted; re-quote it
+    // so the stored config round-trips through parse_config_string().
+    std::string config = args[0] + " \"" + args[1] + "\" "
+                       + args[2] + " " + args[3] + " " + args[4];
+
+    std::string pin_str = pin_prefix(config);
     if (pin_str.empty()) {
         controller.serial_port.print("Error: Invalid add syntax.");
         return;
     }
 
     // Prevent adding the exact same mapping twice
-    if (nvs_has_exact_config(args)) {
+    if (nvs_has_exact_config(config)) {
         std::string msg = "Error: This exact button configuration already exists.";
         controller.serial_port.print(msg);
         return;
     }
 
-    if (add_button_from_config(args)) {
-        nvs_append_config(args);
-        std::string msg = "Successfully added button action: " + args;
+    if (add_button_from_config(config)) {
+        nvs_append_config(config);
+        std::string msg = "Successfully added button action: " + config;
         controller.serial_port.print(msg);
     } else {
         controller.serial_port.print("Error: Invalid button configuration string.");
     }
 }
 
-void Buttons::button_remove_cli(std::string_view args_sv) {
+void Buttons::button_remove_cli(std::span<const std::string> args) {
     if (is_disabled()) return;
 
     if (!is_enabled()) {
@@ -339,7 +344,7 @@ void Buttons::button_remove_cli(std::string_view args_sv) {
         return;
     }
 
-    std::string pin_str(args_sv);
+    std::string pin_str = args[0];
     xewe::str::trim(pin_str);
 
     if (pin_str.empty()) {

@@ -102,7 +102,7 @@ void CommandExecutor::print_all_commands() const {
         "  $<module_id> help\r\n"
         "  $help <module_id>\r\n\r\n"
         "Global command listing is not available without a ModuleController module iterator.\r\n",
-        kCRLF
+        xewe::str::kCRLF
     );
 }
 

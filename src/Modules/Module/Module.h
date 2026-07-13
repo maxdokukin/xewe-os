@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "../../Debug.h"
 #include "../../../Config.h"
 #include "../../XeWeStringUtils.h"
 

@@ -207,7 +207,7 @@ void Module::register_generic_commands() {
     commands_storage.push_back(Command{
         "status",
         "Get module status",
-        std::string("$") + xewe::str::xewe::str::lower(name) + " status",
+        std::string("$") + xewe::str::lower(name) + " status",
         0,
         [this](std::string) {
             status(true);

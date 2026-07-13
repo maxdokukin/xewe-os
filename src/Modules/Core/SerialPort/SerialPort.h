@@ -31,17 +31,17 @@ public:
                                                              const bool do_restart=true,
                                                              const bool keep_enabled=true)                  override;
     // printers
-    void                        print                       (std::string_view            message                 = {},
-                                                             std::string_view            end                     = kCRLF,
-                                                             std::string_view            edge_character          = {},
+    void                        print                       (std::string_view       message                 = {},
+                                                             std::string_view       end                     = xewe::str::kCRLF,
+                                                             std::string_view       edge_character          = {},
                                                              const char             text_align              = 'l',
                                                              const char             wrap_mode               = 'w',
                                                              const uint16_t         message_width           = 0,
                                                              const uint16_t         margin_l                = 0,
                                                              const uint16_t         margin_r                = 0
                                                             );
-    void                        printf_fmt                  (std::string_view            end,
-                                                             std::string_view            edge_character,
+    void                        printf_fmt                  (std::string_view       end,
+                                                             std::string_view       edge_character,
                                                              const char             text_align,
                                                              const char             wrap_mode,
                                                              const uint16_t         message_width,

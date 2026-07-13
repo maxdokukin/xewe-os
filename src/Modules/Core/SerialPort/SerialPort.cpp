@@ -67,22 +67,22 @@ void SerialPort::print(std::string_view message,
                        const uint16_t message_width,
                        const uint16_t margin_l,
                        const uint16_t margin_r) {
-    auto lines_sv = split_lines_sv(message, '\n');
+    auto lines_sv = xewe::str::split_lines_sv(message, '\n');
     const bool use_wrap = (message_width > 0);
 
     for (std::size_t i = 0; i < lines_sv.size(); ++i) {
         std::string base_line(lines_sv[i]);
-        rtrim_cr(base_line);
+        xewe::str::rtrim_cr(base_line);
 
         std::vector<std::string> chunks = use_wrap
             ? ((wrap_mode == 'c' || wrap_mode == 'C')
-                  ? wrap_fixed(base_line, message_width)
-                  : wrap_words(base_line, message_width))
+                  ? xewe::str::wrap_fixed(base_line, message_width)
+                  : xewe::str::wrap_words(base_line, message_width))
             : std::vector<std::string>{base_line};
 
         for (std::size_t j = 0; j < chunks.size(); ++j) {
             const bool is_last = (i + 1 == lines_sv.size()) && (j + 1 == chunks.size());
-            std::string out = compose_box_line(chunks[j], edge_character,
+            std::string out = xewe::str::compose_box_line(chunks[j], edge_character,
                                                message_width, margin_l, margin_r, text_align);
             Serial.write(reinterpret_cast<const uint8_t*>(out.data()), out.size());
             if (is_last) {
@@ -156,7 +156,7 @@ void SerialPort::print_separator(const uint16_t total_width,
         line.clear();
     } else if (edge_character.empty()) {
         // Full-width fill pattern
-        line = repeat_pattern(fill, total_width);
+        line = xewe::str::repeat_pattern(fill, total_width);
     } else {
         const std::size_t e = edge_character.size();
         if (total_width <= e) {
@@ -168,7 +168,7 @@ void SerialPort::print_separator(const uint16_t total_width,
             const uint16_t inner = static_cast<uint16_t>(total_width - 2 * e);
             line.reserve(total_width);
             line.append(edge_character);
-            line += repeat_pattern(fill, inner);
+            line += xewe::str::repeat_pattern(fill, inner);
             line.append(edge_character);
         }
     }
@@ -206,7 +206,7 @@ void SerialPort::print_header(std::string_view message,
                               std::string_view sep_fill) {
     print_separator(total_width, sep_fill, cross_edge_character);
 
-    auto parts = split_by_token(message, "\\sep");
+    auto parts = xewe::str::split_by_token(message, "\\sep");
     const uint16_t edge_w = static_cast<uint16_t>(edge_character.size() * 2) + 2;
     const uint16_t content_width =
         (!edge_character.empty() && total_width > edge_w)
@@ -214,7 +214,7 @@ void SerialPort::print_header(std::string_view message,
             : total_width;
 
     for (auto& p : parts) {
-        print(p, kCRLF, edge_character, 'c', 'w', content_width, 1, 1);
+        print(p, xewe::str::kCRLF, edge_character, 'c', 'w', content_width, 1, 1);
         print_separator(total_width, sep_fill, cross_edge_character);
     }
 }
@@ -309,7 +309,7 @@ void SerialPort::print_table(const std::vector<std::vector<std::string_view>>& t
                 result.push_back("");
             } else {
                 // Use existing wrapper for this segment
-                std::vector<std::string> seg_lines = wrap_words(std::string(segment), content_width);
+                std::vector<std::string> seg_lines = xewe::str::wrap_words(std::string(segment), content_width);
                 if (seg_lines.empty()) result.push_back("");
                 else result.insert(result.end(), seg_lines.begin(), seg_lines.end());
             }
@@ -324,7 +324,7 @@ void SerialPort::print_table(const std::vector<std::vector<std::string_view>>& t
     if (!header_content.empty()) {
         print_separator(static_cast<uint16_t>(total_table_width), sep_fill, cross_edge_character);
         uint16_t header_content_width = static_cast<uint16_t>(total_table_width - (edge_character.size() * 2));
-        print(header_content, kCRLF, edge_character, 'c', 'w', header_content_width, 0, 0);
+        print(header_content, xewe::str::kCRLF, edge_character, 'c', 'w', header_content_width, 0, 0);
     }
 
     // 4. Print Table Body
@@ -488,7 +488,7 @@ bool SerialPort::get_yn(std::string_view prompt,
                         const bool default_value,
                         std::optional<std::reference_wrapper<bool>> success_sink) {
     auto checker = [&](const std::string& line, bool& out, const char*& err)->bool {
-        std::string low = to_lower(line);
+        std::string low = xewe::str::to_lower(line);
         if (low == "y" || low == "yes" || low == "1" || low == "true")  { out = true;  return true; }
         if (low == "n" || low == "no"  || low == "0" || low == "false") { out = false; return true; }
         err = "! Please answer 'y' or 'n'.";
@@ -571,7 +571,7 @@ void SerialPort::print_raw(std::string_view message) {
 
 void SerialPort::println_raw(std::string_view message) {
     Serial.write(reinterpret_cast<const uint8_t*>(message.data()), message.size());
-    Serial.write(reinterpret_cast<const uint8_t*>(kCRLF), 2);
+    Serial.write(reinterpret_cast<const uint8_t*>(xewe::str::kCRLF), 2);
 }
 
 void SerialPort::printf_raw(const char* fmt, ...) {
@@ -625,7 +625,7 @@ bool SerialPort::read_line_with_timeout(std::string& out,
 
 void SerialPort::write_line_crlf(std::string_view s) {
     Serial.write(reinterpret_cast<const uint8_t*>(s.data()), s.size());
-    Serial.write(reinterpret_cast<const uint8_t*>(kCRLF), 2);
+    Serial.write(reinterpret_cast<const uint8_t*>(xewe::str::kCRLF), 2);
 }
 
 template <typename T>
@@ -641,7 +641,7 @@ T SerialPort::get_integral(std::string_view prompt,
 
     auto checker = [&](const std::string& line, T& out, const char*& err)->bool {
         T v{};
-        if (!parse_int<T>(line, v)) {
+        if (!xewe::str::parse_int<T>(line, v)) {
             err = "! Invalid number. Please enter a base-10 integer.";
             return false;
         }

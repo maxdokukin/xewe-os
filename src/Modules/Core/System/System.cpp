@@ -26,7 +26,7 @@ System::System(ModuleController& controller)
     commands_storage.push_back(Command{
         "restart",
         "Restart the ESP",
-        std::string("$") + xewe::str::lower(name) + " restart",
+        std::string("$") + id + " restart",
         0,
         [this](std::span<const std::string>) {
             restart(1000);
@@ -36,7 +36,7 @@ System::System(ModuleController& controller)
     commands_storage.push_back(Command{
         "reboot",
         "Restart the ESP",
-        std::string("$") + xewe::str::lower(name) + " reboot",
+        std::string("$") + id + " reboot",
         0,
         [this](std::span<const std::string>) {
             restart(1000);
@@ -46,7 +46,7 @@ System::System(ModuleController& controller)
     commands_storage.push_back(Command{
         "info",
         "Chip and build info",
-        std::string("$") + xewe::str::lower(name) + " info",
+        std::string("$") + id + " info",
         0,
         [this](std::span<const std::string>) {
             esp_chip_info_t ci;
@@ -100,7 +100,7 @@ System::System(ModuleController& controller)
     commands_storage.push_back(Command{
         "set_device_name",
         "Set device name",
-        std::string("$") + xewe::str::lower(name) + " set_device_name \"Kitchen Lights\"",
+        std::string("$") + id + " set_device_name \"Kitchen Lights\"",
         1,
         [this](std::span<const std::string> args) {
             if (args.empty() || args[0].empty()) {
@@ -133,7 +133,7 @@ System::System(ModuleController& controller)
     commands_storage.push_back(Command{
         "mac",
         "Print MAC addresses",
-        std::string("$") + xewe::str::lower(name) + " mac",
+        std::string("$") + id + " mac",
         0,
         [this](std::span<const std::string>) {
             struct Item {
@@ -175,7 +175,7 @@ System::System(ModuleController& controller)
     commands_storage.push_back(Command{
         "uid",
         "Device UID from eFuse base MAC (and SHA256-64)",
-        std::string("$") + xewe::str::lower(name) + " uid",
+        std::string("$") + id + " uid",
         0,
         [this](std::span<const std::string>) {
             uint8_t mac[6];
@@ -199,7 +199,7 @@ System::System(ModuleController& controller)
     commands_storage.push_back(Command{
         "stack",
         "Current task stack watermark (words)",
-        std::string("$") + xewe::str::lower(name) + " stack",
+        std::string("$") + id + " stack",
         0,
         [this](std::span<const std::string>) {
             this->controller.serial_port.print(

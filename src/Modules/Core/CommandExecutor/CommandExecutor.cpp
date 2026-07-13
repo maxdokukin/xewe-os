@@ -98,15 +98,11 @@ void CommandExecutor::print_help(std::string_view module_id) const {
 }
 
 void CommandExecutor::print_all_commands() const {
-    controller.serial_port.print(
-        "Usage:\r\n"
-        "  $<id> <command> [args...]\r\n"
-        "  $<id>\r\n"
-        "  $<id> help\r\n"
-        "  $help <id>\r\n\r\n"
-        "Global command listing is not available without a ModuleController module iterator.\r\n",
-        xewe::str::kCRLF
-    );
+    for (const auto& [id, module] : controller.get_modules()) {
+        if (module && !module->get_commands().empty()) {
+            print_help(id);
+        }
+    }
 }
 
 void CommandExecutor::parse(std::string_view input_line) const {

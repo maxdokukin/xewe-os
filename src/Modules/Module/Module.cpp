@@ -204,7 +204,7 @@ void Module::register_generic_commands() {
     commands_storage.push_back(Command{
         "status",
         "Get module status",
-        std::string("$") + xewe::str::lower(name) + " status",
+        std::string("$") + id + " status",
         0,
         [this](std::span<const std::string>) {
             status(true);
@@ -214,7 +214,7 @@ void Module::register_generic_commands() {
     commands_storage.push_back(Command{
         "reset",
         "Reset the module",
-        std::string("$") + xewe::str::lower(name) + " reset",
+        std::string("$") + id + " reset",
         0,
         [this](std::span<const std::string>) {
             reset(true, true);
@@ -225,7 +225,7 @@ void Module::register_generic_commands() {
         commands_storage.push_back(Command{
             "enable",
             "Enable this module",
-            std::string("$") + xewe::str::lower(name) + " enable",
+            std::string("$") + id + " enable",
             0,
             [this](std::span<const std::string>) {
                 enable(true, true);
@@ -235,7 +235,7 @@ void Module::register_generic_commands() {
         commands_storage.push_back(Command{
             "disable",
             "Disable this module",
-            std::string("$") + xewe::str::lower(name) + " disable",
+            std::string("$") + id + " disable",
             0,
             [this](std::span<const std::string>) {
                 disable(true, true);

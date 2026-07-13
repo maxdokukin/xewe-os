@@ -14,7 +14,6 @@
 #include "../../../Config.h"
 #include "../../XeWeStringUtils.h"
 
-// #include "ModuleRegistry.h"
 
 class ModuleController;
 
@@ -112,13 +111,13 @@ protected:
 
     std::vector<Command>        commands_storage;
 
+    bool                        requirements_enabled        (const bool verbose=false)      const;
     void                        register_generic_commands   ();
 
     void                        run_with_dots               (const std::function<void()>& work,
                                                              uint32_t duration_ms=1000,
                                                              uint32_t dot_interval_ms=200);
 
-    bool                        requirements_enabled        (const bool verbose=false)      const;
 
 private:
     std::vector<Module*>        required_modules;

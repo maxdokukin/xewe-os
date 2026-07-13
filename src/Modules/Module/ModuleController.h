@@ -7,7 +7,7 @@
 #include "../Core/System/System.h"
 #include "../Core/CommandExecutor/CommandExecutor.h"
 
-// #include "../Software/Wifi/Wifi.h"
+#include "../Software/Wifi/Wifi.h"
 // #include "../Software/WebInterface/WebInterface.h"
 
 #include <map>
@@ -21,27 +21,25 @@ class ModuleController {
 public:
     ModuleController();
 
-    void begin();
-    void loop();
+    void                                    begin               ();
+    void                                    loop                ();
 
-    bool register_module(Module& module);
+    bool                                    register_module     (Module& module);
+    Module*                                 get_module          (std::string_view id);
+    const std::map<std::string, Module*>&   get_modules         ()                              const { return modules; }
 
-    Module* get_module(std::string_view id);
-    const std::map<std::string, Module*>& get_modules() const { return modules; }
+    void send_command                                           (std::span<const std::string>   recipients,
+                                                                std::string_view                command_name,
+                                                                std::span<const                 std::string> args);
 
-    void send_command(
-        Module* sender,
-        std::span<const std::string> recipients,
-        std::string_view command_name,
-        std::span<const std::string> args
-    );
+    SerialPort                              serial_port;
+    Nvs                                     nvs;
+    System                                  system;
+    CommandExecutor                         command_executor;
 
-    SerialPort                  serial_port;
-    Nvs                         nvs;
-    System                      system;
-    CommandExecutor             command_executor;
+    Wifi                                    wifi;
 
 private:
-    std::map<std::string, Module*>          modules {};
-    std::vector<std::unique_ptr<Module>>    owned_modules {};
+    std::map<std::string, Module*>          modules             {};
+    std::vector<std::unique_ptr<Module>>    owned_modules       {};
 };

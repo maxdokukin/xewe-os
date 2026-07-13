@@ -13,9 +13,6 @@
 #include "Wifi.h"
 #include "../../Module/ModuleController.h"
 
-#include "../../Module/ModuleRegistry.h"
-static ModuleRegistrar<Wifi> registrar_wifi("wifi");
-
 Wifi::Wifi(ModuleController& controller)
       : Module(controller,
                /* id                  */ "wifi",

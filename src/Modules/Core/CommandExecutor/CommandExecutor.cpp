@@ -32,11 +32,9 @@ CommandExecutor::CommandExecutor(ModuleController& controller)
 
 
 void CommandExecutor::loop() {
-    if (!controller.serial_port.has_line()) {
-        return;
+    if (controller.serial_port.has_line()) {
+        parse(controller.serial_port.read_line());
     }
-
-    parse(controller.serial_port.read_line());
 }
 
 void CommandExecutor::print_help(std::string_view module_id) const {
@@ -258,7 +256,6 @@ void CommandExecutor::parse(std::string_view input_line) const {
     }
 
     controller.send_command(
-        const_cast<CommandExecutor*>(this),
         std::span<const std::string>(recipients.data(), recipients.size()),
         matched_command->name,
         std::span<const std::string>(args.data(), args.size())

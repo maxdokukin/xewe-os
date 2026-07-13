@@ -24,7 +24,8 @@ public:
     bool register_module(Module& module);
 
     Module* get_module(std::string_view id);
-
+    const std::map<std::string, Module*>& get_modules() const { return modules; }
+    
     void send_command(
         Module* sender,
         std::span<const std::string> recipients,

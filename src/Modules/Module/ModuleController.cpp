@@ -5,15 +5,15 @@
 #include <utility>
 
 ModuleController::ModuleController()
-//   : serial_port(*this)
-//   , nvs(*this)
-//   , system(*this)
-//   , command_executor(*this)
+  : serial_port(*this)
+  , nvs(*this)
+  , system(*this)
+  , command_executor(*this)
 {
-//     register_module(serial_port);
-//     register_module(nvs);
-//     register_module(system);
-//     register_module(command_executor);
+    register_module(serial_port);
+    register_module(nvs);
+    register_module(system);
+    register_module(command_executor);
 
     load_registered_modules();
 }

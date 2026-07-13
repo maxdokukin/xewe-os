@@ -39,20 +39,18 @@ void CommandExecutor::loop() {
     parse(controller.serial_port.read_line());
 }
 
-void CommandExecutor::print_help(std::string_view id) const {
-    const std::string id = trim_copy(id);
-
-    if (id.empty()) {
+void CommandExecutor::print_help(std::string_view module_id) const {
+    if (module_id.empty()) {
         print_all_commands();
         return;
     }
 
-    Module* module = controller.get_module(id);
+    Module* module = controller.get_module(module_id);
 
     if (module == nullptr) {
         controller.serial_port.printf(
             "Error: Unknown module '%s'\r\n",
-            id.c_str()
+            module_id.c_str()
         );
         return;
     }
@@ -62,7 +60,7 @@ void CommandExecutor::print_help(std::string_view id) const {
     if (commands.empty()) {
         controller.serial_port.printf(
             "Module '%s' has no CLI commands\r\n",
-            id.c_str()
+            module_id.c_str()
         );
         return;
     }
@@ -114,7 +112,7 @@ void CommandExecutor::parse(std::string_view input_line) const {
     }
 
     if (local[0] != '$') {
-        controller.serial_port.print("Error: commands must start with '$'; type $help", kCRLF);
+        controller.serial_port.print("Error: commands must start with '$'; type $help", xewe::str::kCRLF);
         return;
     }
 
@@ -144,7 +142,7 @@ void CommandExecutor::parse(std::string_view input_line) const {
         }
 
         if (tokens.size() != 2) {
-            controller.serial_port.print("Usage: $help <id>", kCRLF);
+            controller.serial_port.print("Usage: $help <id>", xewe::str::kCRLF);
             return;
         }
 
@@ -275,7 +273,7 @@ bool CommandExecutor::tokenize(std::string_view input,
             }
 
             if (!closed) {
-                controller.serial_port.print("Error: Unterminated quote in command.", kCRLF);
+                controller.serial_port.print("Error: Unterminated quote in command.", xewe::str::kCRLF);
                 return false;
             }
         } else {

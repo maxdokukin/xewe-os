@@ -244,10 +244,11 @@ void System::reset (const bool verbose, const bool do_restart, const bool keep_e
         return;
     }
 
-    auto& modules = controller.get_modules();
-    for (auto* m : modules) {
-        if (m == this) continue;
-        m->reset(true, false, false);
+    const auto& modules = controller.get_modules();
+
+    for (const auto& [module_id, module] : modules) {
+        if (module == nullptr || module == this) continue;
+        module->reset(true, false, false);
     }
 
     Module::reset(verbose, do_restart, keep_enabled);
@@ -260,10 +261,16 @@ std::string System::status(const bool verbose) const {
         std::vector<std::string> string_storage;
         string_storage.reserve(controller.get_modules().size() * 2);
 
-        auto& modules = controller.get_modules();
-        for (const auto* mod : modules) {
-            if (!mod) continue;
+        const auto& modules = controller.get_modules();
+
+        std::vector<std::string> string_storage;
+        string_storage.reserve(modules.size() * 2);
+
+        for (const auto& [module_id, mod] : modules) {
+            if (mod == nullptr) continue;
+
             std::string_view name = mod->get_name();
+
             string_storage.push_back(mod->is_enabled() ? "Yes" : "No");
             std::string_view enabled_view = string_storage.back();
 

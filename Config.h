@@ -11,6 +11,6 @@
 
 // Automatically updated by build.sh
 #define PROJECT_NAME "xewe-os"
-#define BUILD_VERSION "2.1.162"
-#define BUILD_TIMESTAMP "2026-07-13T22:11:18Z"
+#define BUILD_VERSION "2.1.163"
+#define BUILD_TIMESTAMP "2026-07-14T16:45:25Z"
 // /Automatically updated by build.sh

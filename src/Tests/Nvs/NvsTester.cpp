@@ -7,54 +7,15 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
-// src/tests/Nvs/NvsTester.h
-#pragma once
+// src/Tests/Nvs/NvsTester.cpp
+#include "NvsTester.h"
 
 #include "../../Modules/Module/ModuleController.h"
 
-#include <cstdint>
-#include <string>
 
-
-struct NvsTesterConfig : public ModuleConfig {};
-
-
-// Header-only test module that exercises the Nvs module end to end.
-// Run from the CLI with: $nvstest run
-class NvsTester : public Module {
-public:
-    explicit NvsTester(ModuleController& controller);
-
-private:
-    // All test data lives under these namespaces so real module data is never
-    // touched; every namespace is wiped before and after a run.
-    static constexpr const char* kNs      = "nvstest";
-    static constexpr const char* kNs2     = "nvstest2";
-    static constexpr const char* kNsBtn   = "nvstest_btn";
-
-    int m_pass = 0;
-    int m_fail = 0;
-
-    void report(const char* label, bool ok);
-
-    template <typename T>
-    void round_trip(const char* label, std::string_view ns, std::string_view key, const T& value);
-
-    // write<WriteT> covers more string-like types (std::string, Arduino String,
-    // std::string_view, const char*) than read<T> can return, so every string
-    // variant is written as its own type and read back as std::string.
-    template <typename WriteT>
-    void str_round_trip(const char* label, std::string_view ns, std::string_view key,
-                        const WriteT& value, const char* expected);
-
-    void run_tests();
-    void clean();
-};
-
-
-inline NvsTester::NvsTester(ModuleController& controller)
+NvsTester::NvsTester(ModuleController& controller)
       : Module(controller,
-               /* id                  */ "nvstest",
+               /* id                  */ "nvs_test",
                /* name                */ "NvsTester",
                /* description         */ "Round-trip and isolation tests for the Nvs module",
                /* requires_init_setup */ false,
@@ -82,7 +43,7 @@ inline NvsTester::NvsTester(ModuleController& controller)
 }
 
 
-inline void NvsTester::report(const char* label, bool ok) {
+void NvsTester::report(const char* label, bool ok) {
     if (ok) {
         m_pass++;
         controller.serial_port.printf("  [PASS] %s", label);
@@ -94,10 +55,10 @@ inline void NvsTester::report(const char* label, bool ok) {
 
 
 template <typename T>
-inline void NvsTester::round_trip(const char* label,
-                                  std::string_view ns,
-                                  std::string_view key,
-                                  const T& value) {
+void NvsTester::round_trip(const char* label,
+                           std::string_view ns,
+                           std::string_view key,
+                           const T& value) {
     controller.nvs.write<T>(ns, key, value);
     const T got = controller.nvs.read<T>(ns, key);
     report(label, got == value);
@@ -105,25 +66,25 @@ inline void NvsTester::round_trip(const char* label,
 
 
 template <typename WriteT>
-inline void NvsTester::str_round_trip(const char* label,
-                                      std::string_view ns,
-                                      std::string_view key,
-                                      const WriteT& value,
-                                      const char* expected) {
+void NvsTester::str_round_trip(const char* label,
+                               std::string_view ns,
+                               std::string_view key,
+                               const WriteT& value,
+                               const char* expected) {
     controller.nvs.write<WriteT>(ns, key, value);
     const std::string got = controller.nvs.read<std::string>(ns, key);
     report(label, got == expected);
 }
 
 
-inline void NvsTester::clean() {
+void NvsTester::clean() {
     controller.nvs.reset_ns(kNs);
     controller.nvs.reset_ns(kNs2);
     controller.nvs.reset_ns(kNsBtn);
 }
 
 
-inline void NvsTester::run_tests() {
+void NvsTester::run_tests() {
     m_pass = 0;
     m_fail = 0;
 

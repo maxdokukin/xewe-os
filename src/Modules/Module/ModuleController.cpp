@@ -8,6 +8,7 @@ ModuleController::ModuleController()
   , wifi(*this)
   , web_interface(*this)
   , buttons(*this)
+  , pins(*this)
 {
     register_module(serial_port);
     register_module(nvs);
@@ -16,6 +17,7 @@ ModuleController::ModuleController()
     register_module(wifi);
     register_module(web_interface);
     register_module(buttons);
+    register_module(pins);
 
     owned_modules.push_back(std::make_unique<NvsTester>(*this));
     register_module(*owned_modules.back());
@@ -35,6 +37,7 @@ void ModuleController::begin() {
     web_interface.begin             (WebInterfaceConfig  {});
 
     buttons.begin                   (ButtonsConfig  {});
+    pins.begin                      (PinsConfig  {});
 
     if (init_setup_flag) {
         serial_port.print_header("Initial Setup Complete");

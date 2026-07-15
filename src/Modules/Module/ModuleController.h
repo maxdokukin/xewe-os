@@ -11,6 +11,7 @@
 #include "../Software/WebInterface/WebInterface.h"
 
 #include "../Hardware/Buttons/Buttons.h"
+#include "../Hardware/Pins/Pins.h"
 
 // tests
 #include "../../Tests/Nvs/NvsTester.h"
@@ -46,6 +47,7 @@ public:
     WebInterface                            web_interface;
 
     Buttons                                 buttons;
+    Pins                                    pins;
 
 private:
     std::map<std::string, Module*>          modules             {};

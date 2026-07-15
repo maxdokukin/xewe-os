@@ -255,6 +255,105 @@ void Nvs::remove(std::string_view ns, std::string_view key) {
 }
 
 
+bool Nvs::write_blob(std::string_view ns,
+                     std::string_view key,
+                     const std::vector<uint8_t>& data) {
+    if (key.empty()) {
+        DBG_PRINTLN(Nvs, "write_blob(): ERROR: empty key.");
+        return false;
+    }
+
+    const std::string storage_key = sanitize_name(key);
+
+    if (storage_key.empty()) {
+        DBG_PRINTLN(Nvs, "write_blob(): ERROR: generated empty storage key.");
+        return false;
+    }
+
+    ScopedHandle sh;
+    const esp_err_t open_err = open_handle(ns, NVS_READWRITE, sh);
+
+    if (open_err != ESP_OK) {
+        DBG_PRINTF(Nvs,
+                   "write_blob(): open failed for key '%s': %s (%d).\n",
+                   storage_key.c_str(),
+                   esp_err_to_name(open_err),
+                   static_cast<int>(open_err));
+        return false;
+    }
+
+    DBG_PRINTF(Nvs,
+               "write_blob(): ns='%.*s', key='%.*s', storage_key='%s', bytes=%u.\n",
+               static_cast<int>(ns.size()), ns.data(),
+               static_cast<int>(key.size()), key.data(),
+               storage_key.c_str(),
+               static_cast<unsigned>(data.size()));
+
+    const esp_err_t write_err =
+        nvs_set_blob(sh, storage_key.c_str(), data.data(), data.size());
+
+    return commit_and_close(sh, write_err, "write_blob()", storage_key);
+}
+
+
+std::vector<uint8_t> Nvs::read_blob(std::string_view ns, std::string_view key) {
+    std::vector<uint8_t> out;
+
+    if (key.empty()) {
+        DBG_PRINTLN(Nvs, "read_blob(): ERROR: empty key. Returning empty.");
+        return out;
+    }
+
+    const std::string storage_key = sanitize_name(key);
+
+    if (storage_key.empty()) {
+        DBG_PRINTLN(Nvs, "read_blob(): ERROR: generated empty storage key. Returning empty.");
+        return out;
+    }
+
+    ScopedHandle sh;
+    const esp_err_t open_err = open_handle(ns, NVS_READONLY, sh);
+
+    if (open_err != ESP_OK) {
+        DBG_PRINTF(Nvs,
+                   "read_blob(): open failed for key '%s': %s (%d). Returning empty.\n",
+                   storage_key.c_str(),
+                   esp_err_to_name(open_err),
+                   static_cast<int>(open_err));
+        return out;
+    }
+
+    // Two-call sizing: first probe for length, then read into the buffer.
+    std::size_t required = 0;
+    esp_err_t read_err = nvs_get_blob(sh, storage_key.c_str(), nullptr, &required);
+
+    if (read_err != ESP_OK || required == 0) {
+        DBG_PRINTF(Nvs,
+                   "read_blob(): key '%s' missing or empty: %s (%d). Returning empty.\n",
+                   storage_key.c_str(),
+                   esp_err_to_name(read_err),
+                   static_cast<int>(read_err));
+        return out;
+    }
+
+    out.resize(required);
+    read_err = nvs_get_blob(sh, storage_key.c_str(), out.data(), &required);
+
+    if (read_err != ESP_OK) {
+        DBG_PRINTF(Nvs,
+                   "read_blob(): read failed for key '%s': %s (%d). Returning empty.\n",
+                   storage_key.c_str(),
+                   esp_err_to_name(read_err),
+                   static_cast<int>(read_err));
+        out.clear();
+        return out;
+    }
+
+    out.resize(required);
+    return out;
+}
+
+
 void Nvs::reset_ns(std::string_view ns) {
     const std::string namespace_name = sanitize_name(ns);
 

@@ -18,6 +18,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <vector>
 
 #include <Arduino.h>
 
@@ -50,6 +51,17 @@ public:
     T                           read                        (std::string_view ns,
                                                              std::string_view key,
                                                              T default_value = T());
+
+    // Variable-length binary blob (one NVS record). Enables persisting an entire
+    // object as a single key instead of sharding it across many keys.
+    bool                        write_blob                  (std::string_view ns,
+                                                             std::string_view key,
+                                                             const std::vector<uint8_t>& data);
+
+    // Returns empty on a missing key or any read error (callers treat empty as
+    // "not found").
+    std::vector<uint8_t>        read_blob                   (std::string_view ns,
+                                                             std::string_view key);
 
     void                        remove                      (std::string_view ns,
                                                              std::string_view key);

@@ -4,7 +4,6 @@
 
 #include "../Core/SerialPort/SerialPort.h"
 #include "../Core/Nvs/Nvs.h"
-#include "../Core/DataFabric/DataFabric.h"
 #include "../Core/System/System.h"
 #include "../Core/CommandExecutor/CommandExecutor.h"
 
@@ -16,7 +15,7 @@
 
 // tests
 #include "../../Tests/Nvs/NvsTester.h"
-#include "../../Tests/DataFabric/DataFabricTester.h"
+#include "../../Tests/NvsFlex/NvsFlexTester.h"
 
 #include <map>
 #include <memory>
@@ -42,7 +41,6 @@ public:
 
     SerialPort                              serial_port;
     Nvs                                     nvs;
-    DataFabric                              data_fabric;
     System                                  system;
     CommandExecutor                         command_executor;
 

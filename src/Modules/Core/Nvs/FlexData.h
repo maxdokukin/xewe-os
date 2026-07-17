@@ -8,7 +8,7 @@
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
 
-// src/Modules/Core/DataFabric/FlexData.h
+// src/Modules/Core/Nvs/FlexData.h
 //
 // FlexData<Derived>: a CRTP base that gives any struct, for free:
 //   - as_json_str / as_json_doc    object  -> JSON text / tree  (ArduinoJson)
@@ -22,8 +22,8 @@
 // records and get JSON + blob for the whole tree.
 //
 // This header is pure and controller-free: no NVS, no Serial. Persistence to
-// flash lives in the DataFabric module (DataFabric.h), which turns to_blob() into
-// an Nvs record. Data-defining modules should include THIS header to declare
+// flash lives in the Nvs module (nvs.save() / nvs.load()), which turns to_blob()
+// into an Nvs record. Data-defining modules should include THIS header to declare
 // their structs.
 #pragma once
 

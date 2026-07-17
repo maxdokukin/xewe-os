@@ -8,8 +8,8 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
-// src/Tests/DataFabric/DataFabricTester.cpp
-#include "DataFabricTester.h"
+// src/Tests/NvsFlex/NvsFlexTester.cpp
+#include "NvsFlexTester.h"
 
 #include "../../Modules/Module/ModuleController.h"
 
@@ -63,18 +63,18 @@ struct ParentCfg : FlexData<ParentCfg> {
 }  // namespace
 
 
-DataFabricTester::DataFabricTester(ModuleController& controller)
+NvsFlexTester::NvsFlexTester(ModuleController& controller)
       : Module(controller,
-               /* id                  */ "df_test",
-               /* name                */ "DataFabricTester",
-               /* description         */ "Round-trip tests for the DataFabric module",
+               /* id                  */ "flex_test",
+               /* name                */ "NvsFlexTester",
+               /* description         */ "Round-trip tests for Nvs typed-object save/load + FlexData",
                /* requires_init_setup */ false,
                /* can_be_disabled     */ false,
                /* has_cli_cmds        */ true) {
 
     commands_storage.push_back(Command{
         "run",
-        "Run the full DataFabric test suite",
+        "Run the full Nvs/FlexData test suite",
         std::string("$") + id + " run",
         0,
         [this](std::span<const std::string>) { run_tests(); }
@@ -82,7 +82,7 @@ DataFabricTester::DataFabricTester(ModuleController& controller)
 
     commands_storage.push_back(Command{
         "clean",
-        "Wipe the DataFabric test namespace",
+        "Wipe the Nvs/FlexData test namespace",
         std::string("$") + id + " clean",
         0,
         [this](std::span<const std::string>) {
@@ -93,7 +93,7 @@ DataFabricTester::DataFabricTester(ModuleController& controller)
 }
 
 
-void DataFabricTester::report(const char* label, bool ok) {
+void NvsFlexTester::report(const char* label, bool ok) {
     if (ok) {
         m_pass++;
         controller.serial_port.printf("  [PASS] %s", label);
@@ -104,24 +104,22 @@ void DataFabricTester::report(const char* label, bool ok) {
 }
 
 
-void DataFabricTester::clean() {
+void NvsFlexTester::clean() {
     controller.nvs.reset_ns(kNs);
 }
 
 
-void DataFabricTester::run_tests() {
+void NvsFlexTester::run_tests() {
     m_pass = 0;
     m_fail = 0;
 
-    controller.serial_port.print_header("DataFabric Test Suite");
+    controller.serial_port.print_header("Nvs/FlexData Test Suite");
     clean();
-
-    DataFabric& fabric = controller.data_fabric;
 
     // ---- object -> JSON ---------------------------------------------------
     {
         FlatCfg a;
-        const std::string json = fabric.to_json(a);
+        const std::string json = a.as_json_str();
         report("to_json non-empty", json.size() > 2 && json.front() == '{');
     }
 
@@ -138,7 +136,7 @@ void DataFabricTester::run_tests() {
         report("blob round-trip (flat)", ok && a.as_json_str() == b.as_json_str());
     }
 
-    // ---- save -> load via DataFabric + Nvs (flat) -------------------------
+    // ---- save -> load via Nvs (flat) --------------------------------------
     {
         FlatCfg a;
         a.var1 = 123;
@@ -146,10 +144,10 @@ void DataFabricTester::run_tests() {
         a.var3 = {5};
         a.var4 = {"p", "q", "r"};
 
-        const bool saved = fabric.save(kNs, "flat", a);
+        const bool saved = controller.nvs.save(kNs, "flat", a);
 
         FlatCfg b;
-        const bool loaded = fabric.load(kNs, "flat", b);
+        const bool loaded = controller.nvs.load(kNs, "flat", b);
         report("save+load round-trip (flat)",
                saved && loaded && a.as_json_str() == b.as_json_str());
     }
@@ -157,7 +155,7 @@ void DataFabricTester::run_tests() {
     // ---- load on a missing key returns false ------------------------------
     {
         FlatCfg b;
-        const bool loaded = fabric.load(kNs, "no_such_key", b);
+        const bool loaded = controller.nvs.load(kNs, "no_such_key", b);
         report("load missing key -> false", !loaded);
     }
 
@@ -195,10 +193,10 @@ void DataFabricTester::run_tests() {
         p.children.back().pin = 10;
         p.children.back().command = "$led toggle";
 
-        const bool saved = fabric.save(kNs, "nested", p);
+        const bool saved = controller.nvs.save(kNs, "nested", p);
 
         ParentCfg q;
-        const bool loaded = fabric.load(kNs, "nested", q);
+        const bool loaded = controller.nvs.load(kNs, "nested", q);
 
         const bool structural =
             loaded &&
@@ -214,6 +212,6 @@ void DataFabricTester::run_tests() {
     // Leave no test data behind.
     clean();
 
-    controller.serial_port.printf("DataFabric tests done: %d passed, %d failed",
+    controller.serial_port.printf("Nvs/FlexData tests done: %d passed, %d failed",
                                   m_pass, m_fail);
 }

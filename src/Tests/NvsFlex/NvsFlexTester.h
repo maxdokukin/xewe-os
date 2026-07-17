@@ -8,7 +8,7 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
-// src/Tests/DataFabric/DataFabricTester.h
+// src/Tests/NvsFlex/NvsFlexTester.h
 #pragma once
 
 #include "../../Modules/Module/Module.h"
@@ -16,24 +16,24 @@
 #include <string_view>
 
 
-struct DataFabricTesterConfig : public ModuleConfig {};
+struct NvsFlexTesterConfig : public ModuleConfig {};
 
 
-// Test module that exercises the DataFabric module (and, through it, the Nvs blob
-// primitives) end to end. Run from the CLI with: $df_test run
+// Test module that exercises the Nvs typed-object API (nvs.save / nvs.load) and
+// the FlexData codec end to end. Run from the CLI with: $flex_test run
 //
-// Method bodies live in DataFabricTester.cpp so they see the complete
-// ModuleController type (they dereference controller.data_fabric / controller.nvs
-// / controller.serial_port). Here we only forward-declare ModuleController (via
-// Module.h). Test structs are defined at file scope in the .cpp.
-class DataFabricTester : public Module {
+// Method bodies live in NvsFlexTester.cpp so they see the complete
+// ModuleController type (they dereference controller.nvs / controller.serial_port).
+// Here we only forward-declare ModuleController (via Module.h). Test structs are
+// defined at file scope in the .cpp.
+class NvsFlexTester : public Module {
 public:
-    explicit DataFabricTester(ModuleController& controller);
+    explicit NvsFlexTester(ModuleController& controller);
 
 private:
     // All test data lives under this namespace so real module data is never
     // touched; it is wiped before and after a run.
-    static constexpr const char* kNs = "df_test";
+    static constexpr const char* kNs = "flex_test";
 
     int m_pass = 0;
     int m_fail = 0;

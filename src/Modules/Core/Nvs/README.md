@@ -1,103 +1,216 @@
+# Nvs
+
+The `Nvs` module owns all persistence to the ESP32 NVS flash partition. It offers
+three layers, smallest to largest:
+
+1. **Scalar records** — `write<T>` / `read<T>` for a single typed value per key.
+2. **Blob records** — `write_blob` / `read_blob` for a raw `std::vector<uint8_t>`.
+3. **Typed objects** — `save<T>` / `load<T>` persist a whole C++ object (any
+   `FlexData<T>`) as one blob, and serve it as JSON on demand via the object's own
+   `FlexData` methods.
+
+`remove` deletes one record; `reset_ns` wipes a namespace; `factory_reset` wipes
+the entire partition.
+
+## Typed objects (FlexData)
+
+Any struct that derives from `FlexData<Derived>` gets object⇄JSON and object⇄blob
+conversion for free — including nested structs and vectors of structs — so a
+module can keep one plain C++ object in RAM and let `Nvs` handle both flash
+storage and the API view.
+
+### Data model
+
+The C++ object in RAM is the single source of truth. JSON is produced on demand
+for the API; the blob is produced on demand for storage. Neither is kept in sync
+continuously — they are derived views.
+
+```
+                    obj.as_json_str() │ obj.update(json)
+        ┌──────────────┐  (on demand)  ┌────────────────────┐ nvs.save() ┌───────────────┐
+        │              │ ─────JSON────► │                    │ ──blob───► │               │
+        │  user / API  │                │   object in RAM    │           │  NVS record   │
+        │              │ ◄────JSON───── │ (source of truth)  │ ◄─blob──── │  (flash)      │
+        └──────────────┘                └────────────────────┘ nvs.load() └───────────────┘
+                    obj.update(json)  │ obj.as_json_str()
+```
+
+* **JSON** (text) is the wire format for the API. Generated only when asked
+  (`as_json_str`) and parsed back with a partial merge (`update` — only keys
+  present in the JSON are overwritten).
+* **Blob** (binary) is the storage format: little-endian, length-prefixed, with a
+  one-byte version at the top level. Much smaller than JSON and cheap to
+  read/write.
+* **NVS** stores exactly one blob per record (`ns` + `key`).
+
+### Components
+
+| File           | Role                                                                                          |
+|----------------|-----------------------------------------------------------------------------------------------|
+| `FlexData.h`   | Pure, controller-free CRTP base. The blob codec + ArduinoJson converters live here.           |
+| `Nvs.h`        | The `Module`. Public API: scalar `write`/`read`, `write_blob`/`read_blob`, typed `save`/`load`, `remove`, `reset_ns`. |
+| `Nvs.tpp`      | Template bodies — `write`/`read`, and `save`/`load` (bridge object⇄blob to `write_blob`/`read_blob`). |
+| `Nvs.cpp`      | Non-template bodies — blob primitives, namespace/partition management.                         |
+
+`FlexData.h` has no dependency on the rest of `Nvs`, so data-defining modules can
+include it just to declare their structs; it only pulls in ArduinoJson in TUs that
+actually use `save`/`load`.
+
+### Authoring a data struct
+
+Derive from `FlexData<Derived>`, give it real typed members, and register them in
+one `static constexpr fields()` tuple. Transient members simply stay out of
+`fields()` — they are never serialized or persisted.
+
 ```cpp
-// Nvs supported types
-// Pattern: write<T>(namespace, key, value) then read<T>(namespace, key, default_value).
-// Notes:
-// - std::string_view and const char* are write input types only; read them back as std::string.
-// - String is available only when Arduino.h is available.
-// - Integral support is width-based: signed/unsigned 1, 2, 4, and 8 byte integer types.
-// - Floating-point values are stored as blobs using sizeof(T).
+#include "../Core/Nvs/FlexData.h"
 
-#include <cstdint>
-#include <string>
-#include <string_view>
+struct LedCfg : FlexData<LedCfg> {
+    uint8_t     brightness = 128;
+    std::string name       = "strip";
 
-#if __has_include(<Arduino.h>)
-#include <Arduino.h>
-#endif
+    static constexpr auto fields() {
+        return std::make_tuple(
+            fld("brightness", &LedCfg::brightness),
+            fld("name",       &LedCfg::name));
+    }
+};
+```
 
-void nvs_supported_type_examples(Nvs& nvs) {
-    // bool
-    nvs.write<bool>("demo", "bool", true);
-    bool bool_value = nvs.read<bool>("demo", "bool", false);
+That is all the struct needs. It now supports the full API below.
 
-    // int8_t
-    nvs.write<int8_t>("demo", "int8", static_cast<int8_t>(-8));
-    int8_t int8_value = nvs.read<int8_t>("demo", "int8", 0);
+### The three flows
 
-    // int16_t
-    nvs.write<int16_t>("demo", "int16", static_cast<int16_t>(-16));
-    int16_t int16_value = nvs.read<int16_t>("demo", "int16", 0);
+```
+        ┌──────────────────────────── object in RAM (LedCfg) ────────────────────────────┐
+        │                                                                                 │
+  JSON  │  cfg.as_json_str()          ──►  {"brightness":128,"name":"strip"}              │
+        │  cfg.update(json)           ◄──  partial merge (only present keys overwritten)  │
+        │                                                                                 │
+  BLOB  │  nvs.save(ns,key,cfg)       ──►  [ver][u8][len|bytes...]  ──►  NVS record       │
+        │  nvs.load(ns,key,cfg)       ◄──  NVS record  ──►  [ver][u8][len|bytes...]       │
+        │                                                                                 │
+  FIELD │  cfg.set_field("name","x")  ──►  one field by name                              │
+        │  cfg.get_field("name")      ◄──  one field as JSON text                         │
+        └─────────────────────────────────────────────────────────────────────────────────┘
+```
 
-    // int32_t
-    nvs.write<int32_t>("demo", "int32", static_cast<int32_t>(-32));
-    int32_t int32_value = nvs.read<int32_t>("demo", "int32", 0);
+#### JSON (API in / out)
 
-    // int64_t
-    nvs.write<int64_t>("demo", "int64", static_cast<int64_t>(-64));
-    int64_t int64_value = nvs.read<int64_t>("demo", "int64", 0);
+```cpp
+std::string json = cfg.as_json_str();          // object -> JSON text
+cfg.update(R"({"brightness":255})");            // JSON -> object (partial merge)
+```
 
-    // uint8_t
-    nvs.write<uint8_t>("demo", "uint8", static_cast<uint8_t>(8));
-    uint8_t uint8_value = nvs.read<uint8_t>("demo", "uint8", 0);
+#### Blob + NVS (persistence)
 
-    // uint16_t
-    nvs.write<uint16_t>("demo", "uint16", static_cast<uint16_t>(16));
-    uint16_t uint16_value = nvs.read<uint16_t>("demo", "uint16", 0);
+```cpp
+nvs.save("led", "cfg", cfg);      // object -> blob -> NVS record
+LedCfg restored;
+if (nvs.load("led", "cfg", restored)) { /* ... */ }  // NVS -> blob -> object
+nvs.remove("led", "cfg");         // delete the record
+```
 
-    // uint32_t
-    nvs.write<uint32_t>("demo", "uint32", static_cast<uint32_t>(32));
-    uint32_t uint32_value = nvs.read<uint32_t>("demo", "uint32", 0);
+`load` returns `false` (and leaves the target untouched) on a missing key or a
+corrupt / version-mismatched blob.
 
-    // uint64_t
-    nvs.write<uint64_t>("demo", "uint64", static_cast<uint64_t>(64));
-    uint64_t uint64_value = nvs.read<uint64_t>("demo", "uint64", 0);
+#### One field by name
 
-    // float
-    nvs.write<float>("demo", "float", 3.14f);
-    float float_value = nvs.read<float>("demo", "float", 0.0f);
+```cpp
+cfg.set_field("name", "kitchen");          // returns false if no such field
+std::string v = cfg.get_field("name");     // "\"kitchen\""  (JSON-encoded)
+```
 
-    // double
-    nvs.write<double>("demo", "double", 6.28);
-    double double_value = nvs.read<double>("demo", "double", 0.0);
+### Nested structs
 
-    // long double
-    nvs.write<long double>("demo", "long_double", static_cast<long double>(9.42));
-    long double long_double_value = nvs.read<long double>("demo", "long_double", 0.0L);
+A field may itself be a `FlexData` struct, or a `std::vector` of them. The codec
+and the JSON converters recurse automatically, so a parent record persists and
+serializes its whole tree in one blob.
 
-    // std::string
-    nvs.write<std::string>("demo", "std_string", std::string("hello"));
-    std::string std_string_value = nvs.read<std::string>("demo", "std_string", "");
+```cpp
+struct ChildCfg : FlexData<ChildCfg> {
+    uint8_t     pin     = 0;
+    std::string command = "";
+    static constexpr auto fields() {
+        return std::make_tuple(fld("pin", &ChildCfg::pin),
+                               fld("command", &ChildCfg::command));
+    }
+};
 
-    // String
-    nvs.write<String>("demo", "string", String("hello"));
-    String string_value = nvs.read<String>("demo", "string", String(""));
+struct ParentCfg : FlexData<ParentCfg> {
+    uint32_t              revision = 0;
+    std::vector<ChildCfg> children;          // vector of nested records
+    static constexpr auto fields() {
+        return std::make_tuple(fld("revision", &ParentCfg::revision),
+                               fld("children", &ParentCfg::children));
+    }
+};
 
-    // std::string_view write, std::string read
-    nvs.write<std::string_view>("demo", "string_view", std::string_view("hello"));
-    std::string string_view_value = nvs.read<std::string>("demo", "string_view", "");
+nvs.save("app", "parent", parent);           // whole tree -> one blob
+```
 
-    // const char* write, std::string read
-    nvs.write<const char*>("demo", "c_string", "hello");
-    std::string c_string_value = nvs.read<std::string>("demo", "c_string", "");
+### Blob format
 
-    // Keep example variables used.
-    (void)bool_value;
-    (void)int8_value;
-    (void)int16_value;
-    (void)int32_value;
-    (void)int64_value;
-    (void)uint8_value;
-    (void)uint16_value;
-    (void)uint32_value;
-    (void)uint64_value;
-    (void)float_value;
-    (void)double_value;
-    (void)long_double_value;
-    (void)std_string_value;
-#if __has_include(<Arduino.h>)
-    (void)string_value;
-#endif
-    (void)string_view_value;
-    (void)c_string_value;
+```
+ top level ── to_blob()
+ ┌──────┬────────────────────────── fields, in fields() order ──────────────────────────┐
+ │ ver  │  arithmetic: raw LE bytes                                                       │
+ │ (u8) │  std::string: [u32 length][raw bytes]                                           │
+ │      │  std::vector<T>: [u32 count][element][element]...                               │
+ │      │  nested FlexData: its fields written in order (no per-element version byte)      │
+ └──────┴─────────────────────────────────────────────────────────────────────────────┘
+```
+
+Only the top-level record carries the version byte; nested structs are written
+field-by-field. Bump `FlexData::kBlobVersion` when a struct's on-disk layout
+changes — `from_blob` rejects a mismatched version rather than misreading old
+data.
+
+### Reusing this from a module
+
+Because `Nvs` is a registered core module (`controller.nvs`), any other module can
+persist its config in a couple of lines:
+
+```cpp
+LedCfg cfg;
+if (!controller.nvs.load("led", "cfg", cfg)) {
+    // first boot: defaults already in cfg, save them
+    controller.nvs.save("led", "cfg", cfg);
 }
+```
+
+See `src/Tests/NvsFlex/NvsFlexTester.cpp` for a full round-trip test suite
+(`$flex_test run`), including the nested-vector path.
+
+## Scalar records
+
+Pattern: `write<T>(namespace, key, value)` then `read<T>(namespace, key, default_value)`.
+
+* `std::string_view` and `const char*` are write input types only; read them back
+  as `std::string`.
+* `String` is available only when `Arduino.h` is available.
+* Integral support is width-based: signed/unsigned 1, 2, 4, and 8 byte types.
+* Floating-point values are stored as blobs using `sizeof(T)`.
+
+```cpp
+nvs.write<bool>("demo", "bool", true);
+bool    b   = nvs.read<bool>("demo", "bool", false);
+
+nvs.write<int32_t>("demo", "int32", -32);
+int32_t i32 = nvs.read<int32_t>("demo", "int32", 0);
+
+nvs.write<uint32_t>("demo", "uint32", 32u);
+uint32_t u32 = nvs.read<uint32_t>("demo", "uint32", 0);
+
+nvs.write<float>("demo", "float", 3.14f);
+float f = nvs.read<float>("demo", "float", 0.0f);
+
+nvs.write<std::string>("demo", "std_string", std::string("hello"));
+std::string s = nvs.read<std::string>("demo", "std_string", "");
+
+// write input types read back as std::string
+nvs.write<std::string_view>("demo", "sv", std::string_view("hello"));
+nvs.write<const char*>("demo", "cstr", "hello");
+std::string sv   = nvs.read<std::string>("demo", "sv", "");
+std::string cstr = nvs.read<std::string>("demo", "cstr", "");
 ```

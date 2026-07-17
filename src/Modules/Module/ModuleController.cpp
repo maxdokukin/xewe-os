@@ -3,7 +3,6 @@
 ModuleController::ModuleController()
   : serial_port(*this)
   , nvs(*this)
-  , data_fabric(*this)
   , system(*this)
   , command_executor(*this)
   , wifi(*this)
@@ -13,7 +12,6 @@ ModuleController::ModuleController()
 {
     register_module(serial_port);
     register_module(nvs);
-    register_module(data_fabric);
     register_module(system);
     register_module(command_executor);
     register_module(wifi);
@@ -24,7 +22,7 @@ ModuleController::ModuleController()
     owned_modules.push_back(std::make_unique<NvsTester>(*this));
     register_module(*owned_modules.back());
 
-    owned_modules.push_back(std::make_unique<DataFabricTester>(*this));
+    owned_modules.push_back(std::make_unique<NvsFlexTester>(*this));
     register_module(*owned_modules.back());
 }
 
@@ -32,7 +30,6 @@ void ModuleController::begin() {
 
     serial_port.begin               (SerialPortConfig       {});
     nvs.begin                       (NvsConfig              {});
-    data_fabric.begin               (DataFabricConfig       {});
     const bool init_setup_flag = !nvs.read<bool>("root", "init_setup_flag");
     system.begin                    (SystemConfig           {});
     command_executor.begin          (CommandExecutorConfig  {});

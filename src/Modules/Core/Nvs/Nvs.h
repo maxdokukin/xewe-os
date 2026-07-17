@@ -63,6 +63,20 @@ public:
     std::vector<uint8_t>        read_blob                   (std::string_view ns,
                                                              std::string_view key);
 
+    // Typed object persistence: T must derive from FlexData<T>. save serializes
+    // the object to its blob and stores it as one record; load reads the record
+    // back. load returns false (leaving out untouched) on a missing key or a
+    // corrupt/version-mismatched blob.
+    template <typename T>
+    bool                        save                        (std::string_view ns,
+                                                             std::string_view key,
+                                                             const T& obj);
+
+    template <typename T>
+    bool                        load                        (std::string_view ns,
+                                                             std::string_view key,
+                                                             T& out);
+
     void                        remove                      (std::string_view ns,
                                                              std::string_view key);
 

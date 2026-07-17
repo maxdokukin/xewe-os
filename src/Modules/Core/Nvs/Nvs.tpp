@@ -11,6 +11,8 @@
 // src/Modules/Core/Nvs/Nvs.tpp
 #pragma once
 
+#include "FlexData.h"
+
 
 template <typename T>
 bool Nvs::write(std::string_view ns,
@@ -196,4 +198,22 @@ T Nvs::read(std::string_view ns,
     }
 
     return default_value;
+}
+
+
+template <typename T>
+bool Nvs::save(std::string_view ns, std::string_view key, const T& obj) {
+    static_assert(std::is_base_of_v<FlexData<T>, T>,
+                  "Nvs::save<T>() requires T : FlexData<T>.");
+    return write_blob(ns, key, obj.to_blob());
+}
+
+
+template <typename T>
+bool Nvs::load(std::string_view ns, std::string_view key, T& out) {
+    static_assert(std::is_base_of_v<FlexData<T>, T>,
+                  "Nvs::load<T>() requires T : FlexData<T>.");
+    const std::vector<uint8_t> bytes = read_blob(ns, key);
+    if (bytes.empty()) return false;
+    return out.from_blob(bytes);
 }

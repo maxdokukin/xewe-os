@@ -17,7 +17,7 @@ struct ButtonsConfig : public ModuleConfig {};
 
 class Buttons : public Module {
 public:
-    explicit                    Buttons                     (SystemController& controller);
+    explicit                    Buttons                     (ModuleController& controller);
 
     void                        begin_routines_regular      (const ModuleConfig& cfg)       override;
 
@@ -27,7 +27,7 @@ public:
                                                              const bool do_restart=true,
                                                              const bool keep_enabled=true)    override;
 
-    string                      status                      (const bool verbose=false)      const override;
+    std::string                 status                      (const bool verbose=false)      const override;
 
     void                        load_configs                (const std::vector<std::string>& configs);
     bool                        add_button_from_config      (const std::string& config);
@@ -58,8 +58,8 @@ private:
     void                        nvs_clear_all               ();
     std::string                 pin_prefix                  (const std::string& cfg);
 
-    void                        button_add_cli              (std::string_view args);
-    void                        button_remove_cli           (std::string_view args);
+    void                        button_add_cli              (std::span<const std::string> args);
+    void                        button_remove_cli           (std::span<const std::string> args);
 
     std::vector<Button>         buttons;
     bool                        loaded_from_nvs             {false};

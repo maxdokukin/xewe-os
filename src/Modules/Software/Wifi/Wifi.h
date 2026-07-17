@@ -20,7 +20,7 @@ struct WifiConfig : public ModuleConfig {};
 
 class Wifi : public Module {
 public:
-    explicit                    Wifi                        (SystemController& controller);
+    explicit                    Wifi                        (ModuleController& controller);
 
     // optional implementation
     void                        begin_routines_required     (const ModuleConfig& cfg)       override;
@@ -33,7 +33,7 @@ public:
                                                              const bool do_restart=true,
                                                              const bool keep_enabled=true)    override;
 
-    string                      status                      (const bool verbose=false)      const override;
+    std::string                 status                      (const bool verbose=false)      const override;
 
     // other methods
     bool                        connect                     (bool prompt_for_credentials);

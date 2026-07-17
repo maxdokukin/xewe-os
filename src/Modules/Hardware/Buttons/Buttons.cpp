@@ -11,31 +11,31 @@
 
 
 #include "Buttons.h"
-#include "../../../SystemController/SystemController.h"
+#include "../../Module/ModuleController.h"
 
 
-Buttons::Buttons(SystemController& controller)
+Buttons::Buttons(ModuleController& controller)
       : Module(controller,
-               /* module_name         */ "Buttons",
-               /* module_description  */ "Allows to bind CLI cmds to physical buttons",
-               /* nvs_key             */ "btn",
+               /* id                  */ "buttons",
+               /* name                */ "Buttons",
+               /* description         */ "Allows to bind CLI cmds to physical buttons",
                /* requires_init_setup */ false,
                /* can_be_disabled     */ true,
                /* has_cli_cmds        */ true)
 {
-    commands_storage.push_back({
+    commands_storage.push_back(Command{
         "add",
         "Add a button mapping: <pin> \"<$cmd ...>\" [pullup|pulldown] [on_press|on_release|on_change] [debounce_ms]",
-        std::string("$") + lower(module_name) + " add 9 \"$system reboot\" pullup on_press 50",
+        std::string("$") + id + " add 9 \"$system reboot\" pullup on_press 50",
         5,
-        [this](std::string_view args){ button_add_cli(args); }
+        [this](std::span<const std::string> args){ button_add_cli(args); }
     });
-    commands_storage.push_back({
+    commands_storage.push_back(Command{
         "remove",
         "Remove ALL button mappings bound to a specific pin",
-        std::string("$") + lower(module_name) + " remove 9",
+        std::string("$") + id + " remove 9",
         1,
-        [this](std::string_view args){ button_remove_cli(args); }
+        [this](std::span<const std::string> args){ button_remove_cli(args); }
     });
 }
 
@@ -70,7 +70,7 @@ void Buttons::loop () {
                 }
 
                 if (should_trigger) {
-                    controller.command_parser.parse(button.command);
+                    controller.command_executor.parse(button.command);
                 }
             }
         }
@@ -158,7 +158,7 @@ bool Buttons::parse_config_string(const std::string& config, Button& button) {
     if (is_disabled()) return false;
 
     std::string s = config;
-    trim(s);
+    xewe::str::trim(s);
 
     auto sp = s.find(' ');
     if (sp == std::string::npos) return false;
@@ -166,14 +166,14 @@ bool Buttons::parse_config_string(const std::string& config, Button& button) {
         button.pin = static_cast<uint8_t>(std::stoi(s.substr(0, sp)));
     } catch (...) { return false; }
     s = s.substr(sp + 1);
-    trim(s);
+    xewe::str::trim(s);
 
     if (s.empty() || s[0] != '"') return false;
     auto endq = s.find('"', 1);
     if (endq == std::string::npos) return false;
     button.command = s.substr(1, endq - 1);
     s = s.substr(endq + 1);
-    trim(s);
+    xewe::str::trim(s);
 
     std::string type_str = "pullup";
     std::string event_str = "on_press";
@@ -182,12 +182,12 @@ bool Buttons::parse_config_string(const std::string& config, Button& button) {
     if (!s.empty()) {
         sp = s.find(' ');
         if (sp == std::string::npos) { type_str = s; s.clear(); }
-        else { type_str = s.substr(0, sp); s = s.substr(sp + 1); trim(s); }
+        else { type_str = s.substr(0, sp); s = s.substr(sp + 1); xewe::str::trim(s); }
 
         if (!s.empty()) {
             sp = s.find(' ');
             if (sp == std::string::npos) { event_str = s; s.clear(); }
-            else { event_str = s.substr(0, sp); s = s.substr(sp + 1); trim(s); }
+            else { event_str = s.substr(0, sp); s = s.substr(sp + 1); xewe::str::trim(s); }
 
             if (!s.empty()) debounce_str = s;
         }
@@ -217,12 +217,12 @@ bool Buttons::parse_config_string(const std::string& config, Button& button) {
 void Buttons::load_from_nvs() {
     if (is_disabled()) return;
 
-    int btn_count = controller.nvs.read_uint8(nvs_key, "btn_count", 0);
+    int btn_count = controller.nvs.read<uint8_t>(id, "btn_count", 0);
     std::vector<std::string> cfgs;
     cfgs.reserve(btn_count);
     for (int i = 0; i < btn_count; i++) {
         std::string key = "btn_cfg_" + std::to_string(i);
-        std::string s = controller.nvs.read_str(nvs_key, key);
+        std::string s = controller.nvs.read<std::string>(id, key);
         if (!s.empty()) cfgs.emplace_back(std::move(s));
     }
     load_configs(cfgs);
@@ -231,10 +231,10 @@ void Buttons::load_from_nvs() {
 bool Buttons::nvs_has_exact_config(const std::string& config_str) const {
     if (is_disabled()) return false;
 
-    int btn_count = controller.nvs.read_uint8(nvs_key, "btn_count", 0);
+    int btn_count = controller.nvs.read<uint8_t>(id, "btn_count", 0);
     for (int i = 0; i < btn_count; i++) {
         std::string key = "btn_cfg_" + std::to_string(i);
-        std::string existing = controller.nvs.read_str(nvs_key, key);
+        std::string existing = controller.nvs.read<std::string>(id, key);
         if (existing == config_str) return true;
     }
     return false;
@@ -243,7 +243,7 @@ bool Buttons::nvs_has_exact_config(const std::string& config_str) const {
 bool Buttons::nvs_remove_by_pin(const std::string& pin_str) {
     if (is_disabled()) return false;
 
-    int btn_count = controller.nvs.read_uint8(nvs_key, "btn_count", 0);
+    int btn_count = controller.nvs.read<uint8_t>(id, "btn_count", 0);
     std::string prefix = pin_str + " ";
     std::vector<std::string> kept_configs;
     bool found = false;
@@ -251,7 +251,7 @@ bool Buttons::nvs_remove_by_pin(const std::string& pin_str) {
     // Filter out configs matching the pin
     for (int i = 0; i < btn_count; i++) {
         std::string key = "btn_cfg_" + std::to_string(i);
-        std::string cfg = controller.nvs.read_str(nvs_key, key);
+        std::string cfg = controller.nvs.read<std::string>(id, key);
 
         if (cfg.rfind(prefix, 0) == 0) {
             found = true;
@@ -274,21 +274,21 @@ bool Buttons::nvs_remove_by_pin(const std::string& pin_str) {
 void Buttons::nvs_append_config(const std::string& cfg) {
     if (is_disabled()) return;
 
-    int btn_count = controller.nvs.read_uint8(nvs_key, "btn_count", 0);
+    int btn_count = controller.nvs.read<uint8_t>(id, "btn_count", 0);
     std::string key = "btn_cfg_" + std::to_string(btn_count);
-    controller.nvs.write_str(nvs_key, key, cfg);
-    controller.nvs.write_uint8(nvs_key, "btn_count", btn_count + 1);
+    controller.nvs.write<std::string>(id, key, cfg);
+    controller.nvs.write<uint8_t>(id, "btn_count", btn_count + 1);
 }
 
 void Buttons::nvs_clear_all() {
     if (is_disabled()) return;
 
-    int btn_count = controller.nvs.read_uint8(nvs_key, "btn_count", 0);
+    int btn_count = controller.nvs.read<uint8_t>(id, "btn_count", 0);
     for (int i = 0; i < btn_count; i++) {
         std::string key = "btn_cfg_" + std::to_string(i);
-        controller.nvs.remove(nvs_key, key);
+        controller.nvs.remove(id, key);
     }
-    controller.nvs.write_uint8(nvs_key, "btn_count", 0);
+    controller.nvs.write<uint8_t>(id, "btn_count", 0);
 }
 
 std::string Buttons::pin_prefix(const std::string& cfg) {
@@ -300,7 +300,7 @@ std::string Buttons::pin_prefix(const std::string& cfg) {
 }
 
 /* --- CLI handlers (called by ctor-registered lambdas) --- */
-void Buttons::button_add_cli(std::string_view args_sv) {
+void Buttons::button_add_cli(std::span<const std::string> args) {
     if (is_disabled()) return;
 
     if (!is_enabled()) {
@@ -308,30 +308,35 @@ void Buttons::button_add_cli(std::string_view args_sv) {
         return;
     }
 
-    std::string args(args_sv);
-    std::string pin_str = pin_prefix(args);
+    // args = [pin, command, type, event, debounce] (arg_count enforced by the
+    // command dispatcher). The command token is already de-quoted; re-quote it
+    // so the stored config round-trips through parse_config_string().
+    std::string config = args[0] + " \"" + args[1] + "\" "
+                       + args[2] + " " + args[3] + " " + args[4];
+
+    std::string pin_str = pin_prefix(config);
     if (pin_str.empty()) {
         controller.serial_port.print("Error: Invalid add syntax.");
         return;
     }
 
     // Prevent adding the exact same mapping twice
-    if (nvs_has_exact_config(args)) {
+    if (nvs_has_exact_config(config)) {
         std::string msg = "Error: This exact button configuration already exists.";
         controller.serial_port.print(msg);
         return;
     }
 
-    if (add_button_from_config(args)) {
-        nvs_append_config(args);
-        std::string msg = "Successfully added button action: " + args;
+    if (add_button_from_config(config)) {
+        nvs_append_config(config);
+        std::string msg = "Successfully added button action: " + config;
         controller.serial_port.print(msg);
     } else {
         controller.serial_port.print("Error: Invalid button configuration string.");
     }
 }
 
-void Buttons::button_remove_cli(std::string_view args_sv) {
+void Buttons::button_remove_cli(std::span<const std::string> args) {
     if (is_disabled()) return;
 
     if (!is_enabled()) {
@@ -339,8 +344,8 @@ void Buttons::button_remove_cli(std::string_view args_sv) {
         return;
     }
 
-    std::string pin_str(args_sv);
-    trim(pin_str);
+    std::string pin_str = args[0];
+    xewe::str::trim(pin_str);
 
     if (pin_str.empty()) {
         controller.serial_port.print("Error: Invalid pin number provided.");

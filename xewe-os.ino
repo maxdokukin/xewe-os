@@ -1,11 +1,11 @@
-#include "src/SystemController/SystemController.h"
+#include "src/Modules/Module/ModuleController.h"
 
 
-SystemController * os = nullptr;
+ModuleController * os = nullptr;
 
 
 void setup() {
-    os = new SystemController();
+    os = new ModuleController();
     os->begin();
 }
 

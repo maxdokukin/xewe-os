@@ -26,7 +26,7 @@ The project organizes core and optional functionality into independent modules m
   * ESP32-C6
   * ESP32-S3
 * Git
-* A macOS or Linux environment for the provided build scripts
+* A macOS, Linux, or Windows environment for the provided build scripts
 * A compatible browser and USB connection for web flashing
 
 ### Setup
@@ -37,24 +37,55 @@ The project organizes core and optional functionality into independent modules m
    2. Scroll to **Firmware Flasher**
    3. Connect the board and follow the instructions
 
-2. Or build from source:
+2. Or build from source.
 
-```bash
-# clone
-git clone https://githib.com/maxdokukin/xewe-os
-cd xewe-os/build/scripts
+   Clone the repo:
 
-# set up build environment
-./setup_build_enviroment_mac.sh
-OR ./setup_build_enviroment_linux.sh
+   ```bash
+   git clone https://github.com/maxdokukin/xewe-os
+   cd xewe-os
+   ```
 
-# print the port esp is connected to
-ls /dev/cu.*
+   Build scripts are organized by platform under `build/scripts/<platform>/`. Run
+   them from inside that platform folder. `-c` selects the target chip (`c3`, `c6`,
+   or `s3`); pass `-p <port>` to also upload and open the serial monitor (omit it to
+   compile only).
 
-# build: ./build.sh -c <target_chip> -p <port>
-./build.sh -c c3
-OR ./build.sh -c c3 -p /dev/cu.usbmodem11143201
-```
+   **macOS** — `build/scripts/mac/`
+
+   ```bash
+   cd build/scripts/mac
+   ./setup_build_environment.sh                    # one-time: installs arduino-cli, ESP32 core, venv, libraries
+
+   ls /dev/cu.*                                    # find the port the ESP is connected to
+
+   ./build.sh -c c3                                # compile only
+   ./build.sh -c c3 -p /dev/cu.usbmodem11143201    # compile + upload + serial monitor
+   ```
+
+   **Linux** — `build/scripts/linux/`
+
+   ```bash
+   cd build/scripts/linux
+   ./setup_build_environment.sh                    # one-time (apt-based installs)
+
+   ls /dev/ttyUSB* /dev/ttyACM*                    # find the port
+
+   ./build.sh -c c3
+   ./build.sh -c c3 -p /dev/ttyUSB0
+   ```
+
+   **Windows** — `build/scripts/windows/` (PowerShell)
+
+   ```powershell
+   cd build\scripts\windows
+   .\setup_build_environment.ps1                   # one-time (winget installs arduino-cli, Python, Git)
+
+   arduino-cli board list                          # find the COM port (e.g. COM5)
+
+   .\build.ps1 -c c3
+   .\build.ps1 -c c3 -p COM5
+   ```
 
 ## Usage
 
@@ -130,7 +161,7 @@ The system is centered around `SystemController`, which initializes and manages 
 
 For local development:
 
-* Build and upload with `build/scripts/build.sh`
+* Build and upload with the platform build script — `build/scripts/mac/build.sh`, `build/scripts/linux/build.sh`, or `build/scripts/windows/build.ps1`
 * Manage required libraries through `build/libraries/required_libraries.txt`
 * Use `src/Debug.h` to enable module-specific debug logging
 * See `doc/ADDING_A_MODULE.md` for custom module integration

@@ -11,202 +11,212 @@
 
 
 #include "Pins.h"
-#include "../../../SystemController/SystemController.h"
+#include "../../Module/ModuleController.h"
 
 
-Pins::Pins(SystemController& controller)
+Pins::Pins(ModuleController& controller)
       : Module(controller,
-               /* module_name         */ "Pins",
-               /* module_description  */ "Allows direct hardware control (GPIO, ADC, I2C, PWM)",
-               /* nvs_key             */ "pns",
+               /* id                  */ "pins",
+               /* name                */ "Pins",
+               /* description         */ "Allows direct hardware control (GPIO, ADC, I2C, PWM)",
                /* requires_init_setup */ false,
                /* can_be_disabled     */ true,
                /* has_cli_cmds        */ true)
 {
-    commands_storage.push_back({
+    commands_storage.push_back(Command{
         "gpio_read",
         "Read digital logic level. Returns: 0 (GND) or 1 (VCC). Configures pin as INPUT.",
-        "$" + lower(module_name) + " gpio_read <pin>",
+        std::string("$") + id + " gpio_read 9",
         1,
-        [this](string_view args) {
-            int pin = atoi(string(args).c_str());
-            pinMode(pin, INPUT);
-            this->controller.serial_port.print(to_string((int)digitalRead(pin)).c_str(), kCRLF);
-        }
+        [this](std::span<const std::string> args){ gpio_read_cli(args); }
     });
 
-    commands_storage.push_back({
+    commands_storage.push_back(Command{
         "gpio_write",
         "Force pin to logic HIGH (1) or LOW (0). Configures pin as OUTPUT.",
-        "$" + lower(module_name) + " gpio_write <pin> <0|1>",
+        std::string("$") + id + " gpio_write 9 1",
         2,
-        [this](string_view args) {
-            string s(args);
-            auto sp = s.find(' ');
-            if (sp == string::npos) {
-                this->controller.serial_port.print("Error: Missing <pin> or <level>", kCRLF);
-                return;
-            }
-            int pin = atoi(s.substr(0, sp).c_str());
-            int lvl = atoi(s.substr(sp + 1).c_str());
-            pinMode(pin, OUTPUT);
-            digitalWrite(pin, lvl ? HIGH : LOW);
-            this->controller.serial_port.print("ok", kCRLF);
-        }
+        [this](std::span<const std::string> args){ gpio_write_cli(args); }
     });
 
-    commands_storage.push_back({
+    commands_storage.push_back(Command{
         "gpio_toggle",
         "Inverts the current state of a pin (HIGH -> LOW or LOW -> HIGH). Forces OUTPUT mode.",
-        "$" + lower(module_name) + " gpio_toggle <pin>",
+        std::string("$") + id + " gpio_toggle 9",
         1,
-        [this](string_view args) {
-            int pin = atoi(string(args).c_str());
-            pinMode(pin, OUTPUT);
-            int newState = !digitalRead(pin);
-            digitalWrite(pin, newState);
-            this->controller.serial_port.print(to_string(newState).c_str(), kCRLF);
-        }
+        [this](std::span<const std::string> args){ gpio_toggle_cli(args); }
     });
 
-    commands_storage.push_back({
+    commands_storage.push_back(Command{
         "gpio_mode",
         "Set IO mode/resistors. Modes: 'in' (floating), 'out' (push-pull), 'in_pullup' (weak VCC), 'in_pulldown' (weak GND).",
-        "$" + lower(module_name) + " gpio_mode <pin> <in|out|in_pullup|in_pulldown>",
+        std::string("$") + id + " gpio_mode 9 in_pullup",
         2,
-        [this](string_view args) {
-            string s(args);
-            auto sp = s.find(' ');
-            if (sp == string::npos) {
-                this->controller.serial_port.print("Error: Missing <pin> or <mode>", kCRLF);
-                return;
-            }
-            int pin = atoi(s.substr(0, sp).c_str());
-            string m = s.substr(sp + 1);
-
-            if (m == "out") pinMode(pin, OUTPUT);
-            else if (m == "in") pinMode(pin, INPUT);
-#ifdef INPUT_PULLDOWN
-            else if (m == "in_pulldown") pinMode(pin, INPUT_PULLDOWN);
-#endif
-            else if (m == "in_pullup") pinMode(pin, INPUT_PULLUP);
-            else {
-                this->controller.serial_port.print("Valid modes: in | in_pullup | in_pulldown | out", kCRLF);
-                return;
-            }
-            this->controller.serial_port.print("ok", kCRLF);
-        }
+        [this](std::span<const std::string> args){ gpio_mode_cli(args); }
     });
 
-    commands_storage.push_back({
+    commands_storage.push_back(Command{
         "adc_read",
         "Read analog voltage. Returns raw integer (usually 0-4095 for 12-bit).",
-        "$" + lower(module_name) + " adc_read <pin>",
+        std::string("$") + id + " adc_read 4",
         1,
-        [this](string_view args) {
-            int pin = atoi(string(args).c_str());
-            int v = analogRead(pin);
-            this->controller.serial_port.print(to_string(v).c_str(), kCRLF);
-        }
+        [this](std::span<const std::string> args){ adc_read_cli(args); }
     });
 
-    commands_storage.push_back({
+    commands_storage.push_back(Command{
         "pwm_setup",
         "Attach PWM timer. Freq range: 1Hz-40MHz. Bits: 1-16. (ESP32 Core v3+ uses Pins directly).",
-        "$" + lower(module_name) + " pwm_setup <pin> <freq_hz> <res_bits>",
+        std::string("$") + id + " pwm_setup 9 5000 8",
         3,
-        [this](string_view args) {
-            istringstream is{string(args)};
-            int pin;
-            double freq;
-            int bits;
-            // Removed 'ch' from parsing
-            if (!(is >> pin >> freq >> bits)) {
-                this->controller.serial_port.print("Error: Required <PIN> <FREQ> <BITS>", kCRLF);
-                return;
-            }
-
-            // Core v3: ledcAttach(pin, freq, resolution)
-            if (!ledcAttach(static_cast<uint8_t>(pin), static_cast<uint32_t>(freq), static_cast<uint8_t>(bits))) {
-                this->controller.serial_port.print("PWM attachment failed", kCRLF);
-                return;
-            }
-            this->controller.serial_port.print("ok", kCRLF);
-        }
+        [this](std::span<const std::string> args){ pwm_setup_cli(args); }
     });
 
-    commands_storage.push_back({
+    commands_storage.push_back(Command{
         "pwm_write",
         "Set PWM duty cycle on a specific pin. Max value = (2^res_bits) - 1.",
-        "$" + lower(module_name) + " pwm_write <pin> <duty_value>",
+        std::string("$") + id + " pwm_write 9 128",
         2,
-        [this](string_view args) {
-            istringstream is{string(args)};
-            int pin;
-            int duty;
-            // Changed 'ch' to 'pin'
-            if (!(is >> pin >> duty)) {
-                this->controller.serial_port.print("Error: Required <PIN> <DUTY>", kCRLF);
-                return;
-            }
-            // Core v3: ledcWrite(pin, duty)
-            ledcWrite(static_cast<uint8_t>(pin), static_cast<uint32_t>(duty));
-            this->controller.serial_port.print("ok", kCRLF);
-        }
+        [this](std::span<const std::string> args){ pwm_write_cli(args); }
     });
 
-    commands_storage.push_back({
+    commands_storage.push_back(Command{
         "pwm_stop",
-        "Stop PWM on a pin (sets duty 0). Optional argument '1' completely detaches hardware.",
-        "$" + lower(module_name) + " pwm_stop <pin> [detach:0|1]",
-        2,
-        [this](string_view args) {
-            istringstream is{string(args)};
-            int pin;
-            int should_detach = 0;
-
-            if (!(is >> pin)) {
-                this->controller.serial_port.print("Error: Required <PIN>", kCRLF);
-                return;
-            }
-            // Check for optional detach flag
-            is >> should_detach;
-
-            ledcWrite(static_cast<uint8_t>(pin), 0);
-
-            if (should_detach) {
-                ledcDetach(static_cast<uint8_t>(pin));
-            }
-            this->controller.serial_port.print("ok", kCRLF);
-        }
+        "Stop PWM on a pin (sets duty 0) and detaches the hardware timer.",
+        std::string("$") + id + " pwm_stop 9",
+        1,
+        [this](std::span<const std::string> args){ pwm_stop_cli(args); }
     });
 
-    commands_storage.push_back({
+    commands_storage.push_back(Command{
         "i2c_scan",
         "Initializes I2C on specific SDA/SCL pins and scans for devices (0x01 - 0x77).",
-        "$" + lower(module_name) + " i2c_scan <sda_pin> <scl_pin>",
+        std::string("$") + id + " i2c_scan 21 22",
         2,
-        [this](string_view args) {
-            istringstream is{string(args)};
-            int sda, scl;
-            if (!(is >> sda >> scl)) {
-                this->controller.serial_port.print("Error: Required <SDA> <SCL>", kCRLF);
-                return;
-            }
-
-            Wire.begin(sda, scl);
-            int found = 0;
-            for (uint8_t addr = 1; addr < 0x78; ++addr) {
-                Wire.beginTransmission(addr);
-                uint8_t err = Wire.endTransmission();
-                if (err == 0) {
-                    char ln[8];
-                    snprintf(ln, sizeof(ln), "0x%02X", addr);
-                    this->controller.serial_port.print(ln, kCRLF);
-                    found++;
-                }
-            }
-            if (found == 0) this->controller.serial_port.print("No I2C devices found", kCRLF);
-        }
+        [this](std::span<const std::string> args){ i2c_scan_cli(args); }
     });
+}
+
+void Pins::gpio_read_cli(std::span<const std::string> args) {
+    int pin;
+    if (!xewe::str::parse_int(args[0], pin)) {
+        controller.serial_port.print("Error: invalid <pin>");
+        return;
+    }
+    pinMode(pin, INPUT);
+    controller.serial_port.print(std::to_string(static_cast<int>(digitalRead(pin))));
+}
+
+void Pins::gpio_write_cli(std::span<const std::string> args) {
+    int pin, lvl;
+    if (!xewe::str::parse_int(args[0], pin) || !xewe::str::parse_int(args[1], lvl)) {
+        controller.serial_port.print("Error: invalid <pin> or <level>");
+        return;
+    }
+    pinMode(pin, OUTPUT);
+    digitalWrite(pin, lvl ? HIGH : LOW);
+    controller.serial_port.print("ok");
+}
+
+void Pins::gpio_toggle_cli(std::span<const std::string> args) {
+    int pin;
+    if (!xewe::str::parse_int(args[0], pin)) {
+        controller.serial_port.print("Error: invalid <pin>");
+        return;
+    }
+    pinMode(pin, OUTPUT);
+    int new_state = !digitalRead(pin);
+    digitalWrite(pin, new_state);
+    controller.serial_port.print(std::to_string(new_state));
+}
+
+void Pins::gpio_mode_cli(std::span<const std::string> args) {
+    int pin;
+    if (!xewe::str::parse_int(args[0], pin)) {
+        controller.serial_port.print("Error: invalid <pin>");
+        return;
+    }
+    const std::string& m = args[1];
+
+    if      (m == "out") pinMode(pin, OUTPUT);
+    else if (m == "in")  pinMode(pin, INPUT);
+#ifdef INPUT_PULLDOWN
+    else if (m == "in_pulldown") pinMode(pin, INPUT_PULLDOWN);
+#endif
+    else if (m == "in_pullup")   pinMode(pin, INPUT_PULLUP);
+    else {
+        controller.serial_port.print("Valid modes: in | in_pullup | in_pulldown | out");
+        return;
+    }
+    controller.serial_port.print("ok");
+}
+
+void Pins::adc_read_cli(std::span<const std::string> args) {
+    int pin;
+    if (!xewe::str::parse_int(args[0], pin)) {
+        controller.serial_port.print("Error: invalid <pin>");
+        return;
+    }
+    controller.serial_port.print(std::to_string(analogRead(pin)));
+}
+
+void Pins::pwm_setup_cli(std::span<const std::string> args) {
+    uint8_t pin, bits;
+    uint32_t freq;
+    if (!xewe::str::parse_int(args[0], pin) ||
+        !xewe::str::parse_int(args[1], freq) ||
+        !xewe::str::parse_int(args[2], bits)) {
+        controller.serial_port.print("Error: required <pin> <freq_hz> <res_bits>");
+        return;
+    }
+
+    // Core v3: ledcAttach(pin, freq, resolution)
+    if (!ledcAttach(pin, freq, bits)) {
+        controller.serial_port.print("PWM attachment failed");
+        return;
+    }
+    controller.serial_port.print("ok");
+}
+
+void Pins::pwm_write_cli(std::span<const std::string> args) {
+    uint8_t pin;
+    uint32_t duty;
+    if (!xewe::str::parse_int(args[0], pin) || !xewe::str::parse_int(args[1], duty)) {
+        controller.serial_port.print("Error: required <pin> <duty_value>");
+        return;
+    }
+    // Core v3: ledcWrite(pin, duty)
+    ledcWrite(pin, duty);
+    controller.serial_port.print("ok");
+}
+
+void Pins::pwm_stop_cli(std::span<const std::string> args) {
+    uint8_t pin;
+    if (!xewe::str::parse_int(args[0], pin)) {
+        controller.serial_port.print("Error: required <pin>");
+        return;
+    }
+    ledcWrite(pin, 0);
+    ledcDetach(pin);
+    controller.serial_port.print("ok");
+}
+
+void Pins::i2c_scan_cli(std::span<const std::string> args) {
+    int sda, scl;
+    if (!xewe::str::parse_int(args[0], sda) || !xewe::str::parse_int(args[1], scl)) {
+        controller.serial_port.print("Error: required <sda_pin> <scl_pin>");
+        return;
+    }
+
+    Wire.begin(sda, scl);
+    int found = 0;
+    for (uint8_t addr = 1; addr < 0x78; ++addr) {
+        Wire.beginTransmission(addr);
+        if (Wire.endTransmission() == 0) {
+            char ln[8];
+            snprintf(ln, sizeof(ln), "0x%02X", addr);
+            controller.serial_port.print(ln);
+            found++;
+        }
+    }
+    if (found == 0) controller.serial_port.print("No I2C devices found");
 }

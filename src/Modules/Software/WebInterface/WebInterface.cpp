@@ -11,14 +11,14 @@
 // src/Modules/Software/WebInterface/WebInterface.cpp
 
 #include "WebInterface.h"
-#include "../../../SystemController/SystemController.h"
+#include "../../Module/ModuleController.h"
 
 
-WebInterface::WebInterface(SystemController& controller)
+WebInterface::WebInterface(ModuleController& controller)
       : Module(controller,
-               /* module_name         */ "Web_Interface",
-               /* module_description  */ "Allows to interact with other devices on the local network",
-               /* nvs_key             */ "wb",
+               /* id                  */ "web",
+               /* name                */ "Web_Interface",
+               /* description         */ "Allows to interact with other devices on the local network",
                /* requires_init_setup */ false,
                /* can_be_disabled     */ true,
                /* has_cli_cmds        */ true)
@@ -30,7 +30,6 @@ void WebInterface::begin_routines_common (const ModuleConfig& cfg) {
     http_server.begin();
     controller.serial_port.print("Web Interface now available at:\nhttp://" + controller.wifi.get_local_ip());
 }
-
 void WebInterface::loop () {
     if (is_disabled()) return;
     http_server.handleClient();
@@ -82,7 +81,7 @@ void WebInterface::handle_command_request() {
         std::string command_text = http_server.arg("c").c_str();
 
         controller.serial_port.print("Got cmd from web: \n" + command_text);
-        controller.command_parser.parse(command_text);
+        controller.command_executor.parse(command_text);
 
         http_server.send(200, "text/plain", "OK");
     } else {

@@ -10,24 +10,25 @@
 // src/Modules/Software/WebInterface/WebInterface.h
 #pragma once
 
-#include "../../Module/Module.h"
-
 #include <WebServer.h>
 #include <string>
 #include <sstream>
 #include <iomanip>
+
+#include "../../Module/Module.h"
+#include "../Wifi/Wifi.h"
 
 struct WebInterfaceConfig : public ModuleConfig {};
 
 
 class WebInterface : public Module {
 public:
-    explicit                    WebInterface                (SystemController& controller);
+    explicit                    WebInterface                (ModuleController& controller);
 
     void                        begin_routines_common       (const ModuleConfig& cfg)       override;
 
     void                        loop                        ()                              override;
-    string                      status                      (const bool verbose=false)      const override;
+    std::string                 status                      (const bool verbose=false)      const override;
 
     WebServer&                  get_server                  ()                              { return http_server; }
 private:

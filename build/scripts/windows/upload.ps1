@@ -48,7 +48,7 @@ Write-Host "Chip    : $EspId"
 Write-Host "Esptool : $PythonBin -m esptool"
 Write-Host "Flashing merged image at 0x00000000 ..."
 
-& $PythonBin -m esptool --chip $EspId --port $Port --baud $Baud write_flash 0x0 $firmwareBin
+& $PythonBin -m esptool --chip $EspId --port $Port --baud $Baud write-flash 0x0 $firmwareBin
 if ($LASTEXITCODE -ne 0) { Write-Host "[X] Upload failed" -ForegroundColor Red; exit 1 }
 
 Write-Host "Upload complete." -ForegroundColor Green

@@ -70,6 +70,6 @@ ${ESPTOOL_CMD} \
   --chip "${ESPID}" \
   --port "${ESP_PORT}" \
   --baud "${ESP_BAUD}" \
-  write_flash 0x0 "${FIRMWARE_BIN}"
+  write-flash 0x0 "${FIRMWARE_BIN}"
 
 echo "✅ Upload complete."

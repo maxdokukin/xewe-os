@@ -10,12 +10,12 @@
 // src/Modules/Software/System/System.h
 #pragma once
 
-#include "../../Module/Module.h"
-
 #include <esp_system.h>
 #include <esp_chip_info.h>
 #include <esp_mac.h>
 #include <mbedtls/sha256.h>
+
+#include "../../Module/Module.h"
 
 
 struct SystemConfig : public ModuleConfig {};

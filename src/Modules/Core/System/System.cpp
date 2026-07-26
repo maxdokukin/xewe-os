@@ -9,17 +9,16 @@
  *********************************************************************************/
 // src/Modules/Software/System/System.cpp
 
-
 #include "System.h"
 #include "../../Module/ModuleController.h"
 
 
 System::System(ModuleController& controller)
       : Module(controller,
-               /* id                  */ "sys",
+               /* id                  */ "system",
                /* name                */ "System",
                /* description         */ "Stores integral commands and routines",
-               /* requires_init_setup */ true, // this affects global logic, do not set to false
+               /* requires_init_setup */ true,
                /* can_be_disabled     */ false,
                /* has_cli_cmds        */ true) {
 
@@ -195,21 +194,6 @@ System::System(ModuleController& controller)
             );
         }
     });
-
-    commands_storage.push_back(Command{
-        "stack",
-        "Current task stack watermark (words)",
-        std::string("$") + id + " stack",
-        0,
-        [this](std::span<const std::string>) {
-            this->controller.serial_port.print(
-                std::to_string(
-                    static_cast<unsigned>(uxTaskGetStackHighWaterMark(nullptr))
-                ).c_str(),
-                xewe::str::kCRLF
-            );
-        }
-    });
 }
 
 void System::begin_routines_required (const ModuleConfig& cfg) {
@@ -287,7 +271,9 @@ std::string System::status(const bool verbose) const {
     return "System OK";
 }
 
-std::string System::get_device_name () { return controller.nvs.read<std::string>(id, "device_name"); };
+std::string System::get_device_name () {
+    return controller.nvs.read<std::string>(id, "device_name");
+};
 
 void System::restart (uint16_t delay_ms) {
     controller.serial_port.print_header("Rebooting");

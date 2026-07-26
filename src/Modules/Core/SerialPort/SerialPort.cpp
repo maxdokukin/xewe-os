@@ -7,7 +7,8 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
-// src/Modules/SerialPort/SerialPort.cpp
+// src/Modules/Core/SerialPort/SerialPort.cpp
+
 #include "SerialPort.h"
 #include "../../Module/ModuleController.h"
 

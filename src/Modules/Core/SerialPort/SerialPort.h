@@ -7,14 +7,16 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
-// src/Modules/SerialPort/SerialPort.h
-#pragma once
+// src/Modules/Core/SerialPort/SerialPort.h
 
-#include "../../Module/Module.h"
+#pragma once
 
 #include <limits>
 #include <optional>
 #include <cstring>
+
+#include "../../Module/Module.h"
+
 
 struct SerialPortConfig : public ModuleConfig {
     unsigned long baud_rate = 115200;
@@ -23,13 +25,13 @@ struct SerialPortConfig : public ModuleConfig {
 
 class SerialPort : public Module {
 public:
-    explicit                    SerialPort                  (ModuleController& controller);
+    explicit                    SerialPort                  (ModuleController&      controller);
 
     void                        begin_routines_required     (const ModuleConfig&    cfg)                    override;
     void                        loop                        ()                                              override;
-    void                        reset                       (const bool verbose=false,
-                                                             const bool do_restart=true,
-                                                             const bool keep_enabled=true)                  override;
+    void                        reset                       (const bool             verbose=false,
+                                                             const bool             do_restart=true,
+                                                             const bool             keep_enabled=true)      override;
     // printers
     void                        print                       (std::string_view       message                 = {},
                                                              std::string_view       end                     = xewe::str::kCRLF,
@@ -50,93 +52,102 @@ public:
                                                              const char*            fmt,
                                                              ...
                                                             );
-    void                        printf                      (const char* fmt,
+    void                        printf                      (const char*            fmt,
                                                              ...
                                                             );
     void                        print_separator             (const uint16_t         total_width             = 50,
-                                                             std::string_view            fill                    = "-",
-                                                             std::string_view            edge_character          = "+"
+                                                             std::string_view       fill                    = "-",
+                                                             std::string_view       edge_character          = "+"
                                                             );
     void                        print_spacer                (const uint16_t         total_width             = 50,
-                                                             std::string_view            edge_character          = {}
+                                                             std::string_view       edge_character          = {}
                                                             );
-    void                        print_header                (std::string_view            message,
+    void                        print_header                (std::string_view       message,
                                                              const uint16_t         total_width             = 50,
-                                                             std::string_view            edge_character          = "|",
-                                                             std::string_view            cross_edge_character    = "+",
-                                                             std::string_view            sep_fill                = "-"
+                                                             std::string_view       edge_character          = "|",
+                                                             std::string_view       cross_edge_character    = "+",
+                                                             std::string_view       sep_fill                = "-"
                                                             );
-    void                        print_table                 (const std::vector<std::vector<std::string_view>>& table,
-                                                             std::string_view            header_content          = {},
+    void                        print_table                 (const std::vector<std::vector<std::string_view>>&
+                                                                                    table,
+                                                             std::string_view       header_content          = {},
                                                              const uint16_t         max_col_width           = 30,
-                                                             std::string_view            edge_character          = "|",
-                                                             std::string_view            cross_edge_character    = "+",
-                                                             std::string_view            sep_fill                = "-"
+                                                             std::string_view       edge_character          = "|",
+                                                             std::string_view       cross_edge_character    = "+",
+                                                             std::string_view       sep_fill                = "-"
                                                             );
 
     // getters
-    std::string                 get_string                  (std::string_view            prompt                  = {},
+    std::string                 get_string                  (std::string_view       prompt                  = {},
                                                              const uint16_t         min_length              = 0,
                                                              const uint16_t         max_length              = 0,
                                                              const uint16_t         retry_count             = 0,
                                                              const uint32_t         timeout_ms              = 0,
-                                                             std::string_view            default_value           = {},
-                                                             std::optional<std::reference_wrapper<bool>> success_sink = std::nullopt
+                                                             std::string_view       default_value           = {},
+                                                             std::optional<std::reference_wrapper<bool>>
+                                                                                    success_sink            = std::nullopt
                                                             );
-    int                         get_int                     (std::string_view            prompt                  = {},
+    int                         get_int                     (std::string_view       prompt                  = {},
                                                              const int              min_value               = std::numeric_limits<int>::min(),
                                                              const int              max_value               = std::numeric_limits<int>::max(),
                                                              const uint16_t         retry_count             = 0,
                                                              const uint32_t         timeout_ms              = 0,
                                                              const int              default_value           = 0,
-                                                             std::optional<std::reference_wrapper<bool>> success_sink = std::nullopt
+                                                             std::optional<std::reference_wrapper<bool>>
+                                                                                    success_sink            = std::nullopt
                                                             );
-    uint8_t                     get_uint8                   (std::string_view            prompt                  = {},
+    uint8_t                     get_uint8                   (std::string_view       prompt                  = {},
                                                              const uint8_t          min_value               = std::numeric_limits<uint8_t>::min(),
                                                              const uint8_t          max_value               = std::numeric_limits<uint8_t>::max(),
                                                              const uint16_t         retry_count             = 0,
                                                              const uint32_t         timeout_ms              = 0,
                                                              const uint8_t          default_value           = 0,
-                                                             std::optional<std::reference_wrapper<bool>> success_sink = std::nullopt
+                                                             std::optional<std::reference_wrapper<bool>>
+                                                                                    success_sink            = std::nullopt
                                                             );
-    uint16_t                    get_uint16                  (std::string_view            prompt                  = {},
+    uint16_t                    get_uint16                  (std::string_view       prompt                  = {},
                                                              const uint16_t         min_value               = std::numeric_limits<uint16_t>::min(),
                                                              const uint16_t         max_value               = std::numeric_limits<uint16_t>::max(),
                                                              const uint16_t         retry_count             = 0,
                                                              const uint32_t         timeout_ms              = 0,
                                                              const uint16_t         default_value           = 0,
-                                                             std::optional<std::reference_wrapper<bool>> success_sink = std::nullopt
+                                                             std::optional<std::reference_wrapper<bool>>
+                                                                                    success_sink            = std::nullopt
                                                             );
-    uint32_t                    get_uint32                  (std::string_view            prompt                  = {},
+    uint32_t                    get_uint32                  (std::string_view       prompt                  = {},
                                                              const uint32_t         min_value               = std::numeric_limits<uint32_t>::min(),
                                                              const uint32_t         max_value               = std::numeric_limits<uint32_t>::max(),
                                                              const uint16_t         retry_count             = 0,
                                                              const uint32_t         timeout_ms              = 0,
                                                              const uint32_t         default_value           = 0,
-                                                             std::optional<std::reference_wrapper<bool>> success_sink = std::nullopt
+                                                             std::optional<std::reference_wrapper<bool>>
+                                                                                    success_sink            = std::nullopt
                                                             );
-    float                       get_float                   (std::string_view            prompt                  = {},
+    float                       get_float                   (std::string_view       prompt                  = {},
                                                              const float            min_value               = -std::numeric_limits<float>::infinity(),
                                                              const float            max_value               = std::numeric_limits<float>::infinity(),
                                                              const uint16_t         retry_count             = 0,
                                                              const uint32_t         timeout_ms              = 0,
                                                              const float            default_value           = 0.0f,
-                                                             std::optional<std::reference_wrapper<bool>> success_sink = std::nullopt
+                                                             std::optional<std::reference_wrapper<bool>>
+                                                                                    success_sink            = std::nullopt
                                                             );
-    bool                        get_yn                      (std::string_view            prompt                  = {},
+    bool                        get_yn                      (std::string_view       prompt                  = {},
                                                              const uint16_t         retry_count             = 0,
                                                              const uint32_t         timeout_ms              = 0,
                                                              const bool             default_value           = false,
-                                                             std::optional<std::reference_wrapper<bool>> success_sink = std::nullopt
+                                                             std::optional<std::reference_wrapper<bool>>
+                                                                                    success_sink            = std::nullopt
                                                             );
-    uint8_t                     get_menu_choice             (std::string_view            prompt                  = {},
-                                                             const std::vector<std::string>   options                 = {},
+    uint8_t                     get_menu_choice             (std::string_view       prompt                  = {},
+                                                             const std::vector<std::string> options         = {},
                                                              const uint8_t          min_value               = std::numeric_limits<uint8_t>::min(),
                                                              const uint8_t          max_value               = std::numeric_limits<uint8_t>::max(),
                                                              const uint16_t         retry_count             = 0,
                                                              const uint32_t         timeout_ms              = 0,
                                                              const uint8_t          default_value           = 0,
-                                                             std::optional<std::reference_wrapper<bool>> success_sink = std::nullopt
+                                                             std::optional<std::reference_wrapper<bool>>
+                                                                                    success_sink            = std::nullopt
                                                             );
     bool                        has_line                    ()                                              const;
     std::string                 read_line                   ();
@@ -173,10 +184,10 @@ private:
                                                              std::optional<std::reference_wrapper<bool>> success_sink
                                                             );
 
-    std::size_t                      input_buffer_pos            = 0;
-    std::size_t                      line_length                 = 0;
+    std::size_t                 input_buffer_pos            = 0;
+    std::size_t                 line_length                 = 0;
     bool                        line_ready                  = false;
-    static constexpr std::size_t     INPUT_BUFFER_SIZE           = 255;
+    static constexpr std::size_t INPUT_BUFFER_SIZE          = 255;
     char                        input_buffer                [INPUT_BUFFER_SIZE] = {};
 };
 

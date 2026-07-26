@@ -7,29 +7,21 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
-
 // src/Modules/Software/CommandExecutor/CommandExecutor.cpp
 
 #include "CommandExecutor.h"
 #include "../../Module/ModuleController.h"
 
-#include <algorithm>
-#include <cctype>
-#include <span>
-#include <string>
-#include <vector>
-
 
 CommandExecutor::CommandExecutor(ModuleController& controller)
       : Module(controller,
                /* id                  */ "cmd",
-               /* name                */ "Command_Parser",
-               /* description         */ "Allows to parse text from the serial port into module command calls with parameters",
+               /* name                */ "Command Executor",
+               /* description         */ "Executes commands",
                /* requires_init_setup */ false,
                /* can_be_disabled     */ false,
                /* has_cli_cmds        */ false)
 {}
-
 
 void CommandExecutor::loop() {
     if (controller.serial_port.has_line()) {
@@ -106,9 +98,7 @@ void CommandExecutor::print_all_commands() const {
 void CommandExecutor::parse(std::string_view input_line) const {
     std::string local = trim_copy(input_line);
 
-    if (local.empty()) {
-        return;
-    }
+    if (local.empty()) return;
 
     if (local[0] != '$') {
         controller.serial_port.print(
@@ -131,9 +121,7 @@ void CommandExecutor::parse(std::string_view input_line) const {
 
     std::vector<std::string> tokens;
 
-    if (!tokenize(local, tokens)) {
-        return;
-    }
+    if (!tokenize(local, tokens)) return;
 
     if (tokens.empty()) {
         controller.serial_port.print(
@@ -296,8 +284,7 @@ std::string CommandExecutor::lower_copy(std::string_view value) {
     return out;
 }
 
-bool CommandExecutor::tokenize(std::string_view input,
-                               std::vector<std::string>& out) const {
+bool CommandExecutor::tokenize(std::string_view input, std::vector<std::string>& out) const {
     out.clear();
 
     std::size_t pos = 0;

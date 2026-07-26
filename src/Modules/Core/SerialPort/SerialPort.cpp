@@ -15,8 +15,8 @@
 
 SerialPort::SerialPort(ModuleController& controller)
     : Module(controller,
-             /* id                  */ "ser",
-             /* name                */ "Serial_Port",
+             /* id                  */ "serial",
+             /* name                */ "Serial Port",
              /* description         */ "Allows to send and receive text messages over the USB wire",
              /* requires_init_setup */ false,
              /* can_be_disabled     */ false,

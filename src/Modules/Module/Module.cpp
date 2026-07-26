@@ -18,7 +18,7 @@ void Module::begin (const ModuleConfig& cfg) {
     enabled = first_boot || controller.nvs.read<bool>(id, "is_enabled");
 
     if (can_be_disabled || requires_init_setup) {
-         controller.serial_port.print_header(xewe::str::capitalize(name) + " Setup");
+         controller.serial_port.print_header(name + " Setup");
     }
 
     if (is_disabled(true)) return;
@@ -33,7 +33,7 @@ void Module::begin (const ModuleConfig& cfg) {
 
     if (first_boot) {
         if (can_be_disabled) {
-            controller.serial_port.print_header(std::string("Would you like to enable ") + xewe::str::capitalize(name) + " module?\n\n" + description);
+            controller.serial_port.print_header(std::string("Would you like to enable ") + name + " module?\n\n" + description);
             enabled = controller.serial_port.get_yn();
 
             if (!enabled) {
@@ -170,7 +170,7 @@ bool Module::is_enabled(bool verbose) const {
 bool Module::is_disabled(bool verbose) const {
     if (can_be_disabled) {
         if (verbose && !enabled)
-            Serial.printf("%s module disabled; to enable:\n$%s enable\n", name.c_str(), xewe::str::lower(name).c_str());
+            Serial.printf("%s module disabled; to enable:\n$%s enable\n", name.c_str(), id.c_str());
         return !enabled;
     }
     return false;
@@ -253,7 +253,7 @@ bool Module::requirements_enabled(bool verbose) const {
         all_enabled = all_enabled && req_enabled;
         if (!req_enabled && verbose) {
             Serial.printf("%s Module requires %s module; to enable:\n$%s enable\n",
-                          name.c_str(), r->name.c_str(), xewe::str::lower(r->name).c_str());
+                          name.c_str(), r->name.c_str(), r->id.c_str());
         }
     }
     return all_enabled;

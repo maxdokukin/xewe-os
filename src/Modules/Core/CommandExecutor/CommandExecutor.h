@@ -10,13 +10,18 @@
 // src/Modules/Software/CommandExecutor/CommandExecutor.h
 #pragma once
 
-#include "../../Module/Module.h"
-
 #include <string>
 #include <string_view>
 #include <vector>
+#include <algorithm>
+#include <cctype>
+#include <span>
+
+#include "../../Module/Module.h"
+
 
 struct CommandExecutorConfig : public ModuleConfig {};
+
 
 class CommandExecutor : public Module {
 public:
@@ -24,9 +29,9 @@ public:
 
     void                        loop                        ()                              override;
 
-    void                        print_help                  (std::string_view id)    const;
-    void                        print_all_commands          ()                              const;
     void                        parse                       (std::string_view input_line)   const;
+    void                        print_help                  (std::string_view id)           const;
+    void                        print_all_commands          ()                              const;
 
 private:
     static std::string          trim_copy                   (std::string_view value);

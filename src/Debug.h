@@ -7,7 +7,8 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
-// Debug.h
+ // Debug.h
+
 #pragma once
 
 

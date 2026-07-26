@@ -1,4 +1,14 @@
+/*********************************************************************************
+ *  SPDX-License-Identifier: LicenseRef-PolyForm-NC-1.0.0-NoAI
+ *
+ *  Licensed under PolyForm Noncommercial 1.0.0 + No AI Use Addendum v1.0.
+ *  See: LICENSE and LICENSE-NO-AI.md in the project root for full terms.
+ *
+ *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
+ *  https://github.com/maxdokukin/xewe-os
+ *********************************************************************************/
 // src/Modules/Module/Module.h
+
 #pragma once
 
 #include <Arduino.h>
@@ -66,12 +76,16 @@ public:
     Module                                                  (Module&&)                      = delete;
     Module& operator=                                       (Module&&)                      = delete;
 
+    // begin logic
     void                        begin                       (const ModuleConfig& cfg);
     virtual void                begin_routines_required     (const ModuleConfig& cfg);
     virtual void                begin_routines_init         (const ModuleConfig& cfg);
     virtual void                begin_routines_regular      (const ModuleConfig& cfg);
     virtual void                begin_routines_common       (const ModuleConfig& cfg);
 
+    void                        add_requirement             (Module& other);
+
+    // loop and flow logic
     virtual void                loop                        ();
 
     virtual void                enable                      (const bool verbose=false,
@@ -82,21 +96,17 @@ public:
                                                              const bool do_restart=true,
                                                              const bool keep_enabled=true);
 
+    // info
     virtual std::string         status                      (const bool verbose=false)      const;
     bool                        is_enabled                  (const bool verbose=false)      const;
     bool                        is_disabled                 (const bool verbose=false)      const;
     bool                        init_setup_complete         (const bool verbose=false)      const;
-
-    void                        add_requirement             (Module& other);
-
-    std::string_view            get_id                      () const { return id; }
-    std::string_view            get_name                    () const { return name; }
-
     bool                        has_cli_cmds                () const { return has_cli_commands; }
 
-    std::span<const Command>    get_commands                () const {
-        return std::span<const Command>(commands_storage.data(), commands_storage.size());
-    }
+    // getters
+    std::string_view            get_id                      () const { return id; }
+    std::string_view            get_name                    () const { return name; }
+    std::span<const Command>    get_commands                () const;
 
 protected:
     ModuleController&           controller;
@@ -107,7 +117,6 @@ protected:
     bool                        can_be_disabled;
     bool                        requires_init_setup;
     bool                        has_cli_commands;
-
     bool                        enabled;
 
     std::vector<Command>        commands_storage;
@@ -118,7 +127,6 @@ protected:
     void                        run_with_dots               (const std::function<void()>& work,
                                                              uint32_t duration_ms=1000,
                                                              uint32_t dot_interval_ms=200);
-
 
 private:
     std::vector<Module*>        required_modules;

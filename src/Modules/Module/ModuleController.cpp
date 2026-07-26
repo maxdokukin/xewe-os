@@ -1,4 +1,16 @@
+/*********************************************************************************
+ *  SPDX-License-Identifier: LicenseRef-PolyForm-NC-1.0.0-NoAI
+ *
+ *  Licensed under PolyForm Noncommercial 1.0.0 + No AI Use Addendum v1.0.
+ *  See: LICENSE and LICENSE-NO-AI.md in the project root for full terms.
+ *
+ *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
+ *  https://github.com/maxdokukin/xewe-os
+ *********************************************************************************/
+// src/Modules/Module/ModuleController.cpp
+
 #include "ModuleController.h"
+
 
 ModuleController::ModuleController()
   : serial_port(*this)
@@ -19,28 +31,32 @@ ModuleController::ModuleController()
     register_module(buttons);
     register_module(pins);
 
+#if COMPILE_TESTS
     owned_modules.push_back(std::make_unique<NvsTester>(*this));
     register_module(*owned_modules.back());
 
     owned_modules.push_back(std::make_unique<NvsFlexTester>(*this));
     register_module(*owned_modules.back());
+#endif
 }
 
 void ModuleController::begin() {
 
     serial_port.begin               (SerialPortConfig       {});
     nvs.begin                       (NvsConfig              {});
-    const bool init_setup_flag = !nvs.read<bool>("root", "init_setup_flag");
+
+    const bool init_setup_flag =    !nvs.read<bool>("root", "init_setup_flag");
+
     system.begin                    (SystemConfig           {});
     command_executor.begin          (CommandExecutorConfig  {});
 
-    wifi.begin                      (WifiConfig  {});
+    wifi.begin                      (WifiConfig             {});
 
     web_interface.add_requirement   (wifi);
-    web_interface.begin             (WebInterfaceConfig  {});
+    web_interface.begin             (WebInterfaceConfig     {});
 
-    buttons.begin                   (ButtonsConfig  {});
-    pins.begin                      (PinsConfig  {});
+    buttons.begin                   (ButtonsConfig          {});
+    pins.begin                      (PinsConfig             {});
 
     if (init_setup_flag) {
         serial_port.print_header("Initial Setup Complete");
@@ -71,7 +87,7 @@ bool ModuleController::register_module(Module& module) {
 Module* ModuleController::get_module(std::string_view id) {
     auto it = modules.find(std::string(id));
 
-    if (it == modules.end()) { return nullptr; }
+    if (it == modules.end()) return nullptr;
 
     return it->second;
 }
@@ -83,7 +99,7 @@ void ModuleController::send_command(std::span<const std::string> recipients,
     for (const std::string& recipient_id : recipients) {
         Module* recipient = get_module(recipient_id);
 
-        if (recipient == nullptr || recipient->is_disabled()) { continue; }
+        if (recipient == nullptr) continue;
 
         for (const Command& command : recipient->get_commands()) {
             if (command.name != command_name)       { continue; }

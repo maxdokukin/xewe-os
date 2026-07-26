@@ -7,28 +7,8 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
-
-// src/Modules/Core/Nvs/FlexData.h
-//
-// FlexData<Derived>: a CRTP base that gives any struct, for free:
-//   - as_json_str / as_json_doc    object  -> JSON text / tree  (ArduinoJson)
-//   - update(json) / from_json     JSON    -> object            (partial merge / construct)
-//   - set_field / get_field        access one field BY NAME
-//   - to_blob() / from_blob()      object <-> compact binary blob (hand-rolled)
-//
-// A Derived struct supplies real typed members plus one static constexpr
-// fields() tuple of fld("name", &Derived::member) entries. A field may itself be
-// a FlexData struct (or a std::vector of them), so a container can hold nested
-// records and get JSON + blob for the whole tree.
-//
-// This header is pure and controller-free: no NVS, no Serial. Persistence to
-// flash lives in the Nvs module (nvs.save() / nvs.load()), which turns to_blob()
-// into an Nvs record. Data-defining modules should include THIS header to declare
-// their structs.
+ // src/Modules/Core/Nvs/FlexData.h
 #pragma once
-
-#include <Arduino.h>
-#include <ArduinoJson.h>
 
 #include <cstdint>
 #include <cstring>
@@ -37,6 +17,8 @@
 #include <tuple>
 #include <type_traits>
 #include <vector>
+#include <Arduino.h>
+#include <ArduinoJson.h>
 
 
 template <typename Derived>

@@ -7,11 +7,9 @@
  *  Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
  *  https://github.com/maxdokukin/xewe-os
  *********************************************************************************/
-
 // src/Modules/Core/Nvs/Nvs.h
-#pragma once
 
-#include "../../Module/Module.h"
+#pragma once
 
 #include <cstddef>
 #include <cstdint>
@@ -19,12 +17,12 @@
 #include <string_view>
 #include <type_traits>
 #include <vector>
-
 #include <Arduino.h>
-
 #include <esp_err.h>
 #include <nvs.h>
 #include <nvs_flash.h>
+
+#include "../../Module/Module.h"
 
 
 struct NvsConfig : public ModuleConfig {};
@@ -38,10 +36,7 @@ public:
                                                              const bool do_restart=true,
                                                              const bool keep_enabled=true) override;
 
-    // Wipe the ENTIRE default NVS partition (every namespace). Use for a true
-    // system-wide factory reset; Nvs::reset() only clears this module's namespace.
-    bool                        factory_reset               ();
-
+    // atomic types
     template <typename T>
     bool                        write                       (std::string_view ns,
                                                              std::string_view key,
@@ -51,35 +46,28 @@ public:
     T                           read                        (std::string_view ns,
                                                              std::string_view key,
                                                              T default_value = T());
-
-    // Variable-length binary blob (one NVS record). Enables persisting an entire
-    // object as a single key instead of sharding it across many keys.
+    // blobs
     bool                        write_blob                  (std::string_view ns,
                                                              std::string_view key,
                                                              const std::vector<uint8_t>& data);
 
-    // Returns empty on a missing key or any read error (callers treat empty as
-    // "not found").
     std::vector<uint8_t>        read_blob                   (std::string_view ns,
                                                              std::string_view key);
 
-    // Typed object persistence: T must derive from FlexData<T>. save serializes
-    // the object to its blob and stores it as one record; load reads the record
-    // back. load returns false (leaving out untouched) on a missing key or a
-    // corrupt/version-mismatched blob.
+    // FlexData
     template <typename T>
-    bool                        save                        (std::string_view ns,
+    bool                        write_flex                  (std::string_view ns,
                                                              std::string_view key,
                                                              const T& obj);
 
     template <typename T>
-    bool                        load                        (std::string_view ns,
+    bool                        read_flex                   (std::string_view ns,
                                                              std::string_view key,
                                                              T& out);
 
+    // removal
     void                        remove                      (std::string_view ns,
                                                              std::string_view key);
-
     void                        reset_ns                    (std::string_view ns);
 
 private:
@@ -100,23 +88,15 @@ private:
         }
     };
 
-    bool                        m_nvs_ready = false;
+    bool                        m_nvs_ready                 = false;
 
     bool                        ensure_ready                ();
-
     esp_err_t                   open_handle                 (std::string_view ns,
                                                              nvs_open_mode_t mode,
                                                              ScopedHandle& scoped);
-
     bool                        commit_and_close            (ScopedHandle& scoped,
-                                                             esp_err_t op_err,
-                                                             const char* op_name,
-                                                             const std::string& storage_key);
+                                                             esp_err_t op_err);
 
-    // Normalizes a namespace or key name to NVS rules: NUL-terminated std::string
-    // with embedded NULs replaced with '_'. Names longer than MAX_KEY_LEN are
-    // REJECTED (returns empty) rather than truncated, since truncation silently
-    // collides distinct names sharing the first MAX_KEY_LEN chars.
     std::string                 sanitize_name               (std::string_view name) const;
 };
 

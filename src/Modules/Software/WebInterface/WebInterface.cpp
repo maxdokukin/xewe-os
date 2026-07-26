@@ -36,7 +36,7 @@ void WebInterface::loop () {
 }
 
 std::string WebInterface::status (const bool verbose) const {
-    if (is_disabled()) return "Disabled";
+    if (is_disabled()) return Module::status(verbose);
 
     std::ostringstream out;
 

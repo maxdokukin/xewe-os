@@ -144,10 +144,10 @@ void NvsFlexTester::run_tests() {
         a.var3 = {5};
         a.var4 = {"p", "q", "r"};
 
-        const bool saved = controller.nvs.save(kNs, "flat", a);
+        const bool saved = controller.nvs.write_flex(kNs, "flat", a);
 
         FlatCfg b;
-        const bool loaded = controller.nvs.load(kNs, "flat", b);
+        const bool loaded = controller.nvs.read_flex(kNs, "flat", b);
         report("save+load round-trip (flat)",
                saved && loaded && a.as_json_str() == b.as_json_str());
     }
@@ -155,7 +155,7 @@ void NvsFlexTester::run_tests() {
     // ---- load on a missing key returns false ------------------------------
     {
         FlatCfg b;
-        const bool loaded = controller.nvs.load(kNs, "no_such_key", b);
+        const bool loaded = controller.nvs.read_flex(kNs, "no_such_key", b);
         report("load missing key -> false", !loaded);
     }
 
@@ -193,10 +193,10 @@ void NvsFlexTester::run_tests() {
         p.children.back().pin = 10;
         p.children.back().command = "$led toggle";
 
-        const bool saved = controller.nvs.save(kNs, "nested", p);
+        const bool saved = controller.nvs.write_flex(kNs, "nested", p);
 
         ParentCfg q;
-        const bool loaded = controller.nvs.load(kNs, "nested", q);
+        const bool loaded = controller.nvs.read_flex(kNs, "nested", q);
 
         const bool structural =
             loaded &&

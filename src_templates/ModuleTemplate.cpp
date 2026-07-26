@@ -11,14 +11,14 @@
 
 
 #include "ModuleName.h"
-#include "../../../SystemController/SystemController.h"
+#include "../Module/SystemController.h" // adjust this path if needed
 
 
 ModuleName::ModuleName(SystemController& controller)
       : Module(controller,
-               /* module_name         */ "",
-               /* module_description  */ "",
-               /* nvs_key             */ "",
+               /* id                  */ "",
+               /* name                */ "",
+               /* description         */ "",
                /* requires_init_setup */ false,
                /* can_be_disabled     */ false,
                /* has_cli_cmds        */ false)

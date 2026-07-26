@@ -10,14 +10,14 @@
 // <filepath from project root>
 #pragma once
 
-#include "../../Module/Module.h"
+#include "../Module/Module.h" // adjust this path if needed
 
 struct ModuleNameConfig : public ModuleConfig {};
 
 
 class ModuleName : public Module {
 public:
-    explicit                    ModuleName                  (SystemController& controller);
+    explicit                    ModuleName                  (ModuleController& controller);
 
     // optional functions, can be overridden; def is Module.cpp
     void                        begin_routines_required     (const ModuleConfig& cfg)       override;

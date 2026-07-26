@@ -10,9 +10,65 @@
 // src/Modules/Hardware/Buttons/Buttons.h
 #pragma once
 
+#include <cstdint>
+#include <span>
+#include <string>
+#include <string_view>
+#include <tuple>
+#include <vector>
+
+#include "../../Core/Nvs/FlexData.h"
 #include "../../Module/Module.h"
 
+
 struct ButtonsConfig : public ModuleConfig {};
+
+
+enum class ButtonInputMode : uint8_t {
+    PULLUP   = 0,
+    PULLDOWN = 1
+};
+
+enum class ButtonTriggerEvent : uint8_t {
+    ON_PRESS   = 0,
+    ON_RELEASE = 1,
+    ON_CHANGE  = 2
+};
+
+struct ButtonData : FlexData<ButtonData> {
+    uint32_t    id                   = 0;
+    uint8_t     pin                  = 0;
+    std::string command;
+    uint32_t    debounce_interval    = 50;
+    uint8_t     type                 = static_cast<uint8_t>(ButtonInputMode::PULLUP);
+    uint8_t     event                = static_cast<uint8_t>(ButtonTriggerEvent::ON_PRESS);
+
+    uint32_t    last_debounce_time   = 0;
+    int         last_steady_state    = 0;
+    int         last_flicker_state   = 0;
+
+    static constexpr auto fields() {
+        return std::make_tuple(
+            fld("id",                &ButtonData::b_id),
+            fld("pin",               &ButtonData::pin),
+            fld("command",           &ButtonData::command),
+            fld("debounce_interval", &ButtonData::debounce_interval),
+            fld("type",              &ButtonData::type),
+            fld("event",             &ButtonData::event)
+        );
+    }
+};
+
+
+struct ButtonsData : FlexData<ButtonsData> {
+    std::vector<ButtonData> buttons;
+
+    static constexpr auto fields() {
+        return std::make_tuple(
+            fld("buttons", &ButtonsData::buttons)
+        );
+    }
+};
 
 
 class Buttons : public Module {
@@ -20,47 +76,28 @@ public:
     explicit                    Buttons                     (ModuleController& controller);
 
     void                        begin_routines_regular      (const ModuleConfig& cfg)       override;
-
     void                        loop                        ()                              override;
 
     void                        reset                       (const bool verbose=false,
                                                              const bool do_restart=true,
-                                                             const bool keep_enabled=true)    override;
+                                                             const bool keep_enabled=true) override;
 
-    std::string                 status                      (const bool verbose=false)      const override;
+    std::string                 status                      (const bool verbose=false) const override;
 
-    void                        load_configs                (const std::vector<std::string>& configs);
-    bool                        add_button_from_config      (const std::string& config);
-    void                        remove_button               (uint8_t pin);
+    void                        add                         (uint8_t pin,
+                                                             std::string command,
+                                                             ButtonInputMode type,
+                                                             ButtonTriggerEvent event,
+                                                             uint32_t debounce_interval);
+    void                        remove                      (button_id) // removes from ram and flushes changes to nvs
+
+    void                        load_from_nvs               (loads all buttons in the ram) // only happens on the system startup
+    void                        save_to_nvs                 (save all buttons in ram) // only happens when there is a new button added/removed
+
 
 private:
-    enum                        InputMode                   { BUTTON_PULLUP, BUTTON_PULLDOWN };
-    enum                        TriggerEvent                { BUTTON_ON_PRESS, BUTTON_ON_RELEASE, BUTTON_ON_CHANGE };
-
-    struct Button {
-        uint32_t b_id;
-        uint8_t pin;
-        std::string command;
-        uint32_t debounce_interval;
-        InputMode type;
-        TriggerEvent event;
-        uint32_t last_debounce_time;
-        int last_steady_state;
-        int last_flicker_state;
-    };
-
-    bool                        parse_config_string         (const std::string& config, Button& button);
-
-    void                        load_from_nvs               ();
-    bool                        nvs_has_exact_config        (const std::string& config_str) const; // <-- Replaced nvs_has_pin
-    bool                        nvs_remove_by_pin           (const std::string& pin_str);
-    void                        nvs_append_config           (const std::string& cfg);
-    void                        nvs_clear_all               ();
-    std::string                 pin_prefix                  (const std::string& cfg);
-
     void                        button_add_cli              (std::span<const std::string> args);
     void                        button_remove_cli           (std::span<const std::string> args);
 
-    std::vector<Button>         buttons;
-    bool                        loaded_from_nvs             {false};
+    ButtonsData                 data;
 };

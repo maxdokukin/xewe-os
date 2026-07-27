@@ -168,4 +168,7 @@ For local development:
 
 ## License
 
-PolyForm Noncommercial 1.0.0 + No AI Use Addendum v1.0
+Copyright (C) 2026 Maxim Dokukin.
+
+This project is licensed under the GNU General Public License
+version 3. See [LICENSE.txt](LICENSE.txt) for the complete license text.

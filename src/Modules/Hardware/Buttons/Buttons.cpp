@@ -90,54 +90,51 @@ void Buttons::reset(const bool verbose, const bool do_restart, const bool keep_e
 std::string Buttons::status(const bool verbose) const {
     if (is_disabled()) return Module::status(verbose);
 
-    const auto mode_name = [](const uint8_t value) {
-        return value == static_cast<uint8_t>(ButtonInputMode::PULL_UP)
-            ? "pullup"
-            : value == static_cast<uint8_t>(ButtonInputMode::PULL_DOWN)
-                ? "pulldown"
-                : "invalid";
-    };
+    const std::string result = std::to_string(data.buttons.size()) + " button(s) active.";
+    if (!verbose || data.buttons.empty()) return result;
 
-    const auto event_name = [](const uint8_t value) {
-        switch (static_cast<ButtonTriggerEvent>(value)) {
-            case ButtonTriggerEvent::ON_PRESS:   return "on_press";
-            case ButtonTriggerEvent::ON_RELEASE: return "on_release";
-            case ButtonTriggerEvent::ON_CHANGE:  return "on_change";
-            default:                             return "invalid";
-        }
-    };
+    std::vector<std::vector<std::string>> cells = {{
+        "ID", "Pin", "Command", "Debounce (ms)", "Type", "Event"
+    }};
 
-    std::ostringstream out;
+    cells.reserve(data.buttons.size() + 1);
 
-    if (data.buttons.empty()) {
-        out << "No buttons are currently active.";
-    } else {
-        out << "--- Active Buttons ---\n";
+    for (const decltype(data.buttons)::value_type& button : data.buttons) {
+        const char* type = "invalid";
+        const char* event = "invalid";
 
-        for (const auto& button : data.buttons) {
-            const bool pressed =
-                button.type == static_cast<uint8_t>(ButtonInputMode::PULL_UP)
-                    ? button.last_steady_state == LOW
-                    : button.last_steady_state == HIGH;
-
-            out << "ID: "             << button.id
-                << ", Pin: "          << static_cast<unsigned>(button.pin)
-                << ", CMD: \""        << button.command << '"'
-                << ", Debounce: "     << button.debounce_interval << " ms"
-                << ", Type: "         << mode_name(button.type) << " (" << static_cast<unsigned>(button.type) << ')'
-                << ", Event: "        << event_name(button.event) << " (" << static_cast<unsigned>(button.event) << ')'
-                << ", Debounce time: "<< button.last_debounce_time
-                << ", Steady: "       << button.last_steady_state
-                << ", Flicker: "      << button.last_flicker_state
-                << ", State: "        << (pressed ? "pressed" : "released")
-                << '\n';
+        switch (static_cast<ButtonInputMode>(button.type)) {
+            case ButtonInputMode::PULL_UP:   type = "pullup";   break;
+            case ButtonInputMode::PULL_DOWN: type = "pulldown"; break;
+            default: break;
         }
 
-        out << "----------------------";
+        switch (static_cast<ButtonTriggerEvent>(button.event)) {
+            case ButtonTriggerEvent::ON_PRESS:   event = "on_press";   break;
+            case ButtonTriggerEvent::ON_RELEASE: event = "on_release"; break;
+            case ButtonTriggerEvent::ON_CHANGE:  event = "on_change";  break;
+            default: break;
+        }
+
+        cells.push_back({
+            std::to_string(button.id),
+            std::to_string(static_cast<unsigned>(button.pin)),
+            button.command,
+            std::to_string(button.debounce_interval),
+            type,
+            event
+        });
     }
 
-    auto result = out.str();
-    if (verbose) controller.serial_port.print(result);
+    std::vector<std::vector<std::string_view>> table;
+    table.reserve(cells.size());
+
+    for (const std::vector<std::string>& row : cells) {
+        table.emplace_back(row.begin(), row.end());
+    }
+
+    controller.serial_port.print_table(table, "Active Buttons");
+
     return result;
 }
 
@@ -307,7 +304,7 @@ void Buttons::button_remove_cli(std::span<const std::string> args) {
 
         if (!exists) {
             controller.serial_port.print(
-                "Error: button ID not found."
+                "Error: button ID not found.\nMake sure you are removing by ID, not by pin."
             );
             return;
         }

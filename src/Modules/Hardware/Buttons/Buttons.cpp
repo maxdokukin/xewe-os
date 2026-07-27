@@ -90,33 +90,54 @@ void Buttons::reset(const bool verbose, const bool do_restart, const bool keep_e
 std::string Buttons::status(const bool verbose) const {
     if (is_disabled()) return Module::status(verbose);
 
-    std::string result;
+    const auto mode_name = [](const uint8_t value) {
+        return value == static_cast<uint8_t>(ButtonInputMode::PULL_UP)
+            ? "pullup"
+            : value == static_cast<uint8_t>(ButtonInputMode::PULL_DOWN)
+                ? "pulldown"
+                : "invalid";
+    };
+
+    const auto event_name = [](const uint8_t value) {
+        switch (static_cast<ButtonTriggerEvent>(value)) {
+            case ButtonTriggerEvent::ON_PRESS:   return "on_press";
+            case ButtonTriggerEvent::ON_RELEASE: return "on_release";
+            case ButtonTriggerEvent::ON_CHANGE:  return "on_change";
+            default:                             return "invalid";
+        }
+    };
+
+    std::ostringstream out;
+
     if (data.buttons.empty()) {
-        result = "No buttons are currently active.";
+        out << "No buttons are currently active.";
     } else {
-    //CHANGE: PRINT AL DATA PER BUTTON AVAILABLE. USE std::string_view controller.serial_port.print_table                 (const std::vector<std::vector<std::string_view>>&
-//                                                                                     table,
-//                                                              std::string_view       header_content          = {},
-//                                                              const uint16_t         max_col_width           = 30,
-//                                                              std::string_view       edge_character          = "|",
-//                                                              std::string_view       cross_edge_character    = "+",
-//                                                              std::string_view       sep_fill                = "-"
-//                                                             );
-        result = "--- Active Buttons ---\n";
+        out << "--- Active Buttons ---\n";
 
         for (const auto& button : data.buttons) {
-            result += "  - ID: " + std::to_string(button.id);
-            result += ", Pin: " + std::to_string(button.pin);
-            result += ", CMD: \"" + button.command + "\"\n";
+            const bool pressed =
+                button.type == static_cast<uint8_t>(ButtonInputMode::PULL_UP)
+                    ? button.last_steady_state == LOW
+                    : button.last_steady_state == HIGH;
+
+            out << "ID: "             << button.id
+                << ", Pin: "          << static_cast<unsigned>(button.pin)
+                << ", CMD: \""        << button.command << '"'
+                << ", Debounce: "     << button.debounce_interval << " ms"
+                << ", Type: "         << mode_name(button.type) << " (" << static_cast<unsigned>(button.type) << ')'
+                << ", Event: "        << event_name(button.event) << " (" << static_cast<unsigned>(button.event) << ')'
+                << ", Debounce time: "<< button.last_debounce_time
+                << ", Steady: "       << button.last_steady_state
+                << ", Flicker: "      << button.last_flicker_state
+                << ", State: "        << (pressed ? "pressed" : "released")
+                << '\n';
         }
 
-        result += "----------------------";
+        out << "----------------------";
     }
 
-    if (verbose) {
-        controller.serial_port.print(result);
-    }
-
+    auto result = out.str();
+    if (verbose) controller.serial_port.print(result);
     return result;
 }
 

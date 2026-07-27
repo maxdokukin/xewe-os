@@ -13,9 +13,11 @@
 #include <cstdint>
 #include <span>
 #include <string>
-#include <string_view>
 #include <tuple>
 #include <vector>
+#include <algorithm>
+#include <limits>
+#include <utility>
 
 #include "../../Core/Nvs/FlexData.h"
 #include "../../Module/Module.h"
@@ -25,9 +27,10 @@ struct ButtonsConfig : public ModuleConfig {};
 
 
 enum class ButtonInputMode : uint8_t {
-    PULLUP   = 0,
-    PULLDOWN = 1
+    PULL_UP   = 0,
+    PULL_DOWN = 1
 };
+
 
 enum class ButtonTriggerEvent : uint8_t {
     ON_PRESS   = 0,
@@ -35,21 +38,23 @@ enum class ButtonTriggerEvent : uint8_t {
     ON_CHANGE  = 2
 };
 
+
 struct ButtonData : FlexData<ButtonData> {
     uint32_t    id                   = 0;
     uint8_t     pin                  = 0;
     std::string command;
     uint32_t    debounce_interval    = 50;
-    uint8_t     type                 = static_cast<uint8_t>(ButtonInputMode::PULLUP);
+    uint8_t     type                 = static_cast<uint8_t>(ButtonInputMode::PULL_UP);
     uint8_t     event                = static_cast<uint8_t>(ButtonTriggerEvent::ON_PRESS);
 
+    // Runtime-only fields. Not persisted.
     uint32_t    last_debounce_time   = 0;
     int         last_steady_state    = 0;
     int         last_flicker_state   = 0;
 
     static constexpr auto fields() {
         return std::make_tuple(
-            fld("id",                &ButtonData::b_id),
+            fld("id",                &ButtonData::id),
             fld("pin",               &ButtonData::pin),
             fld("command",           &ButtonData::command),
             fld("debounce_interval", &ButtonData::debounce_interval),
@@ -75,8 +80,8 @@ class Buttons : public Module {
 public:
     explicit                    Buttons                     (ModuleController& controller);
 
-    void                        begin_routines_regular      (const ModuleConfig& cfg)       override;
-    void                        loop                        ()                              override;
+    void                        begin_routines_regular      (const ModuleConfig& cfg) override;
+    void                        loop                        () override;
 
     void                        reset                       (const bool verbose=false,
                                                              const bool do_restart=true,
@@ -89,11 +94,11 @@ public:
                                                              ButtonInputMode type,
                                                              ButtonTriggerEvent event,
                                                              uint32_t debounce_interval);
-    void                        remove                      (button_id) // removes from ram and flushes changes to nvs
 
-    void                        load_from_nvs               (loads all buttons in the ram) // only happens on the system startup
-    void                        save_to_nvs                 (save all buttons in ram) // only happens when there is a new button added/removed
+    void                        remove                      (uint32_t button_id);
 
+    void                        load_from_nvs               ();
+    void                        save_to_nvs                 ();
 
 private:
     void                        button_add_cli              (std::span<const std::string> args);

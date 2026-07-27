@@ -86,7 +86,7 @@ void Wifi::reset (const bool verbose, const bool do_restart, const bool keep_ena
 }
 
 std::string Wifi::status(bool verbose) const {
-    if (is_disabled()) return "Wifi module disabled";
+    if (is_disabled()) return Module::status(verbose);
 
     DBG_PRINTF(Wifi, "status(verbose=%d)\n", verbose);
     Module::status(verbose);

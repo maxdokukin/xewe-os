@@ -16,7 +16,7 @@
 
 WebInterface::WebInterface(ModuleController& controller)
       : Module(controller,
-               /* id                  */ "web",
+               /* id                  */ "web_interface",
                /* name                */ "Web_Interface",
                /* description         */ "Allows to interact with other devices on the local network",
                /* requires_init_setup */ false,

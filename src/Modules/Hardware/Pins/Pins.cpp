@@ -97,6 +97,8 @@ Pins::Pins(ModuleController& controller)
 }
 
 void Pins::gpio_read_cli(std::span<const std::string> args) {
+    if is_disabled(true) return;
+
     int pin;
     if (!xewe::str::parse_int(args[0], pin)) {
         controller.serial_port.print("Error: invalid <pin>");
@@ -107,6 +109,8 @@ void Pins::gpio_read_cli(std::span<const std::string> args) {
 }
 
 void Pins::gpio_write_cli(std::span<const std::string> args) {
+    if is_disabled(true) return;
+
     int pin, lvl;
     if (!xewe::str::parse_int(args[0], pin) || !xewe::str::parse_int(args[1], lvl)) {
         controller.serial_port.print("Error: invalid <pin> or <level>");
@@ -118,6 +122,8 @@ void Pins::gpio_write_cli(std::span<const std::string> args) {
 }
 
 void Pins::gpio_toggle_cli(std::span<const std::string> args) {
+    if is_disabled(true) return;
+
     int pin;
     if (!xewe::str::parse_int(args[0], pin)) {
         controller.serial_port.print("Error: invalid <pin>");
@@ -130,6 +136,8 @@ void Pins::gpio_toggle_cli(std::span<const std::string> args) {
 }
 
 void Pins::gpio_mode_cli(std::span<const std::string> args) {
+    if is_disabled(true) return;
+
     int pin;
     if (!xewe::str::parse_int(args[0], pin)) {
         controller.serial_port.print("Error: invalid <pin>");
@@ -151,6 +159,8 @@ void Pins::gpio_mode_cli(std::span<const std::string> args) {
 }
 
 void Pins::adc_read_cli(std::span<const std::string> args) {
+    if is_disabled(true) return;
+
     int pin;
     if (!xewe::str::parse_int(args[0], pin)) {
         controller.serial_port.print("Error: invalid <pin>");
@@ -160,6 +170,8 @@ void Pins::adc_read_cli(std::span<const std::string> args) {
 }
 
 void Pins::pwm_setup_cli(std::span<const std::string> args) {
+    if is_disabled(true) return;
+
     uint8_t pin, bits;
     uint32_t freq;
     if (!xewe::str::parse_int(args[0], pin) ||
@@ -178,6 +190,8 @@ void Pins::pwm_setup_cli(std::span<const std::string> args) {
 }
 
 void Pins::pwm_write_cli(std::span<const std::string> args) {
+    if is_disabled(true) return;
+
     uint8_t pin;
     uint32_t duty;
     if (!xewe::str::parse_int(args[0], pin) || !xewe::str::parse_int(args[1], duty)) {
@@ -190,6 +204,8 @@ void Pins::pwm_write_cli(std::span<const std::string> args) {
 }
 
 void Pins::pwm_stop_cli(std::span<const std::string> args) {
+    if is_disabled(true) return;
+
     uint8_t pin;
     if (!xewe::str::parse_int(args[0], pin)) {
         controller.serial_port.print("Error: required <pin>");
@@ -201,6 +217,8 @@ void Pins::pwm_stop_cli(std::span<const std::string> args) {
 }
 
 void Pins::i2c_scan_cli(std::span<const std::string> args) {
+    if is_disabled(true) return;
+
     int sda, scl;
     if (!xewe::str::parse_int(args[0], sda) || !xewe::str::parse_int(args[1], scl)) {
         controller.serial_port.print("Error: required <sda_pin> <scl_pin>");

@@ -77,6 +77,14 @@ public:
                                                              std::string_view       sep_fill                = "-"
                                                             );
 
+    std::string                 render_table                (const std::vector<std::vector<std::string_view>>&
+                                                                                    table,
+                                                             std::string_view       header_content          = {},
+                                                             const uint16_t         max_col_width           = 30,
+                                                             std::string_view       edge_character          = "|",
+                                                             std::string_view       cross_edge_character    = "+",
+                                                             std::string_view       sep_fill                = "-"
+                                                            ) const;
     // getters
     std::string                 get_string                  (std::string_view       prompt                  = {},
                                                              const uint16_t         min_length              = 0,

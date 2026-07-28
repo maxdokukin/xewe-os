@@ -18,7 +18,7 @@ class WebInterface : public Module {
 public:
     explicit                    WebInterface                (ModuleController& controller);
 
-    void                        begin_routines_common       (const ModuleConfig& cfg)       override;
+    void                        begin_routines_regular      (const ModuleConfig& cfg)       override;
 
     void                        loop                        ()                              override;
     std::string                 status                      (const bool verbose=false)      const override;

@@ -11,19 +11,18 @@ WebInterface::WebInterface(ModuleController& controller)
                /* id                  */ "web_interface",
                /* name                */ "Web_Interface",
                /* description         */ "Allows to interact with other devices on the local network",
-               /* requires_init_setup */ false,
-               /* can_be_disabled     */ true,
+               /* requires_init_setup */ true,
+               /* can_be_disabled     */ false,
                /* has_cli_cmds        */ true)
 {}
 
-void WebInterface::begin_routines_common (const ModuleConfig& cfg) {
+void WebInterface::begin_routines_regular (const ModuleConfig& cfg) {
     http_server.on("/", HTTP_GET, std::bind(&WebInterface::serve_main_page, this));
     http_server.on("/cmd", HTTP_GET, std::bind(&WebInterface::handle_command_request, this));
     http_server.begin();
     controller.serial_port.print("Web Interface now available at:\nhttp://" + controller.wifi.get_local_ip());
 }
 void WebInterface::loop () {
-    if (is_disabled()) return;
     http_server.handleClient();
 }
 

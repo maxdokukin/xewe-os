@@ -1,0 +1,4 @@
+Streamlined data storage and access with FlexData.
+More convenient NVS APIs.
+Overall stability and performance improvements.
+

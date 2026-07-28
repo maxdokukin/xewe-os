@@ -5,6 +5,7 @@
 
 #include "../Module/Module.h" // adjust this path if needed
 
+
 struct ModuleNameConfig : public ModuleConfig {};
 
 

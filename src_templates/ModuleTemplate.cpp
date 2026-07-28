@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // <filepath from project root>
 
-
 #include "ModuleName.h"
-#include "../Module/SystemController.h" // adjust this path if needed
+#include "../Module/ModuleController.h" // adjust this path if needed
 
 
-ModuleName::ModuleName(SystemController& controller)
+ModuleName::ModuleName(ModuleController& controller)
       : Module(controller,
                /* id                  */ "",
                /* name                */ "",
@@ -43,16 +42,19 @@ void ModuleName::loop () {
 
 void ModuleName::enable (const bool verbose, const bool do_restart) {
     // do your custom routines here
+    // IMPORTANT after, call the parent method
     return Module::enable(verbose, do_restart);
 }
 
 void ModuleName::disable (const bool verbose, const bool do_restart) {
     // do your custom routines here
+    // IMPORTANT after, call the parent method
     Module::disable(verbose, do_restart);
 }
 
 void ModuleName::reset (const bool verbose, const bool do_restart, const bool keep_enabled) {
     // do your custom routines here
+    // IMPORTANT after, call the parent method
     Module::reset(verbose, do_restart, keep_enabled);
 }
 
@@ -67,7 +69,7 @@ std::string ModuleName::status (const bool verbose) const {
 }
 
 void ModuleName::custom_function () {
-    // make sure to have this, otherwise if other modules call it when disabled, this will lead to undesired bugs.
+    // IMPORTANT: sure to have this line, otherwise if other modules call it when disabled, this will lead to undesired bugs.
     if (is_disabled()) return;
 
     // do your custom routines here

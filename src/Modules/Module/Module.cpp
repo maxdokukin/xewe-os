@@ -14,15 +14,20 @@ void Module::begin (const ModuleConfig& cfg) {
          controller.serial_port.print_header(name + " Setup");
     }
 
-    if (is_disabled(true)) return;
-
     if (!requirements_enabled(true)) {
-        Serial.printf("%s requirements not enabled; skipping\n", name.c_str());
         enabled = false;
         controller.nvs.write<bool>(id, "is_enabled", false);
         controller.nvs.write<bool>(id, "not_first_boot", true);
         return;
+    } else {
+        // if the module was disabled due to inactive requirements, re-enable
+        if (!can_be_disabled) {
+            enabled = true;
+            controller.nvs.write<bool>(id, "is_enabled", true);
+        }
     }
+
+    if (is_disabled(true)) return;
 
     if (first_boot) {
         if (can_be_disabled) {
@@ -59,6 +64,7 @@ void Module::begin_routines_regular(const ModuleConfig&) {}
 void Module::begin_routines_common(const ModuleConfig&) {}
 
 void Module::add_requirement(Module& other) {
+    if (&other == this) return;
     required_modules.push_back(&other);
     other.dependent_modules.push_back(this);
 }
@@ -130,7 +136,7 @@ void Module::reset(const bool verbose, const bool do_restart, const bool keep_en
     controller.nvs.reset_ns(id);
     controller.nvs.write<bool>(id, "not_first_boot", true);
 
-    enabled = !can_be_disabled || keep_enabled;
+    enabled = (!can_be_disabled || keep_enabled) && requirements_enabled();
 
     if (enabled) { // re-enable the module
         controller.nvs.write<bool>(id, "is_enabled", true);
@@ -152,21 +158,23 @@ std::string Module::status(bool verbose) const {
 
 // only print the debug msg if true
 bool Module::is_enabled(bool verbose) const {
-    if (can_be_disabled) {
-        if (verbose && enabled) Serial.printf("%s module enabled\n", name.c_str());
-        return enabled;
-    }
-    return true;
+    if (verbose && enabled) Serial.printf("%s module enabled\n", name.c_str());
+    return enabled;
 }
 
 // only print the debug msg if true
 bool Module::is_disabled(bool verbose) const {
-    if (can_be_disabled) {
-        if (verbose && !enabled)
+    if (verbose && !enabled) {
+        // case 1: requirements are not enabled
+        if (!requirements_enabled()) {
+            Serial.printf("%s module disabled\n", name.c_str());
+            requirements_enabled(true); // this will print list of requirements
+        // case 2: disabled by user
+        } else {
             Serial.printf("%s module disabled; to enable:\n$%s enable\n", name.c_str(), id.c_str());
-        return !enabled;
+        }
     }
-    return false;
+    return !enabled;
 }
 
 bool Module::init_setup_complete (bool verbose) const {
@@ -241,12 +249,19 @@ void Module::run_with_dots(const std::function<void()>& work, uint32_t duration_
 
 bool Module::requirements_enabled(bool verbose) const {
     bool all_enabled = true;
+    bool printed_header = false;
+
     for (auto* r : required_modules) {
-        bool req_enabled = r->is_enabled();
-        all_enabled = all_enabled && req_enabled;
-        if (!req_enabled && verbose) {
-            Serial.printf("%s Module requires %s module; to enable:\n$%s enable\n",
-                          name.c_str(), r->name.c_str(), r->id.c_str());
+        if (r->is_disabled()) {
+            if (!verbose) return false;
+
+            all_enabled = false;
+
+            if (!printed_header) {
+                printed_header = true;
+                Serial.printf("%s module requires:\n", name.c_str());
+            }
+            Serial.printf("%s, use: $%s enable\n", r->name.c_str(), r->id.c_str());
         }
     }
     return all_enabled;

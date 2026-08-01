@@ -12,6 +12,8 @@ ModuleController::ModuleController()
   , command_executor(*this)
   , wifi(*this)
   , web_interface(*this)
+  , time(*this)
+  , scheduler(*this)
   , buttons(*this)
   , pins(*this)
 {
@@ -21,6 +23,8 @@ ModuleController::ModuleController()
     register_module(command_executor);
     register_module(wifi);
     register_module(web_interface);
+    register_module(time);
+    register_module(scheduler);
     register_module(buttons);
     register_module(pins);
 
@@ -47,6 +51,11 @@ void ModuleController::begin() {
 
     web_interface.add_requirement   (wifi);
     web_interface.begin             (WebInterfaceConfig     {});
+
+    time.add_requirement            (wifi);
+    time.begin                      (TimeConfig             {});
+    scheduler.add_requirement       (time);
+    scheduler.begin                 (SchedulerConfig     {});
 
     buttons.begin                   (ButtonsConfig          {});
     pins.begin                      (PinsConfig             {});

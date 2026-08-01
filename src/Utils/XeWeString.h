@@ -1,5 +1,12 @@
-// SPDX-FileCopyrightText: 2026 Maxim Dokukin (maxdokukin.com)
-// SPDX-License-Identifier: GPL-3.0-only
+/*********************************************************************************
+ * SPDX-License-Identifier: LicenseRef-PolyForm-NC-1.0.0-NoAI
+ *
+ * Licensed under PolyForm Noncommercial 1.0.0 + No AI Use Addendum v1.0.
+ * See: LICENSE and LICENSE-NO-AI.md in the project root for full terms.
+ *
+ * Required Notice: Copyright 2025 Maxim Dokukin (https://maxdokukin.com)
+ * https://github.com/maxdokukin/xewe-led-os
+ *********************************************************************************/
 #pragma once
 
 #include <string>
@@ -61,24 +68,42 @@ inline std::string to_hex(const uint8_t* b, size_t n) {
 // Time and Timezone String Helpers
 // --------------------------------------------------------------------------------------
 
-inline bool parse_gmt_offset(std::string_view s, int32_t& bias_minutes) {
+inline bool parse_gmt_offset(std::string_view s, std::string& normalized_gmt) {
     std::string tz = upper(std::string(s));
-    if (tz == "GMT" || tz == "GMT0") { bias_minutes = 0; return true; }
+    if (tz == "GMT" || tz == "GMT0" || tz == "UTC" || tz == "UTC0") {
+        normalized_gmt = "GMT+00:00";
+        return true;
+    }
 
     if (tz.find("GMT") != 0 || tz.length() < 5) return false;
+
     char sign = tz[3];
+    if (sign != '+' && sign != '-') return false;
+
     int h = 0, m = 0;
+    const char* num_part = tz.c_str() + 4;
 
-    if (sscanf(tz.c_str() + 4, "%d:%d", &h, &m) < 1) return false;
-    bias_minutes = (h * 60 + m) * (sign == '-' ? -1 : 1);
-    return bias_minutes >= -840 && bias_minutes <= 840;
-}
+    if (strchr(num_part, ':')) {
+        if (sscanf(num_part, "%d:%d", &h, &m) != 2) return false;
+    } else {
+        int val = 0;
+        if (sscanf(num_part, "%d", &val) != 1) return false;
+        if (tz.length() <= 6) {
+            h = val;
+            m = 0;
+        } else {
+            h = val / 100;
+            m = val % 100;
+        }
+    }
 
-inline std::string format_gmt_offset(int32_t bias_minutes) {
+    if (h < 0 || h > 14 || m < 0 || m >= 60) return false;
+    if (h == 14 && m > 0) return false;
+
     char buf[16];
-    snprintf(buf, sizeof(buf), "GMT%c%02d:%02d",
-             bias_minutes >= 0 ? '+' : '-', std::abs(bias_minutes) / 60, std::abs(bias_minutes) % 60);
-    return std::string(buf);
+    snprintf(buf, sizeof(buf), "GMT%c%02d:%02d", sign, h, m);
+    normalized_gmt = buf;
+    return true;
 }
 
 inline bool parse_day(std::string_view day_str, uint8_t& day_num) {
@@ -98,6 +123,9 @@ inline bool parse_time(std::string_view time_str, uint16_t& minutes) {
     std::string t(time_str);
     if (sscanf(t.c_str(), "%d:%d", &h, &m) == 2) {
         if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+            minutes = static_cast<uint16_t>(h * 60 + m);
+            return true;
+        } else if (h == 24 && m == 0) {
             minutes = static_cast<uint16_t>(h * 60 + m);
             return true;
         }

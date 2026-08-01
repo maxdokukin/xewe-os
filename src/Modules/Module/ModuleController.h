@@ -21,6 +21,9 @@
 #include "../Software/Wifi/Wifi.h"
 #include "../Software/WebInterface/WebInterface.h"
 
+#include "../Software/Time/Time.h"
+#include "../Software/Time/Scheduler/Scheduler.h"
+
 #include "../Hardware/Buttons/Buttons.h"
 #include "../Hardware/Pins/Pins.h"
 
@@ -53,6 +56,9 @@ public:
 
     Wifi                                    wifi;
     WebInterface                            web_interface;
+
+    Time                                    time;
+    Scheduler                               scheduler;
 
     Buttons                                 buttons;
     Pins                                    pins;
